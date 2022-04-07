@@ -1,6 +1,6 @@
 ## LIPO
 
-`lipo` creates Universal Binary aka Fat Binary for macOS.
+`lipo` creates Universal Binary a.k.a Fat Binary for macOS.
 
 This is very useful on CI/CD which does not support macOS.
 

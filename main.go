@@ -1,10 +1,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
+	"github.com/integrii/flaggy"
 	"github.com/konoui/lipo/pkg/lipo"
 )
 
@@ -17,14 +17,23 @@ func fatal(msg string) {
 
 func main() {
 	var out string
-	var create bool
-	fs := flag.NewFlagSet("lipo", flag.ContinueOnError)
-	fs.StringVar(&out, "output", "", "output file")
-	fs.BoolVar(&create, "create", true, "create")
-	if err := fs.Parse(os.Args[1:]); err != nil {
-		fatal(err.Error())
+	create := true
+	in := make([]string, 2)
+
+	flaggy.SetName("lipo")
+	flaggy.SetDescription("create an universal binary for macOS")
+	flaggy.String(&out, "output", "output", "output file")
+	flaggy.Bool(&create, "create", "create", "create flag")
+
+	for idx := range in {
+		required := true
+		if idx > 1 {
+			required = false
+		}
+		flaggy.AddPositionalValue(&in[idx], "input", idx+1, required, "input file")
 	}
 
+	flaggy.Parse()
 	if out == "" {
 		fatal("-output flag is required")
 	}
@@ -32,7 +41,6 @@ func main() {
 		fatal("-create flag is required")
 	}
 
-	in := fs.Args()
 	l := lipo.New(out, in...)
 	if err := l.Create(); err != nil {
 		fatal(err.Error())

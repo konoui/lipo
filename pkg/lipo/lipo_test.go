@@ -19,7 +19,7 @@ func main() {
 }
 `
 
-func TestLipo_Generate(t *testing.T) {
+func TestLipo_Create(t *testing.T) {
 	t.Run("generate", func(t *testing.T) {
 		dir := t.TempDir()
 		mainfile := filepath.Join(dir, "main.go")
