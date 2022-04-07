@@ -18,22 +18,32 @@ func fatal(msg string) {
 func main() {
 	var out string
 	create := true
-	in := make([]string, 2)
+	argIn := make([]string, 4)
 
 	flaggy.SetName("lipo")
 	flaggy.SetDescription("create an universal binary for macOS")
 	flaggy.String(&out, "output", "output", "output file")
 	flaggy.Bool(&create, "create", "create", "create flag")
 
-	for idx := range in {
+	for idx := range argIn {
 		required := true
 		if idx > 1 {
 			required = false
 		}
-		flaggy.AddPositionalValue(&in[idx], "input", idx+1, required, "input file")
+		flaggy.AddPositionalValue(&argIn[idx], "input", idx+1, required, "input file")
 	}
 
 	flaggy.Parse()
+
+	// validate
+	in := make([]string, 0, len(argIn))
+	for idx := range argIn {
+		if argIn[idx] == "" {
+			continue
+		}
+		in = append(in, argIn[idx])
+	}
+
 	if out == "" {
 		fatal("-output flag is required")
 	}

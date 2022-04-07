@@ -8,11 +8,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"unsafe"
 )
 
 const (
-	align = 1 << 14
+	alignBitAmd64 = 12
+	alignBitArm64 = 14
 )
 
 type Lipo struct {
@@ -43,14 +43,25 @@ type input struct {
 	perm fs.FileMode
 }
 
+func (i *input) alignBit() uint32 {
+	if i.hdr.Cpu == macho.CpuArm64 {
+		return alignBitArm64
+	}
+	return alignBitAmd64
+}
+
 func newInputs(paths ...string) ([]*input, error) {
-	inputs := make([]*input, 0, len(paths))
-	for _, bin := range paths {
-		i, err := newInput(bin)
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("no inputs")
+	}
+
+	inputs := make([]*input, len(paths))
+	for idx, path := range paths {
+		in, err := newInput(path)
 		if err != nil {
-			return nil, fmt.Errorf("%v for %s", err, bin)
+			return nil, fmt.Errorf("%v for %s", err, path)
 		}
-		inputs = append(inputs, i)
+		inputs[idx] = in
 	}
 
 	// validate inputs
@@ -83,6 +94,11 @@ func newInput(bin string) (*input, error) {
 		return nil, fmt.Errorf("unsupported magic %#x", f.Magic)
 	}
 
+	// Note CpuPpc64 is not tested
+	if f.Cpu != macho.CpuAmd64 && f.Cpu != macho.CpuArm64 {
+		return nil, fmt.Errorf("unsupported cpu %s", f.Cpu)
+	}
+
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -106,51 +122,65 @@ type fatHeader struct {
 }
 
 type output struct {
-	path           string
-	fatHeader      fatHeader
-	inputPaths     []string
-	fatArchHeaders map[string]macho.FatArchHeader
-	perm           fs.FileMode
+	path       string
+	fatHdr     fatHeader
+	inputPaths []string
+	fatArches  map[string]macho.FatArchHeader
+	perm       fs.FileMode
+}
+
+func (h *fatHeader) size() uint32 {
+	// sizeof(fatHeader) = uint32 * 2
+	sizeofFatHdr := uint32(4 * 2)
+	// sizeof(macho.FatArchHeader) = uint32 * 5
+	sizeofFatArchHdr := uint32(4 * 5)
+	size := sizeofFatHdr + sizeofFatArchHdr*h.narch
+	return size
+}
+
+func align(offset, v uint32) uint32 {
+	return (offset + v - 1) / v * v
 }
 
 func newOutput(path string, inputs []*input) *output {
-	fatHeader := fatHeader{
+	fatHdr := fatHeader{
 		magic: macho.MagicFat,
 		narch: uint32(len(inputs)),
 	}
 
-	fatArchHeaders := make(map[string]macho.FatArchHeader)
-	paths := make([]string, 0, len(inputs))
-	offset := int64(align)
-	for _, i := range inputs {
+	fatArches := make(map[string]macho.FatArchHeader)
+	paths := make([]string, len(inputs))
+	offset := fatHdr.size()
+	for idx, in := range inputs {
+		offset = align(offset, 1<<in.alignBit())
+
 		hdr := macho.FatArchHeader{
-			Cpu:    i.hdr.Cpu,
-			SubCpu: i.hdr.SubCpu,
+			Cpu:    in.hdr.Cpu,
+			SubCpu: in.hdr.SubCpu,
 			Offset: uint32(offset),
-			Size:   uint32(i.size),
-			Align:  align,
+			Size:   uint32(in.size),
+			Align:  in.alignBit(),
 		}
 
-		fatArchHeaders[i.path] = hdr
-		paths = append(paths, i.path)
+		fatArches[in.path] = hdr
+		paths[idx] = in.path
 
-		offset += i.size
-		offset = (offset + align - 1) / align * align
+		offset += uint32(hdr.Size)
 	}
 
 	var perm fs.FileMode
-	for _, i := range inputs {
-		if i.perm > perm {
-			perm = i.perm
+	for _, in := range inputs {
+		if in.perm > perm {
+			perm = in.perm
 		}
 	}
 
 	o := &output{
-		path:           path,
-		fatHeader:      fatHeader,
-		fatArchHeaders: fatArchHeaders,
-		inputPaths:     paths,
-		perm:           perm,
+		path:       path,
+		fatHdr:     fatHdr,
+		fatArches:  fatArches,
+		inputPaths: paths,
+		perm:       perm,
 	}
 
 	return o
@@ -162,34 +192,28 @@ func (o *output) create() (err error) {
 		return err
 	}
 	defer func() {
-		if ferr := out.Close(); ferr != nil {
-			if ferr != nil && err == nil {
-				err = ferr
-			}
+		if ferr := out.Close(); ferr != nil && err == nil {
+			err = ferr
 		}
 	}()
 
 	// write header
 	// see https://cs.opensource.google/go/go/+/refs/tags/go1.18:src/debug/macho/fat.go;l=45
-	if err := binary.Write(out, binary.BigEndian, o.fatHeader); err != nil {
+	if err := binary.Write(out, binary.BigEndian, o.fatHdr); err != nil {
 		return fmt.Errorf("failed to wirte fat header: %w", err)
 	}
 
 	// write headers
 	for _, key := range o.inputPaths {
-		hdr := o.fatArchHeaders[key]
+		hdr := o.fatArches[key]
 		if err := binary.Write(out, binary.BigEndian, hdr); err != nil {
 			return fmt.Errorf("failed to write arch headers: %w", err)
 		}
 	}
 
-	// TODO
-	var fhdr fatHeader
-	var fahdr macho.FatArchHeader
-	size := unsafe.Sizeof(fhdr) + unsafe.Sizeof(fahdr)*uintptr(o.fatHeader.narch)
-	off := uint32(size)
+	off := o.fatHdr.size()
 	for _, path := range o.inputPaths {
-		hdr := o.fatArchHeaders[path]
+		hdr := o.fatArches[path]
 		if off < hdr.Offset {
 			// write empty data for alignment
 			empty := make([]byte, hdr.Offset-off)
@@ -206,7 +230,7 @@ func (o *output) create() (err error) {
 		defer f.Close()
 
 		// write binary data
-		if _, err := io.Copy(out, f); err != nil {
+		if _, err := io.CopyN(out, f, int64(hdr.Size)); err != nil {
 			return fmt.Errorf("failed to write binary data: %w", err)
 		}
 		off += hdr.Size
