@@ -19,7 +19,7 @@ $ sudo mv /tmp/lipo /usr/local/bin
 #### Go Install command
 
 ```
-$ go install github.com/konoui/lipo/pkg/lipo@latest
+$ go install github.com/konoui/lipo@latest
 ```
 
 ### USAGE
