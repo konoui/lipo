@@ -32,7 +32,10 @@ func (l *Lipo) Create() error {
 	if err != nil {
 		return err
 	}
-	out := newOutput(l.out, inputs)
+	out, err := newOutput(l.out, inputs)
+	if err != nil {
+		return err
+	}
 	return out.create()
 }
 
@@ -44,10 +47,10 @@ type input struct {
 }
 
 func (i *input) alignBit() uint32 {
-	if i.hdr.Cpu == macho.CpuArm64 {
-		return alignBitArm64
+	if i.hdr.Cpu == macho.CpuAmd64 {
+		return alignBitAmd64
 	}
-	return alignBitAmd64
+	return alignBitArm64
 }
 
 func newInputs(paths ...string) ([]*input, error) {
@@ -138,11 +141,15 @@ func (h *fatHeader) size() uint32 {
 	return size
 }
 
-func align(offset, v uint32) uint32 {
+func align(offset, v int64) int64 {
 	return (offset + v - 1) / v * v
 }
 
-func newOutput(path string, inputs []*input) *output {
+func validateFatSize(s int64) bool {
+	return s >= 1<<32
+}
+
+func newOutput(path string, inputs []*input) (*output, error) {
 	fatHdr := fatHeader{
 		magic: macho.MagicFat,
 		narch: uint32(len(inputs)),
@@ -150,22 +157,29 @@ func newOutput(path string, inputs []*input) *output {
 
 	fatArches := make(map[string]macho.FatArchHeader)
 	paths := make([]string, len(inputs))
-	offset := fatHdr.size()
+	offset := int64(fatHdr.size())
 	for idx, in := range inputs {
 		offset = align(offset, 1<<in.alignBit())
 
+		// validate adressing boundary since size and offset of fat32 are uint32
+		if validateFatSize(offset) || validateFatSize(in.size) {
+			return nil, fmt.Errorf("exceeds maximum fat32 size at %s", path)
+		}
+
+		hdrOffset := uint32(offset)
+		hdrSize := uint32(in.size)
 		hdr := macho.FatArchHeader{
 			Cpu:    in.hdr.Cpu,
 			SubCpu: in.hdr.SubCpu,
-			Offset: uint32(offset),
-			Size:   uint32(in.size),
+			Offset: hdrOffset,
+			Size:   hdrSize,
 			Align:  in.alignBit(),
 		}
 
 		fatArches[in.path] = hdr
 		paths[idx] = in.path
 
-		offset += uint32(hdr.Size)
+		offset += int64(hdr.Size)
 	}
 
 	var perm fs.FileMode
@@ -183,7 +197,7 @@ func newOutput(path string, inputs []*input) *output {
 		perm:       perm,
 	}
 
-	return o
+	return o, nil
 }
 
 func (o *output) create() (err error) {
