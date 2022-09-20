@@ -167,7 +167,7 @@ func newOutput(path string, inputs []*input) (*output, error) {
 	for idx, in := range inputs {
 		offset = align(offset, 1<<in.alignBit())
 
-		// validate adressing boundary since size and offset of fat32 are uint32
+		// validate addressing boundary since size and offset of fat32 are uint32
 		if validateFatSize(offset) || validateFatSize(in.size) {
 			return nil, fmt.Errorf("exceeds maximum fat32 size at %s", path)
 		}
