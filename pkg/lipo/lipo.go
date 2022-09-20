@@ -125,11 +125,11 @@ type fatHeader struct {
 }
 
 type output struct {
-	path       string
-	fatHdr     fatHeader
-	inputPaths []string
-	fatArches  map[string]macho.FatArchHeader
-	perm       fs.FileMode
+	path           string
+	fatHdr         fatHeader
+	inputPaths     []string
+	fatArchHeaders map[string]macho.FatArchHeader
+	perm           fs.FileMode
 }
 
 func (h *fatHeader) size() uint32 {
@@ -155,7 +155,7 @@ func newOutput(path string, inputs []*input) (*output, error) {
 		narch: uint32(len(inputs)),
 	}
 
-	fatArches := make(map[string]macho.FatArchHeader)
+	fatArchHeaders := make(map[string]macho.FatArchHeader)
 	paths := make([]string, len(inputs))
 	offset := int64(fatHdr.size())
 	for idx, in := range inputs {
@@ -176,7 +176,7 @@ func newOutput(path string, inputs []*input) (*output, error) {
 			Align:  in.alignBit(),
 		}
 
-		fatArches[in.path] = hdr
+		fatArchHeaders[in.path] = hdr
 		paths[idx] = in.path
 
 		offset += int64(hdr.Size)
@@ -190,11 +190,11 @@ func newOutput(path string, inputs []*input) (*output, error) {
 	}
 
 	o := &output{
-		path:       path,
-		fatHdr:     fatHdr,
-		fatArches:  fatArches,
-		inputPaths: paths,
-		perm:       perm,
+		path:           path,
+		fatHdr:         fatHdr,
+		fatArchHeaders: fatArchHeaders,
+		inputPaths:     paths,
+		perm:           perm,
 	}
 
 	return o, nil
@@ -219,7 +219,7 @@ func (o *output) create() (err error) {
 
 	// write headers
 	for _, key := range o.inputPaths {
-		hdr := o.fatArches[key]
+		hdr := o.fatArchHeaders[key]
 		if err := binary.Write(out, binary.BigEndian, hdr); err != nil {
 			return fmt.Errorf("failed to write arch headers: %w", err)
 		}
@@ -227,7 +227,7 @@ func (o *output) create() (err error) {
 
 	off := o.fatHdr.size()
 	for _, path := range o.inputPaths {
-		hdr := o.fatArches[path]
+		hdr := o.fatArchHeaders[path]
 		if off < hdr.Offset {
 			// write empty data for alignment
 			empty := make([]byte, hdr.Offset-off)
