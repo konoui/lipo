@@ -121,7 +121,8 @@ func createFatBin(t *testing.T, gotBin, input1, input2 string) {
 
 func createFatBinWithLipo(t *testing.T, lipoBin, wantBin, input1, input2 string) {
 	t.Helper()
-	cmd := exec.Command(lipoBin, "-create", input1, input2, "-output", wantBin)
+	// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
+	cmd := exec.Command(lipoBin, "-segalign", "x86_64", "2000", "-create", input1, input2, "-output", wantBin)
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("failed to create original fat binary: %v\n %s", err, cmd.String())
 	}

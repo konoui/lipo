@@ -4,7 +4,7 @@ SRC_DIR := ./
 BIN_NAME := lipo
 BINARY := bin/$(BIN_NAME)
 
-GOLANGCI_LINT_VERSION := v1.45.2
+GOLANGCI_LINT_VERSION := v1.49.0
 export GO111MODULE=on
 
 ## Build binaries on your environment

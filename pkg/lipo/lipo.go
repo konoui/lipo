@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	alignBitAmd64 = 12
+	alignBitAmd64 = 13
 	alignBitArm64 = 14
 )
 
