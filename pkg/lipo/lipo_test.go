@@ -113,7 +113,7 @@ func compileCmd(mainfile, binpath, arch string) *exec.Cmd {
 
 func createFatBin(t *testing.T, gotBin, input1, input2 string) {
 	t.Helper()
-	l := lipo.New(gotBin, input1, input2)
+	l := lipo.New(lipo.WithInputs(input1, input2), lipo.WithOutput(gotBin))
 	if err := l.Create(); err != nil {
 		t.Fatalf("failed to create fat bin %v", err)
 	}

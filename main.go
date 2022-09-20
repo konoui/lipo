@@ -51,7 +51,7 @@ func main() {
 		fatal("-create flag is required")
 	}
 
-	l := lipo.New(out, in...)
+	l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
 	if err := l.Create(); err != nil {
 		fatal(err.Error())
 	}

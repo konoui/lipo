@@ -20,23 +20,29 @@ type Lipo struct {
 	out string
 }
 
-func New(out string, in ...string) *Lipo {
-	return &Lipo{
-		out: out,
-		in:  in,
+type Option func(l *Lipo)
+
+func WithInputs(in ...string) Option {
+	return func(l *Lipo) {
+		l.in = in
 	}
 }
 
-func (l *Lipo) Create() error {
-	inputs, err := newInputs(l.in...)
-	if err != nil {
-		return err
+func WithOutput(out string) Option {
+	return func(l *Lipo) {
+		l.out = out
 	}
-	out, err := newOutput(l.out, inputs)
-	if err != nil {
-		return err
+}
+
+func New(opts ...Option) *Lipo {
+	l := &Lipo{}
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		opt(l)
 	}
-	return out.create()
+	return l
 }
 
 type input struct {
