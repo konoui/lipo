@@ -17,6 +17,7 @@ func fatal(msg string) {
 
 func main() {
 	var out string
+	var remove string
 	create := false
 	archs := false
 	argIn := make([]string, 4)
@@ -25,6 +26,7 @@ func main() {
 	flaggy.SetDescription("create an universal binary for macOS")
 	flaggy.String(&out, "output", "output", "output file")
 	flaggy.Bool(&create, "create", "create", "create flag")
+	flaggy.String(&remove, "remove", "remove", "remove <arch>")
 	flaggy.Bool(&archs, "archs", "archs", "show arch")
 
 	for idx := range argIn {
@@ -44,6 +46,17 @@ func main() {
 			continue
 		}
 		in = append(in, argIn[idx])
+	}
+
+	if remove != "" {
+		if out == "" {
+			fatal("-output flag is required")
+		}
+		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
+		if err := l.Remove(remove); err != nil {
+			fatal(err.Error())
+		}
+		return
 	}
 
 	if archs {

@@ -2,20 +2,16 @@ package lipo_test
 
 import (
 	"crypto/sha256"
-	"debug/macho"
 	"encoding/hex"
 	"errors"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sync"
 	"testing"
-
-	"github.com/konoui/lipo/pkg/lipo"
 )
 
-var data = `
+var godata = `
 package main
 
 import "fmt"
@@ -25,110 +21,101 @@ func main() {
 }
 `
 
+type lipoBin struct {
+	bin   string
+	exist bool
+}
+
+type testLipo struct {
+	amd64Bin string
+	arm64Bin string
+	dir      string
+	lipoBin
+	lipoFatBin string
+}
+
+func setup(t *testing.T) *testLipo {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	mainfile := filepath.Join(dir, "main.go")
+	err := os.WriteFile(mainfile, []byte(godata), os.ModePerm)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	amd64Bin := filepath.Join(dir, "amd64")
+	arm64Bin := filepath.Join(dir, "arm64")
+	compile(t, mainfile, amd64Bin, "amd64")
+	compile(t, mainfile, arm64Bin, "arm64")
+
+	lipoFatBin := ""
+	lipoBin := newLipoBin(t)
+	if !lipoBin.skip() {
+		lipoFatBin = filepath.Join(dir, "lipo-fat-bin")
+		lipoBin.createFatBin(t, lipoFatBin, amd64Bin, arm64Bin)
+	}
+
+	return &testLipo{
+		amd64Bin:   amd64Bin,
+		arm64Bin:   arm64Bin,
+		dir:        dir,
+		lipoBin:    lipoBin,
+		lipoFatBin: lipoFatBin,
+	}
+}
+
 func TestLipo_Create(t *testing.T) {
 	t.Run("create", func(t *testing.T) {
-		dir := t.TempDir()
-		mainfile := filepath.Join(dir, "main.go")
-		err := os.WriteFile(mainfile, []byte(data), os.ModePerm)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		amd64 := "amd64"
-		arm64 := "arm64"
-		amd64Bin := filepath.Join(dir, amd64)
-		arm64Bin := filepath.Join(dir, arm64)
-		wg := &sync.WaitGroup{}
-		for _, cmd := range []*exec.Cmd{
-			compileCmd(mainfile, amd64Bin, amd64),
-			compileCmd(mainfile, arm64Bin, arm64),
-		} {
-			cmd := cmd
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if err := cmd.Run(); err != nil {
-					t.Errorf(err.Error())
-				}
-			}()
-		}
-
-		wg.Wait()
+		p := setup(t)
 
 		// check fat file format
-		gotBin := filepath.Join(dir, "out-amd64-arm64-binary")
-		createFatBin(t, gotBin, amd64Bin, arm64Bin)
-		if _, err := macho.OpenFat(gotBin); err != nil {
-			t.Errorf("invalid fat file: %v\n", err)
+		gotBin := filepath.Join(p.dir, "out-amd64-arm64-binary")
+		createFatBin(t, gotBin, p.amd64Bin, p.arm64Bin)
+
+		fatBin := filepath.Join(p.dir, "out-arm64-amd64-binary")
+		createFatBin(t, fatBin, p.arm64Bin, p.amd64Bin)
+		if p.skip() {
+			t.Skip("skip lipo binary test")
 		}
 
-		revBin := filepath.Join(dir, "out-arm64-amd64-binary")
-		createFatBin(t, revBin, arm64Bin, amd64Bin)
-		if _, err := macho.OpenFat(revBin); err != nil {
-			t.Errorf("invalid fat file: %v\n", err)
-		}
-
-		// if lipo bin exists, execute lipo tests
-		lipoBin := lookupLipoBin(t)
-		if lipoBin == "" {
-			t.Skip("lipo binary does not exist")
-		}
-
-		// lipo inspect
-		testLipoDetail(t, lipoBin, gotBin)
-		testLipoDetail(t, lipoBin, revBin)
-
-		// compare my lipo with original lipo
-		wantBin := filepath.Join(dir, "want-binary")
-		createFatBinWithLipo(t, lipoBin, wantBin, amd64Bin, arm64Bin)
-		testSha256Diff(t, wantBin, gotBin)
+		p.lipoDetail(t, gotBin)
+		p.lipoDetail(t, fatBin)
+		diffSha256(t, p.lipoFatBin, gotBin)
 	})
 }
 
-func testLipoDetail(t *testing.T, lipoBin, gotBin string) {
-	t.Helper()
-	cmd := exec.Command(lipoBin, "-detailed_info", gotBin)
-	if err := cmd.Run(); err != nil {
-		t.Errorf("Error lipo -detailed_info: %v\n", err)
-	}
-}
-
-func testSha256Diff(t *testing.T, wantBin, gotBin string) {
+func compile(t *testing.T, mainfile, binPath, arch string) {
 	t.Helper()
 
-	got := calcBinSha256(t, gotBin)
-	want := calcBinSha256(t, wantBin)
-	if want != got {
-		t.Errorf("want %s got %s", want, got)
-	}
-}
-
-func compileCmd(mainfile, binpath, arch string) *exec.Cmd {
 	args := []string{"build", "-o"}
-	args = append(args, binpath, mainfile)
+	args = append(args, binPath, mainfile)
 	cmd := exec.Command("go", args...)
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=darwin", "GOARCH="+arch)
-	return cmd
-}
-
-func createFatBin(t *testing.T, gotBin, input1, input2 string) {
-	t.Helper()
-	l := lipo.New(lipo.WithInputs(input1, input2), lipo.WithOutput(gotBin))
-	if err := l.Create(); err != nil {
-		t.Fatalf("failed to create fat bin %v", err)
-	}
-}
-
-func createFatBinWithLipo(t *testing.T, lipoBin, wantBin, input1, input2 string) {
-	t.Helper()
-	// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
-	cmd := exec.Command(lipoBin, "-segalign", "x86_64", "2000", "-create", input1, input2, "-output", wantBin)
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to create original fat binary: %v\n %s", err, cmd.String())
+		t.Fatal(err)
 	}
 }
 
-func calcBinSha256(t *testing.T, p string) string {
+func diffSha256(t *testing.T, input1, input2 string) {
+	t.Helper()
+
+	got := calcSha256(t, input1)
+	want := calcSha256(t, input2)
+	if want != got {
+		t.Errorf("want %s got %s", want, got)
+		t.Log("dumping detail")
+		b := newLipoBin(t)
+		if b.skip() {
+			return
+		}
+		t.Logf("want:\n%s\n", b.lipoDetail(t, input1))
+		t.Logf("got:\n%s\n", b.lipoDetail(t, input2))
+	}
+}
+
+func calcSha256(t *testing.T, p string) string {
 	t.Helper()
 	f, err := os.Open(p)
 	if err != nil {
@@ -144,14 +131,47 @@ func calcBinSha256(t *testing.T, p string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func lookupLipoBin(t *testing.T) string {
+func newLipoBin(t *testing.T) lipoBin {
 	t.Helper()
-	lipoBin, err := exec.LookPath("lipo")
+	bin, err := exec.LookPath("lipo")
 	if errors.Is(err, exec.ErrNotFound) {
-		return ""
+		return lipoBin{exist: false}
 	}
+
 	if err != nil {
 		t.Fatalf("could not find lipo command %v\n", err)
 	}
-	return lipoBin
+	return lipoBin{exist: true, bin: bin}
+}
+
+func (l *lipoBin) skip() bool {
+	return !l.exist
+}
+
+func (l *lipoBin) lipoDetail(t *testing.T, bin string) string {
+	t.Helper()
+
+	cmd := exec.Command(l.bin, "-detailed_info", bin)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("Error lipo -detailed_info: %v\n", err)
+	}
+	return string(out)
+}
+
+func (l *lipoBin) createFatBin(t *testing.T, out, input1, input2 string) {
+	t.Helper()
+	// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
+	cmd := exec.Command(l.bin, "-segalign", "x86_64", "2000", "-create", input1, input2, "-output", out)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to create original fat binary: %v\n %s", err, cmd.String())
+	}
+}
+
+func (l *lipoBin) removeFatBin(t *testing.T, in, out, arch string) {
+	t.Helper()
+	cmd := exec.Command(l.bin, in, "-remove", arch, "-output", out)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to remove from original fat binary: %v\n %s", err, cmd.String())
+	}
 }

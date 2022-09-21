@@ -33,10 +33,12 @@ func (l *Lipo) Arches() error {
 		if err != nil {
 			return err
 		}
+		defer f.Close()
 
 		fmt.Println(f.Cpu.String())
 		return nil
 	}
+	defer fat.Close()
 
 	cpus := []string{}
 	for _, hdr := range fat.Arches {
