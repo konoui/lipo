@@ -16,8 +16,7 @@ func (l *Lipo) Arches() error {
 		return errors.New("only one input file allowed")
 	}
 
-	in := l.in[0]
-	abs, err := filepath.Abs(in)
+	abs, err := filepath.Abs(l.in[0])
 	if err != nil {
 		return err
 	}
@@ -35,14 +34,14 @@ func (l *Lipo) Arches() error {
 		}
 		defer f.Close()
 
-		fmt.Println(f.Cpu.String())
+		fmt.Println(cpu(f.Cpu.String()))
 		return nil
 	}
 	defer fat.Close()
 
 	cpus := []string{}
 	for _, hdr := range fat.Arches {
-		cpus = append(cpus, hdr.Cpu.String())
+		cpus = append(cpus, cpu(hdr.Cpu.String()))
 	}
 
 	fmt.Println(strings.Join(cpus, " "))
