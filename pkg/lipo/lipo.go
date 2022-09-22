@@ -16,11 +16,18 @@ const (
 )
 
 type Lipo struct {
-	in  []string
-	out string
+	in     []string
+	out    string
+	stdout io.Writer
 }
 
 type Option func(l *Lipo)
+
+func WithStdout(stdout io.Writer) Option {
+	return func(l *Lipo) {
+		l.stdout = stdout
+	}
+}
 
 func WithInputs(in ...string) Option {
 	return func(l *Lipo) {
@@ -35,7 +42,7 @@ func WithOutput(out string) Option {
 }
 
 func New(opts ...Option) *Lipo {
-	l := &Lipo{}
+	l := &Lipo{stdout: os.Stdout}
 	for _, opt := range opts {
 		if opt == nil {
 			continue
@@ -85,21 +92,22 @@ func (fa *fatArch) Close() error {
 	return err
 }
 
-func close(closers []*fatArch) (retErr error) {
+func close(closers []*fatArch) error {
+	msg := ""
 	for _, closer := range closers {
 		err := closer.Close()
 		if err != nil {
-			retErr = fmt.Errorf("%w", err)
+			msg += err.Error()
 		}
 	}
-	if retErr != nil {
-		retErr = fmt.Errorf("Close Error: %w", retErr)
+	if msg != "" {
+		return fmt.Errorf("close errors: %s", msg)
 	}
-	return
+	return nil
 }
 
-func alignBit(cpu macho.Cpu) uint32 {
-	if cpu == macho.CpuAmd64 {
+func alignBit(cpu macho.Cpu, sub uint32) uint32 {
+	if CpuString(cpu, sub) == "x86_64" {
 		return alignBitAmd64
 	}
 	return alignBitArm64
@@ -115,6 +123,9 @@ func validateFatSize(s int64) bool {
 
 func outputFatBinary(p string, perm os.FileMode, fatArches []*fatArch) (err error) {
 	out, err := os.Create(p)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		if cerr := out.Chmod(perm); cerr != nil && err == nil {
 			err = cerr

@@ -8,39 +8,45 @@ import (
 )
 
 func TestLipo_Remove(t *testing.T) {
-	t.Run("remove", func(t *testing.T) {
-		p := setup(t)
+	tests := []struct {
+		name   string
+		inputs []string
+		arches []string
+	}{
+		{
+			name:   "-remove x86_64",
+			inputs: []string{inAmd64, inArm64, "arm64e"},
+			arches: []string{"x86_64"},
+		},
+		{
+			name:   "-remove arm64",
+			inputs: []string{inAmd64, inArm64, "arm64e"},
+			arches: []string{"arm64"},
+		},
+		{
+			name:   "-remove arm64 -remove arm64e",
+			inputs: []string{inAmd64, inArm64, "arm64e"},
+			arches: []string{"arm64", "arm64e"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := setup(t, tt.inputs...)
 
-		got := filepath.Join(p.dir, "got-fat-arm64")
-		arch := "x86_64"
-		l := lipo.New(lipo.WithInputs(p.lipoFatBin), lipo.WithOutput(got))
-		if err := l.Remove(arch); err != nil {
-			t.Errorf("remove error %v\n", err)
-		}
+			got := filepath.Join(p.dir, randName())
+			arches := tt.arches
+			l := lipo.New(lipo.WithInputs(p.fatBin), lipo.WithOutput(got))
+			if err := l.Remove(arches...); err != nil {
+				t.Errorf("remove error %v\n", err)
+			}
 
-		if p.skip() {
-			t.Skip("skip lipo binary tests")
-		}
+			if p.skip() {
+				t.Skip("skip lipo binary tests")
+			}
 
-		want := filepath.Join(p.dir, "want-fat-arm64")
-		p.remove(t, want, p.lipoFatBin, arch)
-		diffSha256(t, want, got)
-
-		// next test
-		// FIXME table tests
-		got = filepath.Join(p.dir, "got-fat-amd64")
-		arch = "arm64"
-		l = lipo.New(lipo.WithInputs(p.lipoFatBin), lipo.WithOutput(got))
-		if err := l.Remove(arch); err != nil {
-			t.Errorf("remove error %v\n", err)
-		}
-
-		if p.skip() {
-			t.Skip("skip lipo binary tests")
-		}
-
-		want = filepath.Join(p.dir, "want-fat-amd64")
-		p.remove(t, want, p.lipoFatBin, arch)
-		diffSha256(t, want, got)
-	})
+			want := filepath.Join(p.dir, randName())
+			p.remove(t, want, p.fatBin, arches)
+			diffSha256(t, want, got)
+		})
+	}
 }

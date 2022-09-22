@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func isSupportedArch(v string) bool {
+func IsSupportedArch(v string) bool {
 	for _, cs := range cpuNames {
 		if cs.v == v {
 			return true
@@ -14,7 +14,16 @@ func isSupportedArch(v string) bool {
 	return false
 }
 
-func cpuString(cpu macho.Cpu, subCpu uint32) string {
+func CpuFrom(v string) (macho.Cpu, uint32, bool) {
+	for _, cs := range cpuNames {
+		if cs.v == v {
+			return macho.Cpu(cs.t), cs.s, true
+		}
+	}
+	return 0, 0, false
+}
+
+func CpuString(cpu macho.Cpu, subCpu uint32) string {
 	maskedSub := (subCpu & ^CpuSubMask)
 	for _, cs := range cpuNames {
 		if cs.t == uint32(cpu) && cs.s == maskedSub {
@@ -57,6 +66,7 @@ var cpuNames = []cpuName{
 	{t: uint32(CpuArm64_32), s: CpuSubArm64_32All, v: "arm64_32"},
 }
 
+// /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach/machine.h
 const cpuArch64 = 0x01000000
 const cpuArch64_32 = 0x02000000
 

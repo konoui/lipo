@@ -14,7 +14,7 @@ func (l *Lipo) Extract(arches ...string) error {
 	}
 
 	for _, arch := range arches {
-		if !isSupportedArch(arch) {
+		if !IsSupportedArch(arch) {
 			return fmt.Errorf("unsupported architecture %s", arch)
 		}
 	}
@@ -31,7 +31,7 @@ func (l *Lipo) Extract(arches ...string) error {
 	perm := info.Mode().Perm()
 
 	fatArches, err := fatArchesFromFatBin(abs, func(hdr *macho.FatArchHeader) bool {
-		s := cpuString(hdr.Cpu, hdr.SubCpu)
+		s := CpuString(hdr.Cpu, hdr.SubCpu)
 		return contain(s, arches)
 	})
 	if err != nil {

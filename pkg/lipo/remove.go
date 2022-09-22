@@ -15,7 +15,7 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 	}
 
 	for _, arch := range arches {
-		if !isSupportedArch(arch) {
+		if !IsSupportedArch(arch) {
 			return fmt.Errorf("unsupported architecture %s", arch)
 		}
 	}
@@ -32,9 +32,10 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 	perm := info.Mode().Perm()
 
 	fatArches, err := fatArchesFromFatBin(abs, func(hdr *macho.FatArchHeader) bool {
-		s := cpuString(hdr.Cpu, hdr.SubCpu)
+		s := CpuString(hdr.Cpu, hdr.SubCpu)
 		return !contain(s, arches)
 	})
+
 	if err != nil {
 		return err
 	}
@@ -89,6 +90,7 @@ func fatArchesFromFatBin(path string, cond func(hdr *macho.FatArchHeader) bool) 
 		offset = align(int64(offset), 1<<int64(hdr.Align))
 		// update offset for remove
 		hdr.Offset = uint32(offset)
+		offset += int64(hdr.Size)
 	}
 
 	return fatArches, nil

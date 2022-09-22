@@ -3,13 +3,16 @@ package lipo_test
 import (
 	"crypto/sha256"
 	"debug/macho"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"io"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/konoui/lipo/pkg/lipo"
 )
@@ -24,68 +27,24 @@ func main() {
 }
 `
 
+const (
+	inArm64 = "arm64"
+	inAmd64 = "amd64"
+)
+
 type lipoBin struct {
 	bin   string
 	exist bool
 }
 
 type testLipo struct {
-	amd64Bin string
-	arm64Bin string
+	archBins map[string]string
 	dir      string
+	fatBin   string
 	lipoBin
-	lipoFatBin string
 }
 
-func (l *lipoBin) skip() bool {
-	return !l.exist
-}
-
-func (l *lipoBin) lipoDetail(t *testing.T, bin string) string {
-	t.Helper()
-
-	cmd := exec.Command(l.bin, "-detailed_info", bin)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("failed to lipo -detailed_info: %v\n%s\n", err, string(out))
-	}
-	return string(out)
-}
-
-func (l *lipoBin) create(t *testing.T, out, input1, input2 string) {
-	t.Helper()
-	// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
-	cmd := exec.Command(l.bin, "-segalign", "x86_64", "2000", "-create", input1, input2, "-output", out)
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to lipo -create: %v\n %s", err, cmd.String())
-	}
-}
-
-func (l *lipoBin) remove(t *testing.T, out, in, arch string) {
-	t.Helper()
-	cmd := exec.Command(l.bin, in, "-remove", arch, "-output", out)
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to lipo -remove: %v\n %s", err, cmd.String())
-	}
-}
-
-func (l *lipoBin) extract(t *testing.T, out, in, arch string) {
-	t.Helper()
-	cmd := exec.Command(l.bin, in, "-extract", arch, "-output", out)
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to lipo -extract: %v\n %s", err, cmd.String())
-	}
-}
-
-func (l *lipoBin) thin(t *testing.T, out, in, arch string) {
-	t.Helper()
-	cmd := exec.Command(l.bin, in, "-thin", arch, "-output", out)
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to lipo -thin: %v\n %s", err, cmd.String())
-	}
-}
-
-func setup(t *testing.T) *testLipo {
+func setup(t *testing.T, arches ...string) *testLipo {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -96,39 +55,124 @@ func setup(t *testing.T) *testLipo {
 		t.Fatal(err)
 	}
 
-	amd64Bin := filepath.Join(dir, "amd64")
-	arm64Bin := filepath.Join(dir, "arm64")
+	// base binaries
+	amd64Bin := filepath.Join(dir, inAmd64)
+	arm64Bin := filepath.Join(dir, inArm64)
 	compile(t, mainfile, amd64Bin, "amd64")
 	compile(t, mainfile, arm64Bin, "arm64")
 
-	lipoFatBin := ""
+	archBins := map[string]string{}
+	for _, arch := range arches {
+		if arch == inAmd64 {
+			archBins[inAmd64] = amd64Bin
+		} else if arch == inArm64 {
+			archBins[inArm64] = arm64Bin
+		} else {
+			archBin := filepath.Join(dir, arch)
+			copyAndManipulate(t, arm64Bin, archBin, arch)
+			archBins[arch] = archBin
+		}
+	}
+
 	lipoBin := newLipoBin(t)
-	if !lipoBin.skip() {
-		lipoFatBin = filepath.Join(dir, "lipo-fat-bin")
-		lipoBin.create(t, lipoFatBin, amd64Bin, arm64Bin)
+	fatBin := filepath.Join(dir, randName())
+	if !lipoBin.skip() && len(archBins) > 0 {
+		// create fat bit for inputs
+		inputs := make([]string, 0, len(archBins))
+		for _, in := range archBins {
+			inputs = append(inputs, in)
+		}
+		lipoBin.create(t, fatBin, inputs...)
 	}
 
 	return &testLipo{
-		amd64Bin:   amd64Bin,
-		arm64Bin:   arm64Bin,
-		dir:        dir,
-		lipoBin:    lipoBin,
-		lipoFatBin: lipoFatBin,
+		dir:      dir,
+		archBins: archBins,
+		fatBin:   fatBin,
+		lipoBin:  lipoBin,
 	}
 }
 
-func createFatBin(t *testing.T, out, input1, input2 string) {
-	t.Helper()
-	l := lipo.New(lipo.WithInputs(input1, input2), lipo.WithOutput(out))
-	if err := l.Create(); err != nil {
-		t.Fatalf("failed to create fat bin %v", err)
+func (l *testLipo) bins() []string {
+	bins := make([]string, 0, len(l.archBins))
+	for _, b := range l.archBins {
+		bins = append(bins, b)
 	}
+	return bins
+}
 
-	f, err := macho.OpenFat(out)
-	if err != nil {
-		t.Fatalf("invalid fat file: %v\n", err)
+func (l *lipoBin) skip() bool {
+	return !l.exist
+}
+
+func (l *lipoBin) detailedInfo(t *testing.T, bin string) string {
+	t.Helper()
+
+	cmd := exec.Command(l.bin, "-detailed_info", bin)
+	return execute(t, cmd, true)
+}
+
+func (l *lipoBin) create(t *testing.T, out string, inputs ...string) {
+	t.Helper()
+	// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
+	args := []string{"-segalign", "x86_64", "2000", "-create", "-output", out}
+	args = append(args, inputs...)
+	cmd := exec.Command(l.bin, args...)
+	execute(t, cmd, true)
+}
+
+func (l *lipoBin) remove(t *testing.T, out, in string, arches []string) {
+	t.Helper()
+	args := appendCmd("-remove", arches)
+	args = append([]string{in, "-output", out}, args...)
+	cmd := exec.Command(l.bin, args...)
+	execute(t, cmd, true)
+}
+
+func (l *lipoBin) extract(t *testing.T, out, in string, arches []string) {
+	t.Helper()
+	args := appendCmd("-extract", arches)
+	args = append([]string{in, "-output", out}, args...)
+	cmd := exec.Command(l.bin, args...)
+	execute(t, cmd, true)
+}
+
+func (l *lipoBin) thin(t *testing.T, out, in, arch string) {
+	t.Helper()
+	cmd := exec.Command(l.bin, in, "-thin", arch, "-output", out)
+	execute(t, cmd, true)
+}
+
+func (l *lipoBin) archs(t *testing.T, in string) string {
+	t.Helper()
+	cmd := exec.Command(l.bin, in, "-archs")
+	return execute(t, cmd, false)
+}
+
+func execute(t *testing.T, cmd *exec.Cmd, combine bool) string {
+	t.Helper()
+
+	var out []byte
+	var err error
+	if combine {
+		out, err = cmd.CombinedOutput()
+	} else {
+		out, err = cmd.Output()
 	}
-	defer f.Close()
+	if err != nil {
+		t.Log("CMD:", cmd.String())
+		t.Log("OUTPUT:", string(out))
+		t.Fatalf("Error: %v", err)
+	}
+	return string(out)
+}
+
+func appendCmd(cmd string, args []string) []string {
+	ret := []string{}
+	for _, a := range args {
+		ret = append(ret, cmd, a)
+	}
+	return ret
 }
 
 func compile(t *testing.T, mainfile, binPath, arch string) {
@@ -143,11 +187,11 @@ func compile(t *testing.T, mainfile, binPath, arch string) {
 	}
 }
 
-func diffSha256(t *testing.T, input1, input2 string) {
+func diffSha256(t *testing.T, wantBin, gotBin string) {
 	t.Helper()
 
-	got := calcSha256(t, input1)
-	want := calcSha256(t, input2)
+	want := calcSha256(t, wantBin)
+	got := calcSha256(t, gotBin)
 	if want != got {
 		t.Errorf("want %s got %s", want, got)
 		t.Log("dumping detail")
@@ -155,8 +199,8 @@ func diffSha256(t *testing.T, input1, input2 string) {
 		if b.skip() {
 			return
 		}
-		t.Logf("want:\n%s\n", b.lipoDetail(t, input1))
-		t.Logf("got:\n%s\n", b.lipoDetail(t, input2))
+		t.Logf("want:\n%s\n", b.detailedInfo(t, wantBin))
+		t.Logf("got:\n%s\n", b.detailedInfo(t, gotBin))
 	}
 }
 
@@ -187,4 +231,81 @@ func newLipoBin(t *testing.T) lipoBin {
 		t.Fatalf("could not find lipo command %v\n", err)
 	}
 	return lipoBin{exist: true, bin: bin}
+}
+
+func copyAndManipulate(t *testing.T, src, dst string, arch string) {
+	t.Helper()
+
+	cpu, sub, ok := lipo.CpuFrom(arch)
+	if !ok {
+		t.Fatalf("unsupported arch: %s\n", arch)
+	}
+
+	f, err := os.Open(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	totalSize := info.Size()
+
+	mo, err := macho.Open(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	hdr := mo.FileHeader
+	wantHdrSize := binary.Size(hdr)
+	hdr.Cpu = cpu
+	hdr.SubCpu = sub
+	hdrSize := binary.Size(hdr)
+
+	if hdrSize != wantHdrSize {
+		t.Fatalf("unexpected header size want: %d, got: %d\n", wantHdrSize, hdrSize)
+	}
+
+	if _, err := f.Seek(int64(hdrSize), io.SeekCurrent); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := os.Create(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := binary.Write(out, binary.LittleEndian, hdr); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := io.Copy(out, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := out.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if wantN := totalSize - int64(hdrSize); n != wantN {
+		t.Fatalf("wrote body size. want: %d, got: %d\n", n, wantN)
+	}
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func randName() string {
+	b := make([]rune, 6)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
 }

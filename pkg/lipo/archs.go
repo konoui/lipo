@@ -34,16 +34,16 @@ func (l *Lipo) Archs() error {
 		}
 		defer f.Close()
 
-		fmt.Println(cpuString(f.Cpu, f.SubCpu))
+		fmt.Fprintln(l.stdout, CpuString(f.Cpu, f.SubCpu))
 		return nil
 	}
 	defer fat.Close()
 
 	cpus := make([]string, 0, len(fat.Arches))
 	for _, hdr := range fat.Arches {
-		cpus = append(cpus, cpuString(hdr.Cpu, hdr.SubCpu))
+		cpus = append(cpus, CpuString(hdr.Cpu, hdr.SubCpu))
 	}
 
-	fmt.Println(strings.Join(cpus, " "))
+	fmt.Fprintln(l.stdout, strings.Join(cpus, " "))
 	return nil
 }

@@ -1,26 +1,63 @@
 package lipo_test
 
 import (
+	"debug/macho"
 	"path/filepath"
 	"testing"
+
+	"github.com/konoui/lipo/pkg/lipo"
 )
 
 func TestLipo_Create(t *testing.T) {
-	t.Run("create", func(t *testing.T) {
-		p := setup(t)
+	tests := []struct {
+		name   string
+		inputs []string
+	}{
+		{
+			name:   "-create",
+			inputs: []string{inAmd64, inArm64},
+		},
+		{
+			name:   "-create",
+			inputs: []string{inAmd64, inArm64},
+		},
+		{
+			name:   "-create",
+			inputs: []string{inAmd64, inArm64, "arm64e"},
+		},
+		{
+			name:   "-create",
+			inputs: []string{inAmd64, inArm64, "x86_64h", "arm64e"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := setup(t, tt.inputs...)
 
-		// check fat file format
-		gotBin := filepath.Join(p.dir, "out-amd64-arm64-binary")
-		createFatBin(t, gotBin, p.amd64Bin, p.arm64Bin)
+			gotBin := filepath.Join(p.dir, randName())
+			createFatBin(t, gotBin, p.bins()...)
 
-		fatBin := filepath.Join(p.dir, "out-arm64-amd64-binary")
-		createFatBin(t, fatBin, p.arm64Bin, p.amd64Bin)
-		if p.skip() {
-			t.Skip("skip lipo binary test")
-		}
+			if p.skip() {
+				t.Skip("skip lipo binary test")
+			}
 
-		p.lipoDetail(t, gotBin)
-		p.lipoDetail(t, fatBin)
-		diffSha256(t, p.lipoFatBin, gotBin)
-	})
+			p.detailedInfo(t, gotBin)
+			p.detailedInfo(t, p.fatBin)
+			diffSha256(t, p.fatBin, gotBin)
+		})
+	}
+}
+
+func createFatBin(t *testing.T, out string, inputs ...string) {
+	t.Helper()
+	l := lipo.New(lipo.WithInputs(inputs...), lipo.WithOutput(out))
+	if err := l.Create(); err != nil {
+		t.Fatalf("failed to create fat bin %v", err)
+	}
+
+	f, err := macho.OpenFat(out)
+	if err != nil {
+		t.Fatalf("invalid fat file: %v\n", err)
+	}
+	defer f.Close()
 }
