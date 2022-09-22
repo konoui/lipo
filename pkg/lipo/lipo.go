@@ -113,7 +113,7 @@ func validateFatSize(s int64) bool {
 	return s >= 1<<32
 }
 
-func cpu(s string) string {
+func lipoCpu(s string) string {
 	switch s {
 	case "CpuArm64":
 		return "arm64"
@@ -123,7 +123,7 @@ func cpu(s string) string {
 	panic(s)
 }
 
-func outputFatBinary(p string, perm os.FileMode, fatArches []*fatArch) error {
+func outputFatBinary(p string, perm os.FileMode, fatArches []*fatArch) (err error) {
 	out, err := os.Create(p)
 	defer func() {
 		if cerr := out.Chmod(perm); cerr != nil && err == nil {
@@ -182,4 +182,13 @@ func createFatBinary(out io.Writer, fatArches []*fatArch) error {
 	}
 
 	return nil
+}
+
+func contain(tg string, l []string) bool {
+	for _, s := range l {
+		if tg == s {
+			return true
+		}
+	}
+	return false
 }

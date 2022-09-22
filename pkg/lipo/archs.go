@@ -34,14 +34,14 @@ func (l *Lipo) Arches() error {
 		}
 		defer f.Close()
 
-		fmt.Println(cpu(f.Cpu.String()))
+		fmt.Println(lipoCpu(f.Cpu.String()))
 		return nil
 	}
 	defer fat.Close()
 
 	cpus := []string{}
 	for _, hdr := range fat.Arches {
-		cpus = append(cpus, cpu(hdr.Cpu.String()))
+		cpus = append(cpus, lipoCpu(hdr.Cpu.String()))
 	}
 
 	fmt.Println(strings.Join(cpus, " "))

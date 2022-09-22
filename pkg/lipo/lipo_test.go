@@ -47,7 +47,7 @@ func (l *lipoBin) lipoDetail(t *testing.T, bin string) string {
 	cmd := exec.Command(l.bin, "-detailed_info", bin)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Error lipo -detailed_info: %v\n%s\n", err, string(out))
+		t.Fatalf("failed to lipo -detailed_info: %v\n%s\n", err, string(out))
 	}
 	return string(out)
 }
@@ -57,7 +57,7 @@ func (l *lipoBin) create(t *testing.T, out, input1, input2 string) {
 	// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
 	cmd := exec.Command(l.bin, "-segalign", "x86_64", "2000", "-create", input1, input2, "-output", out)
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to create original fat binary: %v\n %s", err, cmd.String())
+		t.Fatalf("failed to lipo -create: %v\n %s", err, cmd.String())
 	}
 }
 
@@ -65,7 +65,7 @@ func (l *lipoBin) remove(t *testing.T, out, in, arch string) {
 	t.Helper()
 	cmd := exec.Command(l.bin, in, "-remove", arch, "-output", out)
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to remove from original fat binary: %v\n %s", err, cmd.String())
+		t.Fatalf("failed to lipo -remove: %v\n %s", err, cmd.String())
 	}
 }
 
@@ -73,7 +73,15 @@ func (l *lipoBin) extract(t *testing.T, out, in, arch string) {
 	t.Helper()
 	cmd := exec.Command(l.bin, in, "-extract", arch, "-output", out)
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("failed to extract from original fat binary: %v\n %s", err, cmd.String())
+		t.Fatalf("failed to lipo -extract: %v\n %s", err, cmd.String())
+	}
+}
+
+func (l *lipoBin) thin(t *testing.T, out, in, arch string) {
+	t.Helper()
+	cmd := exec.Command(l.bin, in, "-thin", arch, "-output", out)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to lipo -thin: %v\n %s", err, cmd.String())
 	}
 }
 

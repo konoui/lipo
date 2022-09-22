@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-func (l *Lipo) Extract(arch string) error {
+func (l *Lipo) Extract(arches ...string) error {
 	if len(l.in) != 1 {
 		return errors.New("input must be 1")
 	}
@@ -23,11 +23,9 @@ func (l *Lipo) Extract(arch string) error {
 	}
 	perm := info.Mode().Perm()
 
-	cond := func(c macho.Cpu) bool {
-		return arch == cpu(c.String())
-	}
-
-	fatArches, err := fatArchesFromFatBin(abs, cond)
+	fatArches, err := fatArchesFromFatBin(abs, func(c macho.Cpu) bool {
+		return contain(lipoCpu(c.String()), arches)
+	})
 	if err != nil {
 		return err
 	}
