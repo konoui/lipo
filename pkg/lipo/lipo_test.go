@@ -69,6 +69,14 @@ func (l *lipoBin) remove(t *testing.T, out, in, arch string) {
 	}
 }
 
+func (l *lipoBin) extract(t *testing.T, out, in, arch string) {
+	t.Helper()
+	cmd := exec.Command(l.bin, in, "-extract", arch, "-output", out)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to extract from original fat binary: %v\n %s", err, cmd.String())
+	}
+}
+
 func setup(t *testing.T) *testLipo {
 	t.Helper()
 

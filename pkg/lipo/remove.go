@@ -3,7 +3,6 @@ package lipo
 import (
 	"debug/macho"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,7 +24,11 @@ func (l *Lipo) Remove(arch string) (err error) {
 	}
 	perm := info.Mode().Perm()
 
-	fatArches, err := fatArchesFromFatBin(abs, arch)
+	cond := func(c macho.Cpu) bool {
+		return arch != cpu(c.String())
+	}
+
+	fatArches, err := fatArchesFromFatBin(abs, cond)
 	if err != nil {
 		return err
 	}
@@ -34,7 +37,8 @@ func (l *Lipo) Remove(arch string) (err error) {
 	return outputFatBinary(l.out, perm, fatArches)
 }
 
-func fatArchesFromFatBin(path string, removeArch string) ([]*fatArch, error) {
+// atArchesFromFatBin returns fatArches from fat binary if `cond` returns true
+func fatArchesFromFatBin(path string, cond func(cpu macho.Cpu) bool) ([]*fatArch, error) {
 	fat, err := macho.OpenFat(path)
 	if err != nil {
 		return nil, err
@@ -52,7 +56,7 @@ func fatArchesFromFatBin(path string, removeArch string) ([]*fatArch, error) {
 
 	fatArches := []*fatArch{}
 	for _, hdr := range fat.Arches {
-		if removeArch == cpu(hdr.Cpu.String()) {
+		if !cond(hdr.Cpu) {
 			continue
 		}
 		fatArches = append(fatArches, &fatArch{
@@ -63,7 +67,7 @@ func fatArchesFromFatBin(path string, removeArch string) ([]*fatArch, error) {
 	}
 
 	if len(fatArches) == len(fat.Arches) {
-		return nil, fmt.Errorf("found no arch %s", removeArch)
+		return nil, errors.New("found no arch")
 	}
 
 	fatHeader := &fatHeader{
