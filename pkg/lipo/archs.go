@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func (l *Lipo) Arches() error {
+func (l *Lipo) Archs() error {
 	if len(l.in) == 0 {
 		return errors.New("no inputs")
 	}
@@ -34,14 +34,14 @@ func (l *Lipo) Arches() error {
 		}
 		defer f.Close()
 
-		fmt.Println(lipoCpu(f.Cpu.String()))
+		fmt.Println(cpuString(f.Cpu, f.SubCpu))
 		return nil
 	}
 	defer fat.Close()
 
-	cpus := []string{}
+	cpus := make([]string, 0, len(fat.Arches))
 	for _, hdr := range fat.Arches {
-		cpus = append(cpus, lipoCpu(hdr.Cpu.String()))
+		cpus = append(cpus, cpuString(hdr.Cpu, hdr.SubCpu))
 	}
 
 	fmt.Println(strings.Join(cpus, " "))

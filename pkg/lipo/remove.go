@@ -3,6 +3,7 @@ package lipo
 import (
 	"debug/macho"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,12 @@ import (
 func (l *Lipo) Remove(arches ...string) (err error) {
 	if len(l.in) != 1 {
 		return errors.New("input must be 1")
+	}
+
+	for _, arch := range arches {
+		if !isSupportedArch(arch) {
+			return fmt.Errorf("unsupported architecture %s", arch)
+		}
 	}
 
 	abs, err := filepath.Abs(l.in[0])
@@ -24,8 +31,9 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 	}
 	perm := info.Mode().Perm()
 
-	fatArches, err := fatArchesFromFatBin(abs, func(c macho.Cpu) bool {
-		return !contain(lipoCpu(c.String()), arches)
+	fatArches, err := fatArchesFromFatBin(abs, func(hdr *macho.FatArchHeader) bool {
+		s := cpuString(hdr.Cpu, hdr.SubCpu)
+		return !contain(s, arches)
 	})
 	if err != nil {
 		return err
@@ -36,7 +44,7 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 }
 
 // atArchesFromFatBin gathers fatArches from fat binary header if `cond` returns true
-func fatArchesFromFatBin(path string, cond func(c macho.Cpu) bool) ([]*fatArch, error) {
+func fatArchesFromFatBin(path string, cond func(hdr *macho.FatArchHeader) bool) ([]*fatArch, error) {
 	fat, err := macho.OpenFat(path)
 	if err != nil {
 		return nil, err
@@ -54,7 +62,7 @@ func fatArchesFromFatBin(path string, cond func(c macho.Cpu) bool) ([]*fatArch, 
 
 	fatArches := []*fatArch{}
 	for _, hdr := range fat.Arches {
-		if cond(hdr.Cpu) {
+		if cond(&hdr.FatArchHeader) {
 			fatArches = append(fatArches, &fatArch{
 				FatArchHeader: hdr.FatArchHeader,
 				r:             io.NewSectionReader(f, int64(hdr.Offset), int64(hdr.Size)),

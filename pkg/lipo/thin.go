@@ -25,8 +25,9 @@ func (l *Lipo) Thin(arch string) error {
 	}
 	perm := info.Mode().Perm()
 
-	fatArches, err := fatArchesFromFatBin(abs, func(c macho.Cpu) bool {
-		return lipoCpu(c.String()) == arch
+	fatArches, err := fatArchesFromFatBin(abs, func(hdr *macho.FatArchHeader) bool {
+		s := cpuString(hdr.Cpu, hdr.SubCpu)
+		return s == arch
 	})
 	defer func() { _ = close(fatArches) }()
 

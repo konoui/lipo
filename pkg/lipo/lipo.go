@@ -113,16 +113,6 @@ func validateFatSize(s int64) bool {
 	return s >= 1<<32
 }
 
-func lipoCpu(s string) string {
-	switch s {
-	case "CpuArm64":
-		return "arm64"
-	case "CpuAmd64":
-		return "x86_64"
-	}
-	panic(s)
-}
-
 func outputFatBinary(p string, perm os.FileMode, fatArches []*fatArch) (err error) {
 	out, err := os.Create(p)
 	defer func() {

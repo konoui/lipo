@@ -3,6 +3,7 @@ package lipo
 import (
 	"debug/macho"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -10,6 +11,12 @@ import (
 func (l *Lipo) Extract(arches ...string) error {
 	if len(l.in) != 1 {
 		return errors.New("input must be 1")
+	}
+
+	for _, arch := range arches {
+		if !isSupportedArch(arch) {
+			return fmt.Errorf("unsupported architecture %s", arch)
+		}
 	}
 
 	abs, err := filepath.Abs(l.in[0])
@@ -23,8 +30,9 @@ func (l *Lipo) Extract(arches ...string) error {
 	}
 	perm := info.Mode().Perm()
 
-	fatArches, err := fatArchesFromFatBin(abs, func(c macho.Cpu) bool {
-		return contain(lipoCpu(c.String()), arches)
+	fatArches, err := fatArchesFromFatBin(abs, func(hdr *macho.FatArchHeader) bool {
+		s := cpuString(hdr.Cpu, hdr.SubCpu)
+		return contain(s, arches)
 	})
 	if err != nil {
 		return err

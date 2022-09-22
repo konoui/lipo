@@ -60,7 +60,7 @@ func main() {
 	}
 
 	if archs {
-		if err := lipo.New(lipo.WithInputs(in...)).Arches(); err != nil {
+		if err := lipo.New(lipo.WithInputs(in...)).Archs(); err != nil {
 			fatal(err.Error())
 		}
 		return
