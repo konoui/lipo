@@ -9,33 +9,42 @@ import (
 )
 
 func (l *Lipo) Archs() error {
+	arches, err := l.archs()
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(l.stdout, strings.Join(arches, " "))
+	return nil
+}
+
+func (l *Lipo) archs() ([]string, error) {
 	if len(l.in) == 0 {
-		return errors.New("no inputs")
+		return nil, errors.New("no inputs")
 	}
 	if len(l.in) > 1 {
-		return errors.New("only one input file allowed")
+		return nil, errors.New("only one input file allowed")
 	}
 
 	abs, err := filepath.Abs(l.in[0])
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	fat, err := macho.OpenFat(abs)
 	if err != nil {
 		if err != macho.ErrNotFat {
-			return err
+			return nil, err
 		}
 
 		// if not fat file, assume single macho file
 		f, err := macho.Open(abs)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer f.Close()
 
-		fmt.Fprintln(l.stdout, CpuString(f.Cpu, f.SubCpu))
-		return nil
+		return []string{CpuString(f.Cpu, f.SubCpu)}, nil
 	}
 	defer fat.Close()
 
@@ -43,7 +52,5 @@ func (l *Lipo) Archs() error {
 	for _, hdr := range fat.Arches {
 		cpus = append(cpus, CpuString(hdr.Cpu, hdr.SubCpu))
 	}
-
-	fmt.Fprintln(l.stdout, strings.Join(cpus, " "))
-	return nil
+	return cpus, nil
 }
