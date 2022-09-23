@@ -39,6 +39,8 @@ func TestLipo_Extract(t *testing.T) {
 			if err := l.Extract(arches...); err != nil {
 				t.Errorf("extract error %v\n", err)
 			}
+			// tests for fat bin is expected
+			verifyArches(t, got, arches...)
 
 			if p.skip() {
 				t.Skip("skip lipo binary tests")

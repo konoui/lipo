@@ -80,18 +80,5 @@ func fatArchesFromFatBin(path string, cond func(hdr *macho.FatArchHeader) bool) 
 		return nil, errors.New("result arch is zero")
 	}
 
-	fatHeader := &fatHeader{
-		magic: fat.Magic,
-		narch: uint32(len(fat.Arches) - 1),
-	}
-
-	offset := int64(fatHeader.size())
-	for _, hdr := range fatArches {
-		offset = align(int64(offset), 1<<int64(hdr.Align))
-		// update offset for remove
-		hdr.Offset = uint32(offset)
-		offset += int64(hdr.Size)
-	}
-
-	return fatArches, nil
+	return sortByArch(fatArches)
 }

@@ -11,39 +11,41 @@ import (
 func TestLipo_Create(t *testing.T) {
 	tests := []struct {
 		name   string
-		inputs []string
+		arches []string
 	}{
 		{
 			name:   "-create",
-			inputs: []string{inAmd64, inArm64},
+			arches: []string{inAmd64, inArm64},
 		},
 		{
 			name:   "-create",
-			inputs: []string{inAmd64, inArm64},
+			arches: []string{inAmd64, inArm64},
 		},
 		{
 			name:   "-create",
-			inputs: []string{inAmd64, inArm64, "arm64e"},
+			arches: []string{inAmd64, inArm64, "arm64e"},
 		},
 		{
 			name:   "-create",
-			inputs: []string{inAmd64, inArm64, "x86_64h", "arm64e"},
+			arches: []string{inAmd64, inArm64, "x86_64h", "arm64e"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := setup(t, tt.inputs...)
+			p := setup(t, tt.arches...)
 
-			gotBin := filepath.Join(p.dir, randName())
-			createFatBin(t, gotBin, p.bins()...)
+			got := filepath.Join(p.dir, randName())
+			createFatBin(t, got, p.bins()...)
+			// tests for fat bin is expected
+			verifyArches(t, got, tt.arches...)
 
 			if p.skip() {
 				t.Skip("skip lipo binary test")
 			}
 
-			p.detailedInfo(t, gotBin)
+			p.detailedInfo(t, got)
 			p.detailedInfo(t, p.fatBin)
-			diffSha256(t, p.fatBin, gotBin)
+			diffSha256(t, p.fatBin, got)
 		})
 	}
 }

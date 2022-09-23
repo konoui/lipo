@@ -1,7 +1,7 @@
 package lipo
 
 func (l *Lipo) VerifyArch(arch string) (bool, error) {
-	arches, err := l.archs()
+	arches, err := l.Archs()
 	if err != nil {
 		return false, err
 	}

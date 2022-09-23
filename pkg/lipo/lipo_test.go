@@ -29,7 +29,7 @@ func main() {
 
 const (
 	inArm64 = "arm64"
-	inAmd64 = "amd64"
+	inAmd64 = "x86_64"
 )
 
 type lipoBin struct {
@@ -93,6 +93,14 @@ func setup(t *testing.T, arches ...string) *testLipo {
 	}
 }
 
+func (l *testLipo) bin(t *testing.T, arch string) string {
+	bin, ok := l.archBins[arch]
+	if !ok {
+		t.Fatalf("found no arch %s\n", arch)
+	}
+	return bin
+}
+
 func (l *testLipo) bins() []string {
 	bins := make([]string, 0, len(l.archBins))
 	for _, b := range l.archBins {
@@ -114,6 +122,7 @@ func (l *lipoBin) detailedInfo(t *testing.T, bin string) string {
 
 func (l *lipoBin) create(t *testing.T, out string, inputs ...string) {
 	t.Helper()
+	// FIXME if inputs contain x86_64 then add segalign option
 	// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
 	args := []string{"-segalign", "x86_64", "2000", "-create", "-output", out}
 	args = append(args, inputs...)
@@ -140,6 +149,12 @@ func (l *lipoBin) extract(t *testing.T, out, in string, arches []string) {
 func (l *lipoBin) thin(t *testing.T, out, in, arch string) {
 	t.Helper()
 	cmd := exec.Command(l.bin, in, "-thin", arch, "-output", out)
+	execute(t, cmd, true)
+}
+
+func (l *lipoBin) replace(t *testing.T, out, in, arch, replace string) {
+	t.Helper()
+	cmd := exec.Command(l.bin, in, "-segalign", "x86_64", "2000", "-replace", arch, replace, "-output", out)
 	execute(t, cmd, true)
 }
 
@@ -294,6 +309,15 @@ func copyAndManipulate(t *testing.T, src, dst string, arch string) {
 	if wantN := totalSize - int64(hdrSize); n != wantN {
 		t.Fatalf("wrote body size. want: %d, got: %d\n", n, wantN)
 	}
+}
+
+func contain(tg string, l []string) bool {
+	for _, s := range l {
+		if tg == s {
+			return true
+		}
+	}
+	return false
 }
 
 func init() {

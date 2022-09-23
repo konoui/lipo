@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 )
 
 func (l *Lipo) Create() error {
@@ -109,17 +108,6 @@ func fatArchesFromCreateInputs(inputs []*createInput) ([]*fatArch, error) {
 		narch: uint32(len(inputs)),
 	}
 
-	// sort for independent results
-	sort.Slice(inputs, func(i, j int) bool {
-		icpu := inputs[i].hdr.Cpu
-		isub := inputs[i].hdr.SubCpu
-		v1 := (uint64(icpu) << 32) | uint64(isub)
-		jcpu := inputs[j].hdr.Cpu
-		jsub := inputs[j].hdr.SubCpu
-		v2 := (uint64(jcpu) << 32) | uint64(jsub)
-		return v1 < v2
-	})
-
 	fatArches := make([]*fatArch, 0, len(inputs))
 
 	offset := int64(fatHdr.size())
@@ -154,5 +142,5 @@ func fatArchesFromCreateInputs(inputs []*createInput) ([]*fatArch, error) {
 		})
 	}
 
-	return fatArches, nil
+	return sortByArch(fatArches)
 }

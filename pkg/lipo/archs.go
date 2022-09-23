@@ -3,22 +3,10 @@ package lipo
 import (
 	"debug/macho"
 	"errors"
-	"fmt"
 	"path/filepath"
-	"strings"
 )
 
-func (l *Lipo) Archs() error {
-	arches, err := l.archs()
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintln(l.stdout, strings.Join(arches, " "))
-	return nil
-}
-
-func (l *Lipo) archs() ([]string, error) {
+func (l *Lipo) Archs() ([]string, error) {
 	if len(l.in) == 0 {
 		return nil, errors.New("no inputs")
 	}

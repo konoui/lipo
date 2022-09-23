@@ -16,18 +16,11 @@ const (
 )
 
 type Lipo struct {
-	in     []string
-	out    string
-	stdout io.Writer
+	in  []string
+	out string
 }
 
 type Option func(l *Lipo)
-
-func WithStdout(stdout io.Writer) Option {
-	return func(l *Lipo) {
-		l.stdout = stdout
-	}
-}
 
 func WithInputs(in ...string) Option {
 	return func(l *Lipo) {
@@ -42,7 +35,7 @@ func WithOutput(out string) Option {
 }
 
 func New(opts ...Option) *Lipo {
-	l := &Lipo{stdout: os.Stdout}
+	l := &Lipo{}
 	for _, opt := range opts {
 		if opt == nil {
 			continue
@@ -104,6 +97,35 @@ func close(closers []*fatArch) error {
 		return fmt.Errorf("close errors: %s", msg)
 	}
 	return nil
+}
+
+func sortByArch(fatArches []*fatArch) ([]*fatArch, error) {
+	sort.Slice(fatArches, func(i, j int) bool {
+		icpu := fatArches[i].Cpu
+		isub := fatArches[i].SubCpu
+		v1 := (uint64(icpu) << 32) | uint64(isub)
+		jcpu := fatArches[j].Cpu
+		jsub := fatArches[j].SubCpu
+		v2 := (uint64(jcpu) << 32) | uint64(jsub)
+		return v1 < v2
+	})
+
+	fatHeader := &fatHeader{
+		magic: macho.MagicFat,
+		narch: uint32(len(fatArches)),
+	}
+
+	// update offset
+	offset := int64(fatHeader.size())
+	for _, hdr := range fatArches {
+		offset = align(int64(offset), 1<<int64(hdr.Align))
+		if validateFatSize(offset) {
+			return nil, fmt.Errorf("exceeds maximum fat32 size")
+		}
+		hdr.Offset = uint32(offset)
+		offset += int64(hdr.Size)
+	}
+	return fatArches, nil
 }
 
 func alignBit(cpu macho.Cpu, sub uint32) uint32 {

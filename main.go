@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/integrii/flaggy"
 	"github.com/konoui/lipo/pkg/lipo"
@@ -60,9 +61,12 @@ func main() {
 	}
 
 	if archs {
-		if err := lipo.New(lipo.WithInputs(in...)).Archs(); err != nil {
+		l := lipo.New(lipo.WithInputs(in...))
+		arches, err := l.Archs()
+		if err != nil {
 			fatal(err.Error())
 		}
+		fmt.Fprintln(os.Stdout, strings.Join(arches, " "))
 		return
 	}
 

@@ -40,6 +40,14 @@ func TestLipo_Remove(t *testing.T) {
 				t.Errorf("remove error %v\n", err)
 			}
 
+			wantArches := []string{}
+			for _, i := range tt.inputs {
+				if !contain(i, tt.arches) {
+					wantArches = append(wantArches, i)
+				}
+			}
+			verifyArches(t, got, wantArches...)
+
 			if p.skip() {
 				t.Skip("skip lipo binary tests")
 			}
