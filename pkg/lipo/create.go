@@ -81,11 +81,6 @@ func newCreateInput(bin string) (*createInput, error) {
 		return nil, fmt.Errorf("unsupported magic %#x", f.Magic)
 	}
 
-	// Note CpuPpc64 is not tested
-	if f.Cpu != macho.CpuAmd64 && f.Cpu != macho.CpuArm64 {
-		return nil, fmt.Errorf("unsupported cpu %s", f.Cpu)
-	}
-
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -115,7 +110,7 @@ func fatArchesFromCreateInputs(inputs []*createInput) ([]*fatArch, error) {
 		offset = align(offset, 1<<alignBit(in.hdr.Cpu, in.hdr.SubCpu))
 
 		// validate addressing boundary since size and offset of fat32 are uint32
-		if validateFatSize(offset) || validateFatSize(in.size) {
+		if !(boundaryOK(offset) && boundaryOK(in.size)) {
 			return nil, fmt.Errorf("exceeds maximum fat32 size at %s", in.path)
 		}
 

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/konoui/lipo/pkg/lipo"
+	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
 var godata = `
@@ -63,11 +63,16 @@ func setup(t *testing.T, arches ...string) *testLipo {
 
 	archBins := map[string]string{}
 	for _, arch := range arches {
+		// create base binary first,
 		if arch == inAmd64 {
 			archBins[inAmd64] = amd64Bin
 		} else if arch == inArm64 {
 			archBins[inArm64] = arm64Bin
-		} else {
+		}
+	}
+
+	for _, arch := range arches {
+		if !(arch == inAmd64 || arch == inArm64) {
 			archBin := filepath.Join(dir, arch)
 			copyAndManipulate(t, arm64Bin, archBin, arch)
 			archBins[arch] = archBin
@@ -122,9 +127,13 @@ func (l *lipoBin) detailedInfo(t *testing.T, bin string) string {
 
 func (l *lipoBin) create(t *testing.T, out string, inputs ...string) {
 	t.Helper()
-	// FIXME if inputs contain x86_64 then add segalign option
-	// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
-	args := []string{"-segalign", "x86_64", "2000", "-create", "-output", out}
+	args := []string{"-create", "-output", out}
+	for _, f := range inputs {
+		if "x86_64" == filepath.Base(f) {
+			// specify 2^14(0x2000) alignment for X86_64 to remove platform dependency.
+			args = append(args, "-segalign", "x86_64", "2000")
+		}
+	}
 	args = append(args, inputs...)
 	cmd := exec.Command(l.bin, args...)
 	execute(t, cmd, true)
@@ -154,7 +163,11 @@ func (l *lipoBin) thin(t *testing.T, out, in, arch string) {
 
 func (l *lipoBin) replace(t *testing.T, out, in, arch, replace string) {
 	t.Helper()
-	cmd := exec.Command(l.bin, in, "-segalign", "x86_64", "2000", "-replace", arch, replace, "-output", out)
+	args := []string{in, "-replace", arch, replace, "-output", out}
+	if arch == "x86_64" {
+		args = append(args, "-segalign", "x86_64", "2000")
+	}
+	cmd := exec.Command(l.bin, args...)
 	execute(t, cmd, true)
 }
 
@@ -251,7 +264,7 @@ func newLipoBin(t *testing.T) lipoBin {
 func copyAndManipulate(t *testing.T, src, dst string, arch string) {
 	t.Helper()
 
-	cpu, sub, ok := lipo.CpuFrom(arch)
+	cpu, sub, ok := mcpu.ToCpu(arch)
 	if !ok {
 		t.Fatalf("unsupported arch: %s\n", arch)
 	}

@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+
+	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
 func (l *Lipo) Extract(arches ...string) error {
@@ -14,24 +15,20 @@ func (l *Lipo) Extract(arches ...string) error {
 	}
 
 	for _, arch := range arches {
-		if !IsSupportedArch(arch) {
+		if !mcpu.IsSupported(arch) {
 			return fmt.Errorf("unsupported architecture %s", arch)
 		}
 	}
 
-	abs, err := filepath.Abs(l.in[0])
-	if err != nil {
-		return nil
-	}
-
-	info, err := os.Stat(abs)
+	fatBin := l.in[0]
+	info, err := os.Stat(fatBin)
 	if err != nil {
 		return err
 	}
 	perm := info.Mode().Perm()
 
-	fatArches, err := fatArchesFromFatBin(abs, func(hdr *macho.FatArchHeader) bool {
-		s := CpuString(hdr.Cpu, hdr.SubCpu)
+	fatArches, err := fatArchesFromFatBin(fatBin, func(hdr *macho.FatArchHeader) bool {
+		s := mcpu.ToString(hdr.Cpu, hdr.SubCpu)
 		return contain(s, arches)
 	})
 	if err != nil {

@@ -4,6 +4,8 @@ import (
 	"debug/macho"
 	"errors"
 	"os"
+
+	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
 func (l *Lipo) Replace(arch, bin string) error {
@@ -12,7 +14,6 @@ func (l *Lipo) Replace(arch, bin string) error {
 	}
 
 	fatBin := l.in[0]
-
 	info, err := os.Stat(fatBin)
 	if err != nil {
 		return err
@@ -20,7 +21,7 @@ func (l *Lipo) Replace(arch, bin string) error {
 	perm := info.Mode().Perm()
 
 	targets, err := fatArchesFromFatBin(fatBin, func(hdr *macho.FatArchHeader) bool {
-		return arch == CpuString(hdr.Cpu, hdr.SubCpu)
+		return arch == mcpu.ToString(hdr.Cpu, hdr.SubCpu)
 	})
 	if err != nil {
 		return err
@@ -47,7 +48,7 @@ func (l *Lipo) Replace(arch, bin string) error {
 	}
 
 	others, err := fatArchesFromFatBin(fatBin, func(hdr *macho.FatArchHeader) bool {
-		return arch != CpuString(hdr.Cpu, hdr.SubCpu)
+		return arch != mcpu.ToString(hdr.Cpu, hdr.SubCpu)
 	})
 	if err != nil {
 		return err
