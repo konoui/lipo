@@ -18,9 +18,10 @@ func fatal(msg string) {
 
 func main() {
 	var out string
-	var remove string
+	var remove, extract, verifyArch string
 	create := false
 	archs := false
+
 	argIn := make([]string, 4)
 
 	flaggy.SetName("lipo")
@@ -28,6 +29,8 @@ func main() {
 	flaggy.String(&out, "output", "output", "output file")
 	flaggy.Bool(&create, "create", "create", "create flag")
 	flaggy.String(&remove, "remove", "remove", "remove <arch>")
+	flaggy.String(&extract, "extract", "extract", "extract <arch>")
+	flaggy.String(&verifyArch, "verify_arch", "verify_arch", "extract <arch>")
 	flaggy.Bool(&archs, "archs", "archs", "show arch")
 
 	for idx := range argIn {
@@ -50,11 +53,42 @@ func main() {
 	}
 
 	if remove != "" {
+		if len(in) == 0 {
+			fatal("no inputs files")
+		}
 		if out == "" {
 			fatal("-output flag is required")
 		}
 		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
 		if err := l.Remove(remove); err != nil {
+			fatal(err.Error())
+		}
+		return
+	}
+
+	if extract != "" {
+		if len(in) == 0 {
+			fatal("no inputs files")
+		}
+		if out == "" {
+			fatal("-output flag is required")
+		}
+		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
+		if err := l.Extract(extract); err != nil {
+			fatal(err.Error())
+		}
+		return
+	}
+
+	if create {
+		if len(in) == 0 {
+			fatal("no inputs files")
+		}
+		if out == "" {
+			fatal("-output flag is required")
+		}
+		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
+		if err := l.Create(); err != nil {
 			fatal(err.Error())
 		}
 		return
@@ -70,16 +104,14 @@ func main() {
 		return
 	}
 
-	if create {
-		if len(in) == 0 {
-			fatal("no inputs files")
-		}
-		if out == "" {
-			fatal("-output flag is required")
-		}
-		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
-		if err := l.Create(); err != nil {
+	if verifyArch != "" {
+		l := lipo.New(lipo.WithInputs(in...))
+		ok, err := l.VerifyArch(verifyArch)
+		if err != nil {
 			fatal(err.Error())
+		}
+		if !ok {
+			os.Exit(1)
 		}
 		return
 	}
