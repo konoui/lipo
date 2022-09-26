@@ -24,7 +24,7 @@ func ToCpu(v string) (cpu macho.Cpu, sub uint32, ok bool) {
 }
 
 func ToString(cpu macho.Cpu, subCpu uint32) string {
-	maskedSub := (subCpu & ^subTypeMask)
+	maskedSub := (subCpu & ^MaskSubType)
 	for _, cs := range cpuNames {
 		if cs.t == uint32(cpu) && cs.s == maskedSub {
 			return cs.v
@@ -96,7 +96,7 @@ const (
 	// skip
 )
 
-const subTypeMask uint32 = 0xff000000
+const MaskSubType uint32 = 0xff000000
 
 const (
 	SubTypeX86All    uint32 = 3

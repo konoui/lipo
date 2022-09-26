@@ -101,29 +101,28 @@ func close(closers []*fatArch) error {
 	return nil
 }
 
-// for mock
-var CompareFunc = StableCmp
+// Note mock using qsort
+var SortFunc = sort.Slice
 
-func UnstableCmp(i, j *fatArch) bool {
-	return i.Align < j.Align
-}
-
-func StableCmp(i, j *fatArch) bool {
-	if i.Align == j.Align {
-		icpu := i.Cpu
-		isub := i.SubCpu
-		v1 := (uint64(icpu) << 32) | uint64(isub)
-		jcpu := j.Cpu
-		jsub := j.SubCpu
-		v2 := (uint64(jcpu) << 32) | uint64(jsub)
-		return v1 < v2
+// https://github.com/apple-oss-distributions/cctools/blob/cctools-973.0.1/misc/lipo.c#L2677
+func compare(i, j *fatArch) bool {
+	if i.Cpu == j.Cpu {
+		return (i.SubCpu & ^mcpu.MaskSubType) < (j.SubCpu & ^mcpu.MaskSubType)
 	}
+
+	if i.Cpu == mcpu.TypeArm64 {
+		return false
+	}
+	if j.Cpu == mcpu.TypeArm64 {
+		return true
+	}
+
 	return i.Align < j.Align
 }
 
 func sortByArch(fatArches []*fatArch) ([]*fatArch, error) {
-	sort.Slice(fatArches, func(i, j int) bool {
-		return CompareFunc(fatArches[i], fatArches[j])
+	SortFunc(fatArches, func(i, j int) bool {
+		return compare(fatArches[i], fatArches[j])
 	})
 
 	fatHeader := &fatHeader{

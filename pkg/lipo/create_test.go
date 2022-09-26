@@ -27,14 +27,8 @@ func TestLipo_Create(t *testing.T) {
 			arches: []string{inAmd64, inArm64, "arm64e"},
 		},
 		{
-			name: "-create",
-			// TODO more than 7, test failed due to order
-			arches: mcpu.CpuNames()[0:7],
-		},
-		{
-			name: "-create",
-			// TODO more than 7, test failed due to order
-			arches: mcpu.CpuNames()[3:10],
+			name:   "-create",
+			arches: mcpu.CpuNames(),
 		},
 	}
 	for _, tt := range tests {

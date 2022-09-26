@@ -15,11 +15,13 @@ import (
 	"time"
 
 	"github.com/konoui/lipo/pkg/lipo"
+	"github.com/konoui/lipo/pkg/lipo/cgo_qsort"
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
 func init() {
-	lipo.CompareFunc = lipo.UnstableCmp
+	// using apple lipo sorter
+	lipo.SortFunc = cgo_qsort.Slice
 }
 
 var godata = `

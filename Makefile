@@ -16,6 +16,7 @@ lint:
 	golangci-lint run ./...
 
 test:
+	GODEBUG=cgocheck=0 \
 	go test -v ./...
 
 cover:
