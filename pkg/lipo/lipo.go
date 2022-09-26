@@ -101,21 +101,29 @@ func close(closers []*fatArch) error {
 	return nil
 }
 
+// for mock
+var CompareFunc = StableCmp
+
+func UnstableCmp(i, j *fatArch) bool {
+	return i.Align < j.Align
+}
+
+func StableCmp(i, j *fatArch) bool {
+	if i.Align == j.Align {
+		icpu := i.Cpu
+		isub := i.SubCpu
+		v1 := (uint64(icpu) << 32) | uint64(isub)
+		jcpu := j.Cpu
+		jsub := j.SubCpu
+		v2 := (uint64(jcpu) << 32) | uint64(jsub)
+		return v1 < v2
+	}
+	return i.Align < j.Align
+}
+
 func sortByArch(fatArches []*fatArch) ([]*fatArch, error) {
-	// https://opensource.apple.com/source/cctools/cctools-750/misc/lipo.c.auto.html
-	// TODO apple lipo looks using qsort, which is not stable sort.
-	// we use cpu/sub-cpu values for independent results if alignments are same
 	sort.Slice(fatArches, func(i, j int) bool {
-		if fatArches[i].Align == fatArches[j].Align {
-			icpu := fatArches[i].Cpu
-			isub := fatArches[i].SubCpu
-			v1 := (uint64(icpu) << 32) | uint64(isub)
-			jcpu := fatArches[j].Cpu
-			jsub := fatArches[j].SubCpu
-			v2 := (uint64(jcpu) << 32) | uint64(jsub)
-			return v1 < v2
-		}
-		return fatArches[i].Align < fatArches[j].Align
+		return CompareFunc(fatArches[i], fatArches[j])
 	})
 
 	fatHeader := &fatHeader{
@@ -125,13 +133,13 @@ func sortByArch(fatArches []*fatArch) ([]*fatArch, error) {
 
 	// update offset
 	offset := int64(fatHeader.size())
-	for _, hdr := range fatArches {
-		offset = align(int64(offset), 1<<int64(hdr.Align))
+	for i := range fatArches {
+		offset = align(int64(offset), 1<<int64(fatArches[i].Align))
 		if !boundaryOK(offset) {
 			return nil, fmt.Errorf("exceeds maximum fat32 size")
 		}
-		hdr.Offset = uint32(offset)
-		offset += int64(hdr.Size)
+		fatArches[i].Offset = uint32(offset)
+		offset += int64(fatArches[i].Size)
 	}
 	return fatArches, nil
 }

@@ -14,8 +14,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/konoui/lipo/pkg/lipo"
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
+
+func init() {
+	lipo.CompareFunc = lipo.UnstableCmp
+}
 
 var godata = `
 package main
@@ -39,8 +44,10 @@ type lipoBin struct {
 
 type testLipo struct {
 	archBins map[string]string
-	dir      string
-	fatBin   string
+	// for reserving bins() order
+	arches []string
+	dir    string
+	fatBin string
 	lipoBin
 }
 
@@ -84,8 +91,8 @@ func setup(t *testing.T, arches ...string) *testLipo {
 	if !lipoBin.skip() && len(archBins) > 0 {
 		// create fat bit for inputs
 		inputs := make([]string, 0, len(archBins))
-		for _, in := range archBins {
-			inputs = append(inputs, in)
+		for _, in := range arches {
+			inputs = append(inputs, archBins[in])
 		}
 		lipoBin.create(t, fatBin, inputs...)
 	}
@@ -93,6 +100,7 @@ func setup(t *testing.T, arches ...string) *testLipo {
 	return &testLipo{
 		dir:      dir,
 		archBins: archBins,
+		arches:   arches,
 		fatBin:   fatBin,
 		lipoBin:  lipoBin,
 	}
@@ -108,8 +116,8 @@ func (l *testLipo) bin(t *testing.T, arch string) string {
 
 func (l *testLipo) bins() []string {
 	bins := make([]string, 0, len(l.archBins))
-	for _, b := range l.archBins {
-		bins = append(bins, b)
+	for _, a := range l.arches {
+		bins = append(bins, l.archBins[a])
 	}
 	return bins
 }
