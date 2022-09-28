@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/integrii/flaggy"
 	"github.com/konoui/lipo/pkg/lipo"
+	"github.com/konoui/lipo/pkg/sflag"
 )
 
 var osExit = os.Exit
@@ -18,77 +18,65 @@ func fatal(msg string) {
 
 func main() {
 	var out string
-	var remove, extract, verifyArch string
+	remove, extract, verifyArch := []string{}, []string{}, []string{}
+	replace := [][]string{make([]string, 2)}
 	create := false
 	archs := false
 
-	argIn := make([]string, 4)
+	fset := sflag.NewFlagSet("lipo")
+	fset.String(&out, "output", "-output <file>")
+	fset.Bool(&create, "create", "-create")
+	fset.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>")
+	fset.MultipleFlagStrings(&extract, "extract", "-extract <arch>")
+	fset.MultipleFlagStrings(&remove, "remove", "-remove <arch>")
+	fset.Bool(&archs, "archs", "-archs <arch> ...")
+	fset.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch> ...")
 
-	flaggy.SetName("lipo")
-	flaggy.SetDescription("create an universal binary for macOS")
-	flaggy.String(&out, "output", "output", "output file")
-	flaggy.Bool(&create, "create", "create", "create flag")
-	flaggy.String(&remove, "remove", "remove", "remove <arch>")
-	flaggy.String(&extract, "extract", "extract", "extract <arch>")
-	flaggy.String(&verifyArch, "verify_arch", "verify_arch", "extract <arch>")
-	flaggy.Bool(&archs, "archs", "archs", "show arch")
-
-	for idx := range argIn {
-		required := true
-		if idx > 0 {
-			required = false
-		}
-		flaggy.AddPositionalValue(&argIn[idx], "input", idx+1, required, "input file")
+	if err := fset.Parse(os.Args[1:]); err != nil {
+		fatal(err.Error())
 	}
 
-	flaggy.Parse()
-
-	// validate
-	in := make([]string, 0, len(argIn))
-	for idx := range argIn {
-		if argIn[idx] == "" {
-			continue
-		}
-		in = append(in, argIn[idx])
-	}
-
-	if remove != "" {
-		if len(in) == 0 {
-			fatal("no inputs files")
-		}
-		if out == "" {
-			fatal("-output flag is required")
-		}
-		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
-		if err := l.Remove(remove); err != nil {
-			fatal(err.Error())
-		}
-		return
-	}
-
-	if extract != "" {
-		if len(in) == 0 {
-			fatal("no inputs files")
-		}
-		if out == "" {
-			fatal("-output flag is required")
-		}
-		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
-		if err := l.Extract(extract); err != nil {
-			fatal(err.Error())
-		}
-		return
-	}
-
+	in := fset.Args()
 	if create {
-		if len(in) == 0 {
-			fatal("no inputs files")
-		}
 		if out == "" {
 			fatal("-output flag is required")
 		}
 		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
 		if err := l.Create(); err != nil {
+			fatal(err.Error())
+		}
+		return
+	}
+
+	if len(remove) != 0 {
+		if out == "" {
+			fatal("-output flag is required")
+		}
+		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
+		if err := l.Remove(remove...); err != nil {
+			fatal(err.Error())
+		}
+		return
+	}
+
+	if len(extract) != 0 {
+		if out == "" {
+			fatal("-output flag is required")
+		}
+		l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
+		if err := l.Extract(extract...); err != nil {
+			fatal(err.Error())
+		}
+		return
+	}
+
+	if len(replace) != 0 {
+		l := lipo.New(lipo.WithInputs(in...), lipo.WithOutput(out))
+		ris, err := lipo.ReplaceInputs(replace)
+		if err != nil {
+			fatal(err.Error())
+		}
+		if err := l.Replace(ris); err != nil {
 			fatal(err.Error())
 		}
 		return
@@ -104,9 +92,9 @@ func main() {
 		return
 	}
 
-	if verifyArch != "" {
+	if len(verifyArch) != 0 {
 		l := lipo.New(lipo.WithInputs(in...))
-		ok, err := l.VerifyArch(verifyArch)
+		ok, err := l.VerifyArch(verifyArch...)
 		if err != nil {
 			fatal(err.Error())
 		}
@@ -115,5 +103,4 @@ func main() {
 		}
 		return
 	}
-
 }
