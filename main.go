@@ -16,22 +16,56 @@ func fatal(msg string) {
 	osExit(1)
 }
 
+var _ sflag.Values = &replaceInputs{}
+
+type replaceInputs struct {
+	slice *[]lipo.ReplaceInput
+	idx   int
+	cur   int
+}
+
+func (ri *replaceInputs) Set(v string) error {
+	if len(*ri.slice) <= ri.idx {
+		*ri.slice = append(*ri.slice, lipo.ReplaceInput{})
+	}
+	if ri.cur == 0 {
+		(*ri.slice)[ri.idx].Arch = v
+	} else if ri.cur == 1 {
+		(*ri.slice)[ri.idx].Bin = v
+	} else {
+		return fmt.Errorf("fill error. cur %d, slice %v", ri.cur, ri.slice)
+	}
+	return nil
+}
+
+func (ri *replaceInputs) Cap() int {
+	cap := 2 - ri.cur
+	if cap == 0 {
+		ri.cur = 0
+		ri.idx++
+	}
+	return cap
+}
+
+func MultipleFlagReplaceInputs(fset *sflag.FlagSet, inputs *[]lipo.ReplaceInput, name, usage string) {
+	fset.Var(&replaceInputs{slice: &[]lipo.ReplaceInput{}}, name, usage)
+}
+
 func main() {
 	var out string
 	remove, extract, verifyArch := []string{}, []string{}, []string{}
-	replace := [][]string{make([]string, 2)}
+	replace := []lipo.ReplaceInput{}
 	create := false
 	archs := false
 
 	fset := sflag.NewFlagSet("lipo")
 	fset.String(&out, "output", "-output <file>")
 	fset.Bool(&create, "create", "-create")
-	fset.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>")
-	fset.MultipleFlagStrings(&extract, "extract", "-extract <arch>")
-	fset.MultipleFlagStrings(&remove, "remove", "-remove <arch>")
+	fset.MultipleFlagString(&extract, "extract", "-extract <arch>")
+	fset.MultipleFlagString(&remove, "remove", "-remove <arch>")
 	fset.Bool(&archs, "archs", "-archs <arch> ...")
 	fset.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch> ...")
-
+	MultipleFlagReplaceInputs(fset, &replace, "replace", "-replace <arch> <file>")
 	if err := fset.Parse(os.Args[1:]); err != nil {
 		fatal(err.Error())
 	}
@@ -72,11 +106,7 @@ func main() {
 
 	if len(replace) != 0 {
 		l := lipo.New(lipo.WithInputs(in...), lipo.WithOutput(out))
-		ris, err := lipo.ReplaceInputs(replace)
-		if err != nil {
-			fatal(err.Error())
-		}
-		if err := l.Replace(ris); err != nil {
+		if err := l.Replace(replace); err != nil {
 			fatal(err.Error())
 		}
 		return

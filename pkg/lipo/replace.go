@@ -9,27 +9,12 @@ import (
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
-func ReplaceInputs(rawInputs [][]string) ([]*ReplaceInput, error) {
-	if len(rawInputs) == 0 {
-		return nil, errors.New("no replace inputs")
-	}
-
-	rinputs := make([]*ReplaceInput, 0, len(rawInputs))
-	for _, rawIn := range rawInputs {
-		if len(rawIn) != 2 {
-			return nil, fmt.Errorf("inputs are not arch/file pair %v", rawIn)
-		}
-		rinputs = append(rinputs, &ReplaceInput{Arch: rawIn[0], Bin: rawIn[1]})
-	}
-	return rinputs, nil
-}
-
 type ReplaceInput struct {
 	Arch string
 	Bin  string
 }
 
-func arches(input []*ReplaceInput) []string {
+func arches(input []ReplaceInput) []string {
 	arches := make([]string, 0, len(input))
 	for _, ri := range input {
 		arches = append(arches, ri.Arch)
@@ -37,7 +22,7 @@ func arches(input []*ReplaceInput) []string {
 	return arches
 }
 
-func bins(input []*ReplaceInput) []string {
+func bins(input []ReplaceInput) []string {
 	b := make([]string, 0, len(input))
 	for _, ri := range input {
 		b = append(b, ri.Bin)
@@ -45,7 +30,7 @@ func bins(input []*ReplaceInput) []string {
 	return b
 }
 
-func (l *Lipo) Replace(inputs []*ReplaceInput) error {
+func (l *Lipo) Replace(inputs []ReplaceInput) error {
 	if len(l.in) == 0 {
 		return errors.New("no inputs")
 	}

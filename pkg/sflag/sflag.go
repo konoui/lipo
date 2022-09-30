@@ -14,19 +14,11 @@ type Value interface {
 
 type Values interface {
 	Value
-	Cap() CapStatus
+	Cap() int
 }
-type CursorValues interface {
-	Values
-	NextCursor()
-}
-
-type CapStatus int
 
 const (
-	CapFilled CapStatus = iota
-	CapRequired
-	CapNotFilled
+	CapNoLimit = -1
 )
 
 type FlagSet struct {
@@ -34,7 +26,7 @@ type FlagSet struct {
 	name   string
 	flags  map[string]Value
 	parsed bool
-	args   []string // not flagged values
+	args   []string
 	out    io.Writer
 }
 
@@ -96,16 +88,10 @@ func (fs *FlagSet) parse() (bool, error) {
 		return false, nil
 	}
 
-	s := fs.args[0]
-	if len(s) < 2 || s[0] != '-' {
+	name := flagName(fs.args[0])
+	if name == "" {
 		return false, nil
 	}
-
-	name := s[len("-"):]
-	if len(fs.args) == 0 {
-		return false, nil
-	}
-
 	// update and skip flag name
 	fs.args = fs.args[1:]
 
@@ -133,29 +119,39 @@ func (fs *FlagSet) parse() (bool, error) {
 			return false, err
 		}
 		return true, nil
-	} else {
-		indexValues, ok := values.(CursorValues)
-		if ok {
-			defer indexValues.NextCursor()
+	}
+
+	// limited cap case, consume num of remaining caps
+	cap := values.Cap()
+	for i := 0; i < cap; i++ {
+		if len(fs.args) == 0 {
+			return false, errors.New("more values are required")
 		}
+
+		nextArg := fs.args[0]
+		_, isName := fs.flags[flagName(nextArg)]
+		if isName {
+			return false, errors.New("more values are required")
+		}
+
+		v := fs.consumeArg()
+		if err := values.Set(v); err != nil {
+			return false, err
+		}
+	}
+
+	// check no limit case after limited case since transition of limit cap to no limit will occur
+	cap = values.Cap()
+	if cap == CapNoLimit {
 		for {
 			if len(fs.args) == 0 {
 				return false, nil
 			}
 
 			nextArg := fs.args[0]
-			_, isName := fs.flags[nextArg]
-			switch values.Cap() {
-			case CapFilled:
+			_, isName := fs.flags[flagName(nextArg)]
+			if isName {
 				return true, nil
-			case CapRequired:
-				if isName {
-					return false, errors.New("more values are required")
-				}
-			case CapNotFilled:
-				if isName {
-					return true, nil
-				}
 			}
 
 			v := fs.consumeArg()
@@ -164,6 +160,17 @@ func (fs *FlagSet) parse() (bool, error) {
 			}
 		}
 	}
+	// cap is limited
+	return true, nil
+
+}
+
+func flagName(s string) string {
+	if len(s) < 2 || s[0] != '-' {
+		return ""
+	}
+	name := s[len("-"):]
+	return name
 }
 
 func (fs *FlagSet) consumeArg() (arg string) {
@@ -172,6 +179,9 @@ func (fs *FlagSet) consumeArg() (arg string) {
 }
 
 func (fs *FlagSet) Var(v Value, name, usage string) {
+	if name == "" {
+		fmt.Fprintf(fs.out, "Warning: skip register due to empty name\n")
+	}
 	if fs.flags == nil {
 		fs.flags = make(map[string]Value)
 	}
@@ -223,8 +233,8 @@ type stringSlice struct {
 	cur   int
 }
 
-// MultipleFlagStrings presents `-flag <value1> -flag <value2> -flag <value3>`
-func (fs *FlagSet) MultipleFlagStrings(p *[]string, name, usage string) {
+// MultipleFlagString presents `-flag <value1> -flag <value2> -flag <value3>`
+func (fs *FlagSet) MultipleFlagString(p *[]string, name, usage string) {
 	ss := &stringSlice{
 		slice: p,
 		cur:   0,
@@ -259,11 +269,11 @@ func (fs *FlagSet) FlexStrings(p *[]string, name, usage string) {
 	fs.Var(ss, name, usage)
 }
 
-func (s *strings) Cap() CapStatus {
+func (s *strings) Cap() int {
 	if len(*s.slice) == 0 {
-		return CapRequired
+		return 1
 	}
-	return CapNotFilled
+	return CapNoLimit
 }
 
 type fixedStrings struct {
@@ -284,7 +294,7 @@ func (fs *FlagSet) FixedStrings(p *[]string, name, usage string) {
 
 func (s *fixedStrings) Set(v string) error {
 	if s.cur >= s.len {
-		return fmt.Errorf("fill error. cur %d, len %d, array %v", s.cur, s.len, s.slice)
+		return fmt.Errorf("fill error. cur %d, len %d, slice %v", s.cur, s.len, s.slice)
 	}
 
 	(*s.slice)[s.cur] = v
@@ -292,11 +302,8 @@ func (s *fixedStrings) Set(v string) error {
 	return nil
 }
 
-func (s *fixedStrings) Cap() CapStatus {
-	if (s.len - s.cur) > 0 {
-		return CapRequired
-	}
-	return CapFilled
+func (s *fixedStrings) Cap() int {
+	return s.len - s.cur
 }
 
 type sliceStrings struct {
@@ -306,7 +313,7 @@ type sliceStrings struct {
 	idx   int
 }
 
-var _ CursorValues = &sliceStrings{}
+var _ Values = &sliceStrings{}
 
 // MultipleFlagFixedStrings `-flag <value1> <value2> -flag <value3> <value4> -flag ...`
 // e.g. s := [][]string{make([]string, 2)}
@@ -320,7 +327,7 @@ func (fs *FlagSet) MultipleFlagFixedStrings(p *[][]string, name, usage string) {
 
 func (s *sliceStrings) Set(v string) error {
 	if s.cur >= s.len {
-		return fmt.Errorf("fill error. cur %d, len %d, array %v", s.cur, s.len, s.slice)
+		return fmt.Errorf("fill error. cur %d, len %d, slice %v", s.cur, s.len, s.slice)
 	}
 	if len(*s.slice) <= s.idx {
 		*s.slice = append(*s.slice, make([]string, s.len))
@@ -330,14 +337,11 @@ func (s *sliceStrings) Set(v string) error {
 	return nil
 }
 
-func (s *sliceStrings) Cap() CapStatus {
-	if (s.len - s.cur) > 0 {
-		return CapRequired
+func (s *sliceStrings) Cap() int {
+	cap := s.len - s.cur
+	if cap == 0 {
+		s.cur = 0
+		s.idx++
 	}
-	return CapFilled
-}
-
-func (s *sliceStrings) NextCursor() {
-	s.cur = 0
-	s.idx++
+	return cap
 }

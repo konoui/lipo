@@ -11,6 +11,7 @@ import (
 )
 
 func TestLipo_Archs(t *testing.T) {
+	// fat binary test
 	arches := mcpu.CpuNames()
 	p := setup(t, arches...)
 
@@ -27,11 +28,24 @@ func TestLipo_Archs(t *testing.T) {
 	got := strings.Join(gotArches, " ") + "\n"
 	want := p.archs(t, p.fatBin)
 	if want != got {
-		t.Errorf("want %v\ngot %v\n", want, got)
+		t.Errorf("fat bin want %v\ngot %v\n", want, got)
+	}
+
+	// single binary test
+	tg := p.bin(t, inAmd64)
+	l = lipo.New(lipo.WithInputs(tg))
+	gotArches, err = l.Archs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = strings.Join(gotArches, " ") + "\n"
+	want = p.archs(t, tg)
+	if want != got {
+		t.Errorf("thin bin want %v\ngot %v\n", want, got)
 	}
 }
 
-func TestLipo_ArchsForLocationFiles(t *testing.T) {
+func TestLipo_ArchsToLocalFiles(t *testing.T) {
 	t.Run("archs", func(t *testing.T) {
 		lipoBin := newLipoBin(t)
 		dir := "/bin/"

@@ -7,24 +7,32 @@ import (
 )
 
 var (
-	output     = ""
-	create     = false
-	replace    = [][]string{make([]string, 2)}
-	extract    = []string{}
-	remove     = []string{}
-	archs      = false
-	verifyArch = []string{}
+	output                      = ""
+	create, archs               = false, false
+	extract, remove, verifyArch = []string{}, []string{}, []string{}
+	replace                     = [][]string{make([]string, 2)}
 )
 
-func fset(t *testing.T, in []string) *sflag.FlagSet {
+func register() *sflag.FlagSet {
 	fs := sflag.NewFlagSet("lipo")
+	// init
+	output = ""
+	create, archs = false, false
+	replace = [][]string{make([]string, 2)}
+	extract, remove, verifyArch = []string{}, []string{}, []string{}
+
 	fs.String(&output, "output", "-output <file>")
 	fs.Bool(&create, "create", "-create")
 	fs.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>")
-	fs.MultipleFlagStrings(&extract, "extract", "-extract <arch>")
-	fs.MultipleFlagStrings(&remove, "remove", "-remove <arch>")
+	fs.MultipleFlagString(&extract, "extract", "-extract <arch>")
+	fs.MultipleFlagString(&remove, "remove", "-remove <arch>")
 	fs.Bool(&archs, "archs", "-archs <arch> ...")
 	fs.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch>")
+	return fs
+}
+
+func fset(t *testing.T, in []string) *sflag.FlagSet {
+	fs := register()
 	if err := fs.Parse(in); err != nil {
 		t.Fatal(err)
 	}
@@ -123,6 +131,68 @@ func TestFlagSet_Parse(t *testing.T) {
 		equal(t, []string{"path/to/in1"}, fs.Args())
 		equal(t, []string{"x86_64", "arm64", "arm64e", "x86_64h", "arm"}, verifyArch)
 	})
+
+	// unexpected input tests
+	t.Run("flex string stop after flag(-output)", func(t *testing.T) {
+		args := []string{
+			"-verify_arch", "x86_64", "arm64",
+			"-output", "stop-archs",
+		}
+		_ = fset(t, args)
+		equal(t, []string{"stop-archs"}, []string{output})
+		equal(t, []string{"x86_64", "arm64"}, verifyArch)
+	})
+}
+
+func TestFlagSet_ParseError(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		errMsg   string
+		addCheck func(t *testing.T)
+	}{
+		{
+			name: "-replace without args",
+			args: []string{
+				"path/to/in1",
+				"-output", "output1",
+				"-replace", "x86_64",
+			},
+			errMsg: "more values are required",
+		},
+		{
+			name: "-replace without args",
+			args: []string{
+				"path/to/in1",
+				"-replace", "x86_64",
+				"-output", "output2",
+			},
+			errMsg: "more values are required",
+		},
+		{
+			name: "-replace without args",
+			args: []string{
+				"path/to/in1",
+				"-replace", "x86_64", "target1",
+				"-output",
+			},
+			errMsg: "value is not specified",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := register()
+			err := fs.Parse(tt.args)
+			if err != nil {
+				if err.Error() != tt.errMsg {
+					t.Errorf("want: %v, got: %v", err.Error(), tt.errMsg)
+				}
+			}
+			if tt.addCheck != nil {
+				tt.addCheck(t)
+			}
+		})
+	}
 }
 
 func shuffle(dataSet [][]string) [][]string {

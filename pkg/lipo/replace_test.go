@@ -32,7 +32,7 @@ func TestLipo_Replace(t *testing.T) {
 
 			got := filepath.Join(p.dir, randName())
 			l := lipo.New(lipo.WithInputs(p.fatBin), lipo.WithOutput(got))
-			ri := []*lipo.ReplaceInput{{Arch: arch, Bin: to}}
+			ri := []lipo.ReplaceInput{{Arch: arch, Bin: to}}
 			if err := l.Replace(ri); err != nil {
 				t.Fatalf("replace error: %v\n", err)
 			}
