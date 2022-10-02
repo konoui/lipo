@@ -7,6 +7,7 @@ import (
 
 	"github.com/konoui/lipo/pkg/lipo"
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/testlipo"
 )
 
 func TestLipo_Create(t *testing.T) {
@@ -33,20 +34,18 @@ func TestLipo_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := setup(t, tt.arches...)
+			p := testlipo.Setup(t, tt.arches...)
 
-			got := filepath.Join(p.dir, randName())
-			createFatBin(t, got, p.bins()...)
+			got := filepath.Join(p.Dir, randName())
+			createFatBin(t, got, p.Bins()...)
 			// tests for fat bin is expected
 			verifyArches(t, got, tt.arches...)
 
-			if p.skip() {
+			if p.Skip() {
 				t.Skip("skip lipo binary test")
 			}
 
-			p.detailedInfo(t, got)
-			p.detailedInfo(t, p.fatBin)
-			diffSha256(t, p.fatBin, got)
+			diffSha256(t, p.FatBin, got)
 		})
 	}
 }

@@ -7,36 +7,37 @@ import (
 )
 
 var (
-	output                      = ""
+	output, thin                = "", ""
 	create, archs               = false, false
 	extract, remove, verifyArch = []string{}, []string{}, []string{}
 	replace                     = [][]string{make([]string, 2)}
 )
 
 func register() *sflag.FlagSet {
-	fs := sflag.NewFlagSet("lipo")
+	f := sflag.NewFlagSet("lipo")
 	// init
-	output = ""
+	output, thin = "", ""
 	create, archs = false, false
 	replace = [][]string{make([]string, 2)}
 	extract, remove, verifyArch = []string{}, []string{}, []string{}
 
-	fs.String(&output, "output", "-output <file>")
-	fs.Bool(&create, "create", "-create")
-	fs.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>")
-	fs.MultipleFlagString(&extract, "extract", "-extract <arch>")
-	fs.MultipleFlagString(&remove, "remove", "-remove <arch>")
-	fs.Bool(&archs, "archs", "-archs <arch> ...")
-	fs.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch>")
-	return fs
+	f.String(&output, "output", "-output <file>")
+	f.Bool(&create, "create", "-create")
+	f.String(&thin, "thin", "thin <arch>")
+	f.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>")
+	f.MultipleFlagString(&extract, "extract", "-extract <arch>")
+	f.MultipleFlagString(&remove, "remove", "-remove <arch>")
+	f.Bool(&archs, "archs", "-archs <arch> ...")
+	f.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch>")
+	return f
 }
 
 func fset(t *testing.T, in []string) *sflag.FlagSet {
-	fs := register()
-	if err := fs.Parse(in); err != nil {
+	f := register()
+	if err := f.Parse(in); err != nil {
 		t.Fatal(err)
 	}
-	return fs
+	return f
 }
 
 func TestFlagSet_Parse(t *testing.T) {
@@ -51,8 +52,8 @@ func TestFlagSet_Parse(t *testing.T) {
 		}
 		gotInput := []string{"path/to/in1", "path/to/in2", "path/to/in3", "path/to/in4"}
 		for _, in := range shuffle(dataSet) {
-			fs := fset(t, in)
-			equal(t, gotInput, fs.Args())
+			f := fset(t, in)
+			equal(t, gotInput, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			if !create {
 				t.Errorf("create is not true")
@@ -67,8 +68,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-replace", "arm64", "path/to/target2"},
 		}
 		for _, in := range shuffle(dataSet) {
-			fs := fset(t, in)
-			equal(t, []string{"path/to/in1"}, fs.Args())
+			f := fset(t, in)
+			equal(t, []string{"path/to/in1"}, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			got1 := replace[0]
 			got2 := replace[1]
@@ -92,8 +93,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-extract", "arm64e"},
 		}
 		for _, in := range shuffle(dataSet) {
-			fs := fset(t, in)
-			equal(t, []string{"path/to/in1"}, fs.Args())
+			f := fset(t, in)
+			equal(t, []string{"path/to/in1"}, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			equal(t, []string{"arm64", "arm64e"}, extract)
 		}
@@ -106,10 +107,23 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-remove", "x86_64h"},
 		}
 		for _, in := range shuffle(dataSet) {
-			fs := fset(t, in)
-			equal(t, []string{"path/to/in1"}, fs.Args())
+			f := fset(t, in)
+			equal(t, []string{"path/to/in1"}, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			equal(t, []string{"x86_64h", "x86_64"}, remove)
+		}
+	})
+	t.Run("thin", func(t *testing.T) {
+		dataSet := [][]string{
+			{"path/to/in1"},
+			{"-output", "path/to/out"},
+			{"-thin", "x86_64"},
+		}
+		for _, in := range shuffle(dataSet) {
+			f := fset(t, in)
+			equal(t, []string{"path/to/in1"}, f.Args())
+			equal(t, []string{"path/to/out"}, []string{output})
+			equal(t, []string{"x86_64"}, []string{thin})
 		}
 	})
 	t.Run("archs", func(t *testing.T) {
@@ -118,8 +132,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-archs"},
 		}
 		for _, in := range shuffle(dataSet) {
-			fs := fset(t, in)
-			equal(t, []string{"path/to/in1"}, fs.Args())
+			f := fset(t, in)
+			equal(t, []string{"path/to/in1"}, f.Args())
 			if !archs {
 				t.Errorf("archs is false")
 			}
@@ -127,12 +141,18 @@ func TestFlagSet_Parse(t *testing.T) {
 	})
 	t.Run("verify_arch", func(t *testing.T) {
 		in := []string{"path/to/in1", "-verify_arch", "x86_64", "arm64", "arm64e", "x86_64h", "arm"}
-		fs := fset(t, in)
-		equal(t, []string{"path/to/in1"}, fs.Args())
+		f := fset(t, in)
+		equal(t, []string{"path/to/in1"}, f.Args())
 		equal(t, []string{"x86_64", "arm64", "arm64e", "x86_64h", "arm"}, verifyArch)
 	})
 
-	// unexpected input tests
+	// TODO
+	// t.Run("usage", func(t *testing.T) {
+	// 	f := fset(t, []string{})
+	// 	f.Usage()
+	// })
+
+	// not actual input
 	t.Run("flex string stop after flag(-output)", func(t *testing.T) {
 		args := []string{
 			"-verify_arch", "x86_64", "arm64",
@@ -178,11 +198,20 @@ func TestFlagSet_ParseError(t *testing.T) {
 			},
 			errMsg: "value is not specified",
 		},
+		{
+			name: "dup flag",
+			args: []string{
+				"path/to/in1",
+				"-output", "out1",
+				"-output", "out2",
+			},
+			errMsg: "more than one -output option specified",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fs := register()
-			err := fs.Parse(tt.args)
+			f := register()
+			err := f.Parse(tt.args)
 			if err != nil {
 				if err.Error() != tt.errMsg {
 					t.Errorf("want: %v, got: %v", err.Error(), tt.errMsg)

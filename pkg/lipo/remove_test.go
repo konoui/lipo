@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
+	"github.com/konoui/lipo/pkg/testlipo"
 )
 
 func TestLipo_Remove(t *testing.T) {
@@ -31,11 +32,11 @@ func TestLipo_Remove(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := setup(t, tt.inputs...)
+			p := testlipo.Setup(t, tt.inputs...)
 
-			got := filepath.Join(p.dir, randName())
+			got := filepath.Join(p.Dir, randName())
 			arches := tt.arches
-			l := lipo.New(lipo.WithInputs(p.fatBin), lipo.WithOutput(got))
+			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 			if err := l.Remove(arches...); err != nil {
 				t.Errorf("remove error %v\n", err)
 			}
@@ -48,12 +49,12 @@ func TestLipo_Remove(t *testing.T) {
 			}
 			verifyArches(t, got, wantArches...)
 
-			if p.skip() {
+			if p.Skip() {
 				t.Skip("skip lipo binary tests")
 			}
 
-			want := filepath.Join(p.dir, randName())
-			p.remove(t, want, p.fatBin, arches)
+			want := filepath.Join(p.Dir, randName())
+			p.Remove(t, want, p.FatBin, arches)
 			diffSha256(t, want, got)
 		})
 	}

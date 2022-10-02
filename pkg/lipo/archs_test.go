@@ -8,38 +8,39 @@ import (
 
 	"github.com/konoui/lipo/pkg/lipo"
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/testlipo"
 )
 
 func TestLipo_Archs(t *testing.T) {
 	// fat binary test
 	arches := mcpu.CpuNames()
-	p := setup(t, arches...)
+	p := testlipo.Setup(t, arches...)
 
-	if p.skip() {
+	if p.Skip() {
 		t.Skip("skip lipo binary tests")
 	}
 
-	l := lipo.New(lipo.WithInputs(p.fatBin))
+	l := lipo.New(lipo.WithInputs(p.FatBin))
 	gotArches, err := l.Archs()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	got := strings.Join(gotArches, " ") + "\n"
-	want := p.archs(t, p.fatBin)
+	want := p.Archs(t, p.FatBin)
 	if want != got {
 		t.Errorf("fat bin want %v\ngot %v\n", want, got)
 	}
 
 	// single binary test
-	tg := p.bin(t, inAmd64)
+	tg := p.Bin(t, inAmd64)
 	l = lipo.New(lipo.WithInputs(tg))
 	gotArches, err = l.Archs()
 	if err != nil {
 		t.Fatal(err)
 	}
 	got = strings.Join(gotArches, " ") + "\n"
-	want = p.archs(t, tg)
+	want = p.Archs(t, tg)
 	if want != got {
 		t.Errorf("thin bin want %v\ngot %v\n", want, got)
 	}
@@ -47,7 +48,7 @@ func TestLipo_Archs(t *testing.T) {
 
 func TestLipo_ArchsToLocalFiles(t *testing.T) {
 	t.Run("archs", func(t *testing.T) {
-		lipoBin := newLipoBin(t)
+		lipoBin := testlipo.NewLipoBin(t)
 		dir := "/bin/"
 		ents, err := os.ReadDir(dir)
 		if err != nil {
@@ -58,7 +59,7 @@ func TestLipo_ArchsToLocalFiles(t *testing.T) {
 			t.Skip("found no files")
 		}
 
-		if lipoBin.skip() {
+		if lipoBin.Skip() {
 			t.Skip("skip lipo binary tests")
 		}
 
@@ -74,7 +75,7 @@ func TestLipo_ArchsToLocalFiles(t *testing.T) {
 			}
 			got := strings.Join(gotArches, " ") + "\n"
 
-			want := lipoBin.archs(t, bin)
+			want := lipoBin.Archs(t, bin)
 			if want != got {
 				t.Errorf("want %v\ngot %v\n", want, got)
 			}

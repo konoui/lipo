@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
+	"github.com/konoui/lipo/pkg/testlipo"
 )
 
 func TestLipo_Extract(t *testing.T) {
@@ -31,23 +32,23 @@ func TestLipo_Extract(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := setup(t, tt.inputs...)
+			p := testlipo.Setup(t, tt.inputs...)
 
-			got := filepath.Join(p.dir, randName())
+			got := filepath.Join(p.Dir, randName())
 			arches := tt.arches
-			l := lipo.New(lipo.WithInputs(p.fatBin), lipo.WithOutput(got))
+			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 			if err := l.Extract(arches...); err != nil {
 				t.Errorf("extract error %v\n", err)
 			}
 			// tests for fat bin is expected
 			verifyArches(t, got, arches...)
 
-			if p.skip() {
+			if p.Skip() {
 				t.Skip("skip lipo binary tests")
 			}
 
-			want := filepath.Join(p.dir, randName())
-			p.extract(t, want, p.fatBin, arches)
+			want := filepath.Join(p.Dir, randName())
+			p.Extract(t, want, p.FatBin, arches)
 			diffSha256(t, want, got)
 		})
 	}

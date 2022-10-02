@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
+	"github.com/konoui/lipo/pkg/testlipo"
 )
 
 func TestLipo_Thin(t *testing.T) {
@@ -31,21 +32,21 @@ func TestLipo_Thin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := setup(t, tt.inputs...)
+			p := testlipo.Setup(t, tt.inputs...)
 
-			got := filepath.Join(p.dir, randName())
+			got := filepath.Join(p.Dir, randName())
 			arch := tt.arch
-			l := lipo.New(lipo.WithInputs(p.fatBin), lipo.WithOutput(got))
+			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 			if err := l.Thin(arch); err != nil {
 				t.Errorf("thin error %v\n", err)
 			}
 
-			if p.skip() {
+			if p.Skip() {
 				t.Skip("skip lipo binary tests")
 			}
 
-			want := filepath.Join(p.dir, randName())
-			p.thin(t, want, p.fatBin, tt.arch)
+			want := filepath.Join(p.Dir, randName())
+			p.Thin(t, want, p.FatBin, tt.arch)
 			diffSha256(t, want, got)
 		})
 	}
