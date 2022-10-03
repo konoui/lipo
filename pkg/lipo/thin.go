@@ -26,11 +26,10 @@ func (l *Lipo) Thin(arch string) error {
 		s := mcpu.ToString(hdr.Cpu, hdr.SubCpu)
 		return s == arch
 	})
-	defer func() { _ = close(fatArches) }()
-
 	if err != nil {
 		return err
 	}
+	defer func() { _ = close(fatArches) }()
 
 	out, err := os.Create(l.out)
 	if err != nil {

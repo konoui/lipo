@@ -32,7 +32,6 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 		s := mcpu.ToString(hdr.Cpu, hdr.SubCpu)
 		return !contain(s, arches)
 	})
-
 	if err != nil {
 		return err
 	}
@@ -40,6 +39,10 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 
 	return outputFatBinary(l.out, perm, fatArches)
 }
+
+var (
+	errFoundNoFatArch = errors.New("result arch is zero")
+)
 
 // atArchesFromFatBin gathers fatArches from fat binary header if `cond` returns true
 func fatArchesFromFatBin(path string, cond func(hdr *macho.FatArchHeader) bool) ([]*fatArch, error) {
@@ -69,12 +72,8 @@ func fatArchesFromFatBin(path string, cond func(hdr *macho.FatArchHeader) bool) 
 		}
 	}
 
-	if len(fatArches) == len(fat.Arches) {
-		return nil, errors.New("found no architecture")
-	}
-
 	if len(fatArches) == 0 {
-		return nil, errors.New("result arch is zero")
+		return nil, errFoundNoFatArch
 	}
 
 	return sortByArch(fatArches)

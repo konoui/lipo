@@ -2,8 +2,6 @@ package sflag
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"sort"
 	"strings"
 )
@@ -17,6 +15,7 @@ type Flag struct {
 
 type Value interface {
 	Set(string) error
+	Get() any
 }
 
 type Values interface {
@@ -29,34 +28,17 @@ const (
 )
 
 type FlagSet struct {
-	Usage func()
 	name  string
 	flags map[string]*Flag
 	args  []string
-	out   io.Writer
 	seen  map[string]struct{}
 }
 
-type Option func(f *FlagSet)
-
-func WithOut(w io.Writer) Option {
-	return func(f *FlagSet) {
-		f.out = w
-	}
-}
-
-func NewFlagSet(name string, opts ...Option) *FlagSet {
+func NewFlagSet(name string) *FlagSet {
 	f := &FlagSet{
 		name: name,
-		out:  os.Stderr,
 	}
 
-	f.Usage = f.printUsage
-	for _, opt := range opts {
-		if opt != nil {
-			opt(f)
-		}
-	}
 	return f
 }
 
@@ -64,37 +46,35 @@ func (f *FlagSet) Args() []string {
 	return f.args
 }
 
-func (f *FlagSet) Out() io.Writer {
-	return f.out
-}
-
 func (f *FlagSet) Lookup(name string) *Flag {
 	return f.flags[name]
 }
 
-func (f *FlagSet) printUsage() {
-	fmt.Fprintf(f.Out(), "usage: %s:\n", f.name)
+func (f *FlagSet) NewGroup(name string) *Group {
+	return &Group{Name: name, flagSet: f}
+}
+
+func (f *FlagSet) Usage() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("usage: %s:\n", f.name))
 
 	for _, flag := range sortFlags(f.flags) {
-		var b strings.Builder
 		fmt.Fprintf(&b, "  -%s", flag.Name) // Two spaces before -; see next two comments.
 		name, usage := flag.Name, flag.Usage
 		if len(name) > 0 {
 			b.WriteString(" ")
 			b.WriteString(name)
 		}
-		// Boolean flags of one ASCII letter are so common we
-		// treat them specially, putting their usage on the same line.
+
 		if b.Len() <= 4 { // space, space, '-', 'x'.
 			b.WriteString("\t")
 		} else {
-			// Four spaces before the tab triggers good alignment
-			// for both 4- and 8-space tab stops.
 			b.WriteString("\n    \t")
 		}
 		b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
-		fmt.Fprint(f.Out(), b.String(), "\n")
+		b.WriteString("\n")
 	}
+	return b.String()
 }
 
 func sortFlags(flags map[string]*Flag) []*Flag {

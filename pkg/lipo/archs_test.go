@@ -84,10 +84,12 @@ func TestLipo_ArchsToLocalFiles(t *testing.T) {
 }
 
 func verifyArches(t *testing.T, bin string, arches ...string) {
+	t.Helper()
+
 	want := arches
 	got, err := lipo.New(lipo.WithInputs(bin)).Archs()
 	if err != nil {
-		t.Fatalf("archs error: %v", err)
+		t.Fatalf("verifyArches: archs error: %v", err)
 	}
 
 	if len(got) != len(want) {
@@ -106,6 +108,6 @@ func verifyArches(t *testing.T, bin string, arches ...string) {
 		}
 	}
 	if len(diff) != 0 {
-		t.Fatalf("want %v, got %v\n", want, got)
+		t.Fatalf("verifyArches: want %v, got %v\n", want, got)
 	}
 }

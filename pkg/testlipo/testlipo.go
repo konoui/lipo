@@ -164,10 +164,19 @@ func (l *LipoBin) Thin(t *testing.T, out, in, arch string) {
 	execute(t, cmd, true)
 }
 
-func (l *LipoBin) Replace(t *testing.T, out, in, arch, replace string) {
+func (l *LipoBin) Replace(t *testing.T, out, in string, archBins [][2]string) {
 	t.Helper()
-	args := []string{in, "-replace", arch, replace, "-output", out}
-	if arch == "x86_64" {
+
+	archBinArgs := []string{}
+	align := false
+	for _, archBin := range archBins {
+		archBinArgs = append(archBinArgs, "-replace", archBin[0], archBin[1])
+		if archBin[0] == "x86_64" {
+			align = true
+		}
+	}
+	args := append([]string{in, "-output", out}, archBinArgs...)
+	if align {
 		args = append(args, "-segalign", "x86_64", "2000")
 	}
 	cmd := exec.Command(l.Bin, args...)

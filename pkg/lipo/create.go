@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
 func (l *Lipo) Create() error {
@@ -52,11 +54,11 @@ func newCreateInputs(paths ...string) ([]*createInput, error) {
 	}
 
 	// validate inputs
-	seenArches := make(map[uint64]bool, len(inputs))
+	seenArches := make(map[string]bool, len(inputs))
 	for _, i := range inputs {
-		seenArch := (uint64(i.hdr.Cpu) << 32) | uint64(i.hdr.SubCpu)
+		seenArch := mcpu.ToString(i.hdr.Cpu, i.hdr.SubCpu)
 		if o, k := seenArches[seenArch]; o || k {
-			return nil, fmt.Errorf("duplicate architecture cpu=%v, subcpu=%#x", i.hdr.Cpu, i.hdr.SubCpu)
+			return nil, fmt.Errorf("duplicate architecture %s", seenArch)
 		}
 		seenArches[seenArch] = true
 	}

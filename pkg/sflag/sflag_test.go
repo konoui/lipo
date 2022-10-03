@@ -13,7 +13,7 @@ var (
 	replace                     = [][]string{make([]string, 2)}
 )
 
-func register() *sflag.FlagSet {
+func register() (*sflag.FlagSet, []*sflag.Group) {
 	f := sflag.NewFlagSet("lipo")
 	// init
 	output, thin = "", ""
@@ -21,20 +21,45 @@ func register() *sflag.FlagSet {
 	replace = [][]string{make([]string, 2)}
 	extract, remove, verifyArch = []string{}, []string{}, []string{}
 
-	f.String(&output, "output", "-output <file>")
-	f.Bool(&create, "create", "-create")
-	f.String(&thin, "thin", "thin <arch>")
-	f.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>")
-	f.MultipleFlagString(&extract, "extract", "-extract <arch>")
-	f.MultipleFlagString(&remove, "remove", "-remove <arch>")
-	f.Bool(&archs, "archs", "-archs <arch> ...")
-	f.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch>")
-	return f
+	createGroup := f.NewGroup("create")
+	thinGroup := f.NewGroup("thin")
+	extractGroup := f.NewGroup("extract")
+	removeGroup := f.NewGroup("remove")
+	replaceGroup := f.NewGroup("replace")
+	archsGroup := f.NewGroup("archs")
+	verifyArchGroup := f.NewGroup("verify_arch")
+	f.String(&output, "output", "-output <file>",
+		sflag.WithGroup(createGroup, sflag.TypeRequire),
+		sflag.WithGroup(thinGroup, sflag.TypeRequire),
+		sflag.WithGroup(extractGroup, sflag.TypeRequire),
+		sflag.WithGroup(removeGroup, sflag.TypeRequire),
+		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
+	f.Bool(&create, "create", "-create",
+		sflag.WithGroup(createGroup, sflag.TypeRequire))
+	f.String(&thin, "thin", "thin <arch>",
+		sflag.WithGroup(thinGroup, sflag.TypeRequire))
+	f.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>",
+		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
+	f.MultipleFlagString(&extract, "extract", "-extract <arch>",
+		sflag.WithGroup(extractGroup, sflag.TypeRequire))
+	f.MultipleFlagString(&remove, "remove", "-remove <arch>",
+		sflag.WithGroup(removeGroup, sflag.TypeRequire))
+	f.Bool(&archs, "archs", "-archs <arch> ...",
+		sflag.WithGroup(archsGroup, sflag.TypeRequire))
+	f.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch>",
+		sflag.WithGroup(verifyArchGroup, sflag.TypeRequire))
+	return f, []*sflag.Group{
+		createGroup, thinGroup, extractGroup,
+		removeGroup, replaceGroup, archsGroup,
+		verifyArchGroup}
 }
 
 func fset(t *testing.T, in []string) *sflag.FlagSet {
-	f := register()
+	f, groups := register()
 	if err := f.Parse(in); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sflag.LookupGroup(groups...); err != nil {
 		t.Fatal(err)
 	}
 	return f
@@ -166,10 +191,9 @@ func TestFlagSet_Parse(t *testing.T) {
 
 func TestFlagSet_ParseError(t *testing.T) {
 	tests := []struct {
-		name     string
-		args     []string
-		errMsg   string
-		addCheck func(t *testing.T)
+		name   string
+		args   []string
+		errMsg string
 	}{
 		{
 			name: "-replace without args",
@@ -207,18 +231,40 @@ func TestFlagSet_ParseError(t *testing.T) {
 			},
 			errMsg: "more than one -output option specified",
 		},
+		{
+			name: "multiple flag group",
+			args: []string{
+				"path/to/in1",
+				"-output", "out1",
+				"-create",
+				"-archs",
+			},
+			errMsg: "found multiple flag groups: [create archs]",
+		},
+		{
+			name: "no flag group",
+			args: []string{
+				"path/to/in1",
+				"-output", "out1",
+			},
+			errMsg: "found no flag group",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := register()
+			f, groups := register()
 			err := f.Parse(tt.args)
 			if err != nil {
 				if err.Error() != tt.errMsg {
-					t.Errorf("want: %v, got: %v", err.Error(), tt.errMsg)
+					t.Fatalf("want: %v, got: %v\n", tt.errMsg, err.Error())
 				}
 			}
-			if tt.addCheck != nil {
-				tt.addCheck(t)
+			if err == nil {
+				if _, err := sflag.LookupGroup(groups...); err != nil {
+					if err.Error() != tt.errMsg {
+						t.Fatalf("want: %v, got: %v\n", tt.errMsg, err.Error())
+					}
+				}
 			}
 		})
 	}

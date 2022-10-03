@@ -43,6 +43,10 @@ func (fv *flagValue[T]) Set(v string) error {
 	return nil
 }
 
+func (fv *flagValue[T]) Get() any {
+	return fv.p
+}
+
 func (fv *flagValues[T]) Cap() int {
 	return fv.cap()
 }

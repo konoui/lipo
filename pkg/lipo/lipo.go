@@ -140,6 +140,7 @@ func sortByArch(fatArches []*fatArch) ([]*fatArch, error) {
 		fatArches[i].Offset = uint32(offset)
 		offset += int64(fatArches[i].Size)
 	}
+
 	return fatArches, nil
 }
 
@@ -159,6 +160,9 @@ func boundaryOK(s int64) (ok bool) {
 }
 
 func outputFatBinary(p string, perm os.FileMode, fatArches []*fatArch) (err error) {
+	if len(fatArches) == 0 {
+		return errors.New("error empty fat file due to no inputs")
+	}
 	out, err := os.Create(p)
 	if err != nil {
 		return err
@@ -191,13 +195,13 @@ func createFatBinary(out io.Writer, fatArches []*fatArch) error {
 	// write header
 	// see https://cs.opensource.google/go/go/+/refs/tags/go1.18:src/debug/macho/fat.go;l=45
 	if err := binary.Write(out, binary.BigEndian, fatHeader); err != nil {
-		return fmt.Errorf("failed to write fat header: %w", err)
+		return fmt.Errorf("error write fat header: %w", err)
 	}
 
 	// write headers
 	for _, hdr := range fatArches {
 		if err := binary.Write(out, binary.BigEndian, hdr.FatArchHeader); err != nil {
-			return fmt.Errorf("failed to write arch headers: %w", err)
+			return fmt.Errorf("error write arch headers: %w", err)
 		}
 	}
 
@@ -207,14 +211,14 @@ func createFatBinary(out io.Writer, fatArches []*fatArch) error {
 			// write empty data for alignment
 			empty := make([]byte, fatArch.Offset-off)
 			if _, err := out.Write(empty); err != nil {
-				return err
+				return fmt.Errorf("error alignment: %w", err)
 			}
 			off = fatArch.Offset
 		}
 
 		// write binary data
 		if _, err := io.CopyN(out, fatArch.r, int64(fatArch.Size)); err != nil {
-			return fmt.Errorf("failed to write binary data: %w", err)
+			return fmt.Errorf("error write binary data: %w", err)
 		}
 		off += fatArch.Size
 	}
