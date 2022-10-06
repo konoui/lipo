@@ -33,10 +33,11 @@ func (l *Lipo) Create() error {
 }
 
 type createInput struct {
-	path string
-	hdr  *macho.FileHeader
-	size int64
-	perm fs.FileMode
+	path  string
+	align uint32
+	hdr   *macho.FileHeader
+	size  int64
+	perm  fs.FileMode
 }
 
 func newCreateInputs(paths ...string) ([]*createInput, error) {
@@ -78,10 +79,11 @@ func newCreateInput(bin string) (*createInput, error) {
 	}
 	defer f.Close()
 
-	// Note Magic32 is not tested
-	if f.Magic != macho.Magic64 {
-		return nil, fmt.Errorf("unsupported magic %#x", f.Magic)
+	if f.Type != macho.TypeExec {
+		return nil, fmt.Errorf("not supported non TypeExec %s", bin)
 	}
+
+	align := segmentAlignBit(f)
 
 	info, err := os.Stat(path)
 	if err != nil {
@@ -91,10 +93,11 @@ func newCreateInput(bin string) (*createInput, error) {
 	perm := info.Mode().Perm()
 
 	i := &createInput{
-		path: path,
-		hdr:  &f.FileHeader,
-		size: size,
-		perm: perm,
+		path:  path,
+		align: align,
+		hdr:   &f.FileHeader,
+		size:  size,
+		perm:  perm,
 	}
 	return i, nil
 }
@@ -109,7 +112,7 @@ func fatArchesFromCreateInputs(inputs []*createInput) ([]*fatArch, error) {
 
 	offset := int64(fatHdr.size())
 	for _, in := range inputs {
-		offset = align(offset, 1<<alignBit(in.hdr.Cpu, in.hdr.SubCpu))
+		offset = align(offset, 1<<in.align)
 
 		// validate addressing boundary since size and offset of fat32 are uint32
 		if !(boundaryOK(offset) && boundaryOK(in.size)) {
@@ -123,7 +126,7 @@ func fatArchesFromCreateInputs(inputs []*createInput) ([]*fatArch, error) {
 			SubCpu: in.hdr.SubCpu,
 			Offset: hdrOffset,
 			Size:   hdrSize,
-			Align:  alignBit(in.hdr.Cpu, in.hdr.SubCpu),
+			Align:  in.align,
 		}
 
 		offset += int64(hdr.Size)

@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	alignBitAmd64 = 13
-	alignBitArm64 = 14
+	alignBitMax uint32 = 15
+	alignBitMin uint32 = 5
 )
 
 type Lipo struct {
@@ -144,11 +144,40 @@ func sortByArch(fatArches []*fatArch) ([]*fatArch, error) {
 	return fatArches, nil
 }
 
-func alignBit(cpu macho.Cpu, sub uint32) uint32 {
-	if mcpu.ToString(cpu, sub) == "x86_64" {
-		return alignBitAmd64
+func segmentAlignBit(f *macho.File) uint32 {
+	cur := alignBitMax
+	for _, l := range f.Loads {
+		if s, ok := l.(*macho.Segment); ok {
+			align := guessAlignBit(s.Addr, alignBitMin, alignBitMax)
+			if align < cur {
+				cur = align
+			}
+		}
 	}
-	return alignBitArm64
+	return cur
+}
+
+func guessAlignBit(addr uint64, min, max uint32) uint32 {
+	segAlign := uint64(1)
+	align := uint32(0)
+	if addr == 0 {
+		return max
+	}
+	for {
+		segAlign = segAlign << 1
+		align++
+		if (segAlign & addr) != 0 {
+			break
+		}
+	}
+
+	if align < min {
+		return min
+	}
+	if max < align {
+		return max
+	}
+	return align
 }
 
 func align(offset, v int64) int64 {
