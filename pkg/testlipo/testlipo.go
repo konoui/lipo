@@ -33,8 +33,9 @@ const (
 )
 
 type LipoBin struct {
-	Bin   string
-	exist bool
+	Bin       string
+	segAligns []string
+	exist     bool
 }
 
 type TestLipo struct {
@@ -117,6 +118,19 @@ func (l *TestLipo) Bins() []string {
 	return bins
 }
 
+func NewLipoBin(t *testing.T) LipoBin {
+	t.Helper()
+	bin, err := exec.LookPath("lipo")
+	if errors.Is(err, exec.ErrNotFound) {
+		return LipoBin{exist: false}
+	}
+
+	if err != nil {
+		t.Fatalf("could not find lipo command %v\n", err)
+	}
+	return LipoBin{exist: true, Bin: bin, segAligns: []string{}}
+}
+
 func (l *LipoBin) Skip() bool {
 	return !l.exist
 }
@@ -132,6 +146,7 @@ func (l *LipoBin) Create(t *testing.T, out string, inputs ...string) {
 	t.Helper()
 	args := []string{"-create", "-output", out}
 	args = append(args, inputs...)
+	args = append(args, l.segAligns...)
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -140,6 +155,7 @@ func (l *LipoBin) Remove(t *testing.T, out, in string, arches []string) {
 	t.Helper()
 	args := appendCmd("-remove", arches)
 	args = append([]string{in, "-output", out}, args...)
+	args = append(args, l.segAligns...)
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -148,6 +164,7 @@ func (l *LipoBin) Extract(t *testing.T, out, in string, arches []string) {
 	t.Helper()
 	args := appendCmd("-extract", arches)
 	args = append([]string{in, "-output", out}, args...)
+	args = append(args, l.segAligns...)
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -166,6 +183,7 @@ func (l *LipoBin) Replace(t *testing.T, out, in string, archBins [][2]string) {
 		archBinArgs = append(archBinArgs, "-replace", archBin[0], archBin[1])
 	}
 	args := append([]string{in, "-output", out}, archBinArgs...)
+	args = append(args, l.segAligns...)
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -174,6 +192,10 @@ func (l *LipoBin) Archs(t *testing.T, in string) string {
 	t.Helper()
 	cmd := exec.Command(l.Bin, in, "-archs")
 	return execute(t, cmd, false)
+}
+
+func (l *LipoBin) AddSegAlign(arch string, hexAlign string) {
+	l.segAligns = append(l.segAligns, "-segalign", arch, hexAlign)
 }
 
 func execute(t *testing.T, cmd *exec.Cmd, combine bool) string {
@@ -245,19 +267,6 @@ func calcSha256(t *testing.T, p string) string {
 	}
 
 	return hex.EncodeToString(h.Sum(nil))
-}
-
-func NewLipoBin(t *testing.T) LipoBin {
-	t.Helper()
-	bin, err := exec.LookPath("lipo")
-	if errors.Is(err, exec.ErrNotFound) {
-		return LipoBin{exist: false}
-	}
-
-	if err != nil {
-		t.Fatalf("could not find lipo command %v\n", err)
-	}
-	return LipoBin{exist: true, Bin: bin}
 }
 
 func copyAndManipulate(t *testing.T, src, dst string, arch string) {

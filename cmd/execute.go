@@ -19,6 +19,33 @@ type fset struct {
 	*sflag.FlagSet
 }
 
+func (f *fset) MultipleFlagSegAlignInput(p *[]*lipo.SegAlignInput, name, usage string, opts ...sflag.FlagOption) {
+	var idx, cur int
+	from := func(v string) ([]*lipo.SegAlignInput, error) {
+		if len(*p) <= idx {
+			*p = append(*p, &lipo.SegAlignInput{})
+		}
+		if cur == 0 {
+			(*p)[idx].Arch = v
+		} else if cur == 1 {
+			(*p)[idx].AlignHex = v
+		} else {
+			return nil, fmt.Errorf("out of index %d", cur)
+		}
+		cur++
+		return *p, nil
+	}
+	cap := func() int {
+		cap := 2 - cur
+		if cap == 0 {
+			cur = 0
+			idx++
+		}
+		return cap
+	}
+	f.Var(sflag.FlagValues(p, from, cap), name, usage, opts...)
+}
+
 func (f *fset) MultipleFlagReplaceInput(p *[]*lipo.ReplaceInput, name, usage string, opts ...sflag.FlagOption) {
 	var idx, cur int
 	from := func(v string) ([]*lipo.ReplaceInput, error) {
@@ -50,6 +77,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	var out, thin string
 	remove, extract, verifyArch := []string{}, []string{}, []string{}
 	replace := []*lipo.ReplaceInput{}
+	segAligns := []*lipo.SegAlignInput{}
 	create := false
 	archs := false
 
@@ -68,6 +96,13 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		sflag.WithGroup(extractGroup, sflag.TypeRequire),
 		sflag.WithGroup(removeGroup, sflag.TypeRequire),
 		sflag.WithGroup(replaceGroup, sflag.TypeRequire),
+	)
+	fset.MultipleFlagSegAlignInput(&segAligns, "segalign", "<arch_type> <alignment>",
+		sflag.WithGroup(createGroup, sflag.TypeOption),
+		sflag.WithGroup(thinGroup, sflag.TypeOption), // apple lipo does not raise error if -thin with -segalign
+		sflag.WithGroup(extractGroup, sflag.TypeOption),
+		sflag.WithGroup(removeGroup, sflag.TypeOption),
+		sflag.WithGroup(replaceGroup, sflag.TypeOption),
 	)
 	fset.Bool(&create, "create",
 		"-create",
@@ -104,7 +139,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	}
 
 	in := fset.Args()
-	l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...))
+	l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...), lipo.WithSegAlign(segAligns))
 	switch group.Name {
 	case "create":
 		if err := l.Create(); err != nil {

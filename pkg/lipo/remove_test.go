@@ -10,9 +10,10 @@ import (
 
 func TestLipo_Remove(t *testing.T) {
 	tests := []struct {
-		name   string
-		inputs []string
-		arches []string
+		name      string
+		inputs    []string
+		arches    []string
+		segAligns []*lipo.SegAlignInput
 	}{
 		{
 			name:   "-remove x86_64",
@@ -29,6 +30,12 @@ func TestLipo_Remove(t *testing.T) {
 			inputs: []string{inAmd64, inArm64, "arm64e"},
 			arches: []string{"arm64", "arm64e"},
 		},
+		{
+			name:      "-remove x86_64 -segalign arm64 2",
+			inputs:    []string{"x86_64", "arm64"},
+			arches:    []string{"x86_64"},
+			segAligns: []*lipo.SegAlignInput{{Arch: "arm64", AlignHex: "2"}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -36,7 +43,7 @@ func TestLipo_Remove(t *testing.T) {
 
 			got := filepath.Join(p.Dir, randName())
 			arches := tt.arches
-			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got), lipo.WithSegAlign(tt.segAligns))
 			if err := l.Remove(arches...); err != nil {
 				t.Errorf("remove error %v\n", err)
 			}
@@ -51,6 +58,11 @@ func TestLipo_Remove(t *testing.T) {
 
 			if p.Skip() {
 				t.Skip("skip lipo binary tests")
+			}
+
+			// set segalign for next Remove
+			for _, segAlign := range tt.segAligns {
+				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
 			}
 
 			want := filepath.Join(p.Dir, randName())

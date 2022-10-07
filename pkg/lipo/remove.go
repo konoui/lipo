@@ -37,6 +37,10 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 	}
 	defer func() { _ = close(fatArches) }()
 
+	if err := updateAlignBit(fatArches, l.segAligns); err != nil {
+		return err
+	}
+
 	return outputFatBinary(l.out, perm, fatArches)
 }
 

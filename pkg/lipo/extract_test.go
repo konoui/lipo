@@ -10,24 +10,26 @@ import (
 
 func TestLipo_Extract(t *testing.T) {
 	tests := []struct {
-		name   string
-		inputs []string
-		arches []string
+		name      string
+		inputs    []string
+		arches    []string
+		segAligns []*lipo.SegAlignInput
 	}{
-		{
-			name:   "-extract x86_64",
-			inputs: []string{inAmd64, inArm64, "arm64e"},
-			arches: []string{"x86_64"},
-		},
-		{
-			name:   "-extract arm64",
-			inputs: []string{inAmd64, inArm64, "arm64e"},
-			arches: []string{"arm64"},
-		},
 		{
 			name:   "-extract arm64 -extract arm64e",
 			inputs: []string{inAmd64, inArm64, "arm64e"},
 			arches: []string{"arm64", "arm64e"},
+		},
+		{
+			name:   "-extract arm64 -extract arm64e -extract x86_64",
+			inputs: []string{inAmd64, inArm64, "arm64e"},
+			arches: []string{"arm64", "arm64e", "x86_64"},
+		},
+		{
+			name:      "-extract x86_64 -segalign x86_64 2 -segalign arm64e 2",
+			inputs:    []string{inAmd64, inArm64, "arm64e"},
+			arches:    []string{"x86_64", "arm64e"},
+			segAligns: []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "2"}, {Arch: "arm64e", AlignHex: "2"}},
 		},
 	}
 	for _, tt := range tests {
@@ -36,7 +38,7 @@ func TestLipo_Extract(t *testing.T) {
 
 			got := filepath.Join(p.Dir, randName())
 			arches := tt.arches
-			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got), lipo.WithSegAlign(tt.segAligns))
 			if err := l.Extract(arches...); err != nil {
 				t.Errorf("extract error %v\n", err)
 			}
@@ -45,6 +47,11 @@ func TestLipo_Extract(t *testing.T) {
 
 			if p.Skip() {
 				t.Skip("skip lipo binary tests")
+			}
+
+			// set segalign for next Extract
+			for _, segAlign := range tt.segAligns {
+				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
 			}
 
 			want := filepath.Join(p.Dir, randName())

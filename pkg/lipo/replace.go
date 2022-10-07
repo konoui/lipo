@@ -101,10 +101,9 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 		return err
 	}
 
-	err = outputFatBinary(l.out, perm, fatArches)
-	if err != nil {
+	if err := updateAlignBit(fatArches, l.segAligns); err != nil {
 		return err
 	}
 
-	return nil
+	return outputFatBinary(l.out, perm, fatArches)
 }

@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"sort"
+	"strconv"
 
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
@@ -18,8 +20,14 @@ const (
 )
 
 type Lipo struct {
-	in  []string
-	out string
+	in        []string
+	out       string
+	segAligns []*SegAlignInput
+}
+
+type SegAlignInput struct {
+	Arch     string
+	AlignHex string
 }
 
 type Option func(l *Lipo)
@@ -33,6 +41,12 @@ func WithInputs(in ...string) Option {
 func WithOutput(out string) Option {
 	return func(l *Lipo) {
 		l.out = out
+	}
+}
+
+func WithSegAlign(aligns []*SegAlignInput) Option {
+	return func(l *Lipo) {
+		l.segAligns = aligns
 	}
 }
 
@@ -142,6 +156,44 @@ func sortByArch(fatArches []*fatArch) ([]*fatArch, error) {
 	}
 
 	return fatArches, nil
+}
+
+func updateAlignBit(fatArches []*fatArch, segAligns []*SegAlignInput) error {
+	if len(segAligns) == 0 {
+		return nil
+	}
+
+	seen := map[string]bool{}
+	for _, a := range segAligns {
+		align, err := strconv.ParseInt(a.AlignHex, 16, 64)
+		if err != nil {
+			return err
+		}
+		if (align % 2) != 0 {
+			return fmt.Errorf("argument to -segalign <arch_type> %s (hex) must be a non-zero power of two", a.AlignHex)
+		}
+
+		if o, k := seen[a.Arch]; o || k {
+			return fmt.Errorf("-segalign %s <value> specified multiple times", a.Arch)
+		}
+		seen[a.Arch] = true
+
+		alignBit := uint32(math.Log2(float64(align)))
+		found := false
+		for idx := range fatArches {
+			if mcpu.ToString(fatArches[idx].Cpu, fatArches[idx].SubCpu) == a.Arch {
+				fatArches[idx].Align = alignBit
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("-segalign <arch_type> %s not found", a.Arch)
+		}
+	}
+
+	_, err := sortByArch(fatArches)
+	return err
 }
 
 func segmentAlignBit(f *macho.File) uint32 {
