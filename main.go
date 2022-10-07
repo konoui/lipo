@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	os.Exit(cmd.Execute(os.Stdout, os.Args[1:]))
+	os.Exit(cmd.Execute(os.Stdout, os.Stderr, os.Args[1:]))
 }

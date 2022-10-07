@@ -46,7 +46,7 @@ func (f *fset) MultipleFlagReplaceInput(p *[]*lipo.ReplaceInput, name, usage str
 	f.Var(sflag.FlagValues(p, from, cap), name, usage, opts...)
 }
 
-func Execute(w io.Writer, args []string) (exitCode int) {
+func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	var out, thin string
 	remove, extract, verifyArch := []string{}, []string{}, []string{}
 	replace := []*lipo.ReplaceInput{}
@@ -92,7 +92,7 @@ func Execute(w io.Writer, args []string) (exitCode int) {
 		sflag.WithGroup(verifyArchGroup, sflag.TypeRequire))
 
 	if err := fset.Parse(args); err != nil {
-		return fatal(w, fset, err.Error())
+		return fatal(stderr, fset, err.Error())
 	}
 
 	group, err := sflag.LookupGroup(
@@ -100,7 +100,7 @@ func Execute(w io.Writer, args []string) (exitCode int) {
 		removeGroup, replaceGroup, archsGroup,
 		verifyArchGroup)
 	if err != nil {
-		return fatal(w, fset, err.Error())
+		return fatal(stderr, fset, err.Error())
 	}
 
 	in := fset.Args()
@@ -108,40 +108,40 @@ func Execute(w io.Writer, args []string) (exitCode int) {
 	switch group.Name {
 	case "create":
 		if err := l.Create(); err != nil {
-			return fatal(w, fset, err.Error())
+			return fatal(stderr, fset, err.Error())
 		}
 		return
 	case "thin":
 		if err := l.Thin(thin); err != nil {
-			return fatal(w, fset, err.Error())
+			return fatal(stderr, fset, err.Error())
 		}
 		return
 	case "remove":
 		if err := l.Remove(remove...); err != nil {
-			return fatal(w, fset, err.Error())
+			return fatal(stderr, fset, err.Error())
 		}
 		return
 	case "extract":
 		if err := l.Extract(extract...); err != nil {
-			return fatal(w, fset, err.Error())
+			return fatal(stderr, fset, err.Error())
 		}
 		return
 	case "replace":
 		if err := l.Replace(replace); err != nil {
-			return fatal(w, fset, err.Error())
+			return fatal(stderr, fset, err.Error())
 		}
 		return
 	case "archs":
 		arches, err := l.Archs()
 		if err != nil {
-			return fatal(w, fset, err.Error())
+			return fatal(stderr, fset, err.Error())
 		}
-		fmt.Fprintln(w, strings.Join(arches, " "))
+		fmt.Fprintln(stdout, strings.Join(arches, " "))
 		return
 	case "verify_arch":
 		ok, err := l.VerifyArch(verifyArch...)
 		if err != nil {
-			return fatal(w, fset, err.Error())
+			return fatal(stderr, fset, err.Error())
 		}
 		if !ok {
 			return 1

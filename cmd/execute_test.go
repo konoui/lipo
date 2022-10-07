@@ -40,7 +40,7 @@ func TestExecute(t *testing.T) {
 		name         string
 		args         []string
 		addArches    []string
-		wantMsg      string
+		wantErrMsg   string
 		wantExitCode int
 	}{
 		{
@@ -89,30 +89,26 @@ func TestExecute(t *testing.T) {
 			wantExitCode: 1,
 		},
 		{
-			name:         "no value specified",
-			wantExitCode: 1,
-		},
-		{
 			name:         "create but no input",
 			args:         []string{"-create", "-output", "out", "in", "in"},
-			wantMsg:      "no such file or directory for in",
+			wantErrMsg:   "no such file or directory for in",
 			wantExitCode: 1,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			buf := &bytes.Buffer{}
+			outBuf, errBuf := &bytes.Buffer{}, &bytes.Buffer{}
 			p := testlipo.Setup(t, append(tt.addArches, "arm64", "x86_64")...)
 			args := replace(t, p, tt.args)
 
-			gotExitCode := Execute(buf, args)
-			gotMsg := buf.String()
+			gotExitCode := Execute(outBuf, errBuf, args)
+			gotErrMsg := errBuf.String()
 			if gotExitCode != tt.wantExitCode {
 				t.Errorf("want: %d, got: %d", tt.wantExitCode, gotExitCode)
-				t.Log(gotMsg)
+				t.Log(gotErrMsg)
 			}
-			if !strings.Contains(gotMsg, tt.wantMsg) {
-				t.Errorf("want: %s, got: %s", tt.wantMsg, gotMsg)
+			if !strings.Contains(gotErrMsg, tt.wantErrMsg) {
+				t.Errorf("want: %s, got: %s", tt.wantErrMsg, gotErrMsg)
 			}
 		})
 	}
