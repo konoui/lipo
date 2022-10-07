@@ -65,6 +65,18 @@ func LookupGroup(groups ...*Group) (*Group, error) {
 	return found[0], nil
 }
 
+// Diff returns non group flag with specified
+func (g *Group) Diff() []string {
+	diff := []string{}
+	for name := range g.flagSet.seen {
+		_, exist := g.types[name]
+		if !exist {
+			diff = append(diff, name)
+		}
+	}
+	return diff
+}
+
 func (g *Group) validate() error {
 	flags := g.LookupByType(TypeRequire)
 	for _, flag := range flags {
@@ -72,5 +84,11 @@ func (g *Group) validate() error {
 			return fmt.Errorf("required flag -%s is not specified", flag.Name)
 		}
 	}
+
+	diff := g.Diff()
+	if len(diff) > 0 {
+		return fmt.Errorf("non group flag is specified: %v", diff)
+	}
+
 	return nil
 }

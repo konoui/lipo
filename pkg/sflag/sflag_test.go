@@ -183,9 +183,17 @@ func TestFlagSet_Parse(t *testing.T) {
 			"-verify_arch", "x86_64", "arm64",
 			"-output", "stop-archs",
 		}
-		_ = fset(t, args)
-		equal(t, []string{"stop-archs"}, []string{output})
-		equal(t, []string{"x86_64", "arm64"}, verifyArch)
+
+		f := sflag.NewFlagSet("test")
+		out := ""
+		arches := []string{}
+		f.String(&out, "output", "-output <file>")
+		f.FlexStrings(&arches, "verify_arch", "verify_arch <arch>")
+		if err := f.Parse(args); err != nil {
+			t.Fatal(err)
+		}
+		equal(t, []string{"stop-archs"}, []string{out})
+		equal(t, []string{"x86_64", "arm64"}, arches)
 	})
 }
 
@@ -239,7 +247,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-create",
 				"-archs",
 			},
-			errMsg: "found multiple flag groups: [create archs]",
+			errMsg: "found no flag group",
 		},
 		{
 			name: "no flag group",
