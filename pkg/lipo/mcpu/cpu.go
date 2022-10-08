@@ -6,31 +6,25 @@ import (
 )
 
 func IsSupported(v string) bool {
-	for _, cs := range cpuNames {
-		if cs.v == v {
-			return true
-		}
-	}
-	return false
+	_, ok := cpuNameSet[v]
+	return ok
 }
 
 func ToCpu(v string) (cpu macho.Cpu, sub uint32, ok bool) {
-	for _, cs := range cpuNames {
-		if cs.v == v {
-			return macho.Cpu(cs.t), cs.s, true
-		}
+	cs, ok := cpuNameSet[v]
+	if ok {
+		return macho.Cpu(cs.t), cs.s, true
 	}
 	return 0, 0, false
 }
 
 func ToString(cpu macho.Cpu, subCpu uint32) string {
 	maskedSub := (subCpu & ^MaskSubType)
-	for _, cs := range cpuNames {
-		if cs.t == uint32(cpu) && cs.s == maskedSub {
-			return cs.v
-		}
+	id := id(uint32(cpu), subCpu)
+	cs, ok := cpuIDSet[id]
+	if ok {
+		return cs.v
 	}
-
 	unknown := fmt.Sprintf("unknown(%d,%d)", cpu, maskedSub)
 	return unknown
 }
@@ -38,11 +32,6 @@ func ToString(cpu macho.Cpu, subCpu uint32) string {
 func CpuNames() []string {
 	cpus := make([]string, 0, len(cpuNames))
 	for _, c := range cpuNames {
-		// TODO skip following arches because my m2 mac does not support them,
-		// unknown(12,17) and unknown(33554444,0)
-		if c.v == "armv8m" || c.v == "arm64_32" {
-			continue
-		}
 		cpus = append(cpus, c.v)
 	}
 	return cpus
@@ -52,6 +41,24 @@ type cpuName struct {
 	t uint32
 	s uint32
 	v string
+}
+
+var (
+	cpuNameSet = map[string]*cpuName{}
+	cpuIDSet   = map[uint64]*cpuName{}
+)
+
+func init() {
+	for i := range cpuNames {
+		cpuNameSet[cpuNames[i].v] = &cpuNames[i]
+		id := id(cpuNames[i].t, cpuNames[i].s)
+		cpuIDSet[id] = &cpuNames[i]
+	}
+}
+
+func id(t, s uint32) uint64 {
+	s = s & ^MaskSubType
+	return (uint64(t) << 32) | uint64(s)
 }
 
 var cpuNames = []cpuName{

@@ -6,6 +6,7 @@ import (
 
 	"github.com/konoui/lipo/pkg/lipo"
 	"github.com/konoui/lipo/pkg/lipo/cgo_qsort"
+	"github.com/konoui/lipo/pkg/lipo/mcpu"
 	"github.com/konoui/lipo/pkg/testlipo"
 )
 
@@ -22,6 +23,17 @@ const (
 var (
 	randName   = testlipo.RandName
 	diffSha256 = testlipo.DiffSha256
+	cpuNames   = func() []string {
+		ret := []string{}
+		for _, v := range mcpu.CpuNames() {
+			// apple lipo does not support them
+			if v == "armv8m" || v == "arm64_32" {
+				continue
+			}
+			ret = append(ret, v)
+		}
+		return ret
+	}
 )
 
 func contain(tg string, l []string) bool {

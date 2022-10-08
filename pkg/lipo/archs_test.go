@@ -7,13 +7,12 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
 	"github.com/konoui/lipo/pkg/testlipo"
 )
 
 func TestLipo_Archs(t *testing.T) {
 	// fat binary test
-	arches := mcpu.CpuNames()
+	arches := cpuNames()
 	p := testlipo.Setup(t, arches...)
 
 	if p.Skip() {
