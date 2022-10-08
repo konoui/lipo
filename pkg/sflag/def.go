@@ -74,8 +74,7 @@ func (f *FlagSet) FixedStrings(p *[]string, name, usage string, opts ...FlagOpti
 }
 
 // MultipleFlagFixedStrings presents `-flag <value1> <value2> -flag <value3> <value4> -flag ...`
-// e.g. s := [][]string{make([]string, 2)}
 // This is a reference implementation
-func (f *FlagSet) MultipleFlagFixedStrings(p *[][]string, name, usage string, opts ...FlagOption) {
+func (f *FlagSet) MultipleFlagFixedStrings(p *[][2]string, name, usage string, opts ...FlagOption) {
 	f.Var(MultipleFlagFixedStrings(p), name, usage, opts...)
 }

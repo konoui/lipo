@@ -19,65 +19,11 @@ type fset struct {
 	*sflag.FlagSet
 }
 
-func (f *fset) MultipleFlagSegAlignInput(p *[]*lipo.SegAlignInput, name, usage string, opts ...sflag.FlagOption) {
-	var idx, cur int
-	from := func(v string) ([]*lipo.SegAlignInput, error) {
-		if len(*p) <= idx {
-			*p = append(*p, &lipo.SegAlignInput{})
-		}
-		if cur == 0 {
-			(*p)[idx].Arch = v
-		} else if cur == 1 {
-			(*p)[idx].AlignHex = v
-		} else {
-			return nil, fmt.Errorf("out of index %d", cur)
-		}
-		cur++
-		return *p, nil
-	}
-	cap := func() int {
-		cap := 2 - cur
-		if cap == 0 {
-			cur = 0
-			idx++
-		}
-		return cap
-	}
-	f.Var(sflag.FlagValues(p, from, cap), name, usage, opts...)
-}
-
-func (f *fset) MultipleFlagReplaceInput(p *[]*lipo.ReplaceInput, name, usage string, opts ...sflag.FlagOption) {
-	var idx, cur int
-	from := func(v string) ([]*lipo.ReplaceInput, error) {
-		if len(*p) <= idx {
-			*p = append(*p, &lipo.ReplaceInput{})
-		}
-		if cur == 0 {
-			(*p)[idx].Arch = v
-		} else if cur == 1 {
-			(*p)[idx].Bin = v
-		} else {
-			return nil, fmt.Errorf("out of index %d", cur)
-		}
-		cur++
-		return *p, nil
-	}
-	cap := func() int {
-		cap := 2 - cur
-		if cap == 0 {
-			cur = 0
-			idx++
-		}
-		return cap
-	}
-	f.Var(sflag.FlagValues(p, from, cap), name, usage, opts...)
-}
-
 func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	var out, thin string
 	remove, extract, verifyArch := []string{}, []string{}, []string{}
-	replace := []*lipo.ReplaceInput{}
-	segAligns := []*lipo.SegAlignInput{}
+	replace := [][2]string{}
+	segAligns := [][2]string{}
 	create := false
 	archs := false
 
@@ -97,7 +43,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		sflag.WithGroup(removeGroup, sflag.TypeRequire),
 		sflag.WithGroup(replaceGroup, sflag.TypeRequire),
 	)
-	fset.MultipleFlagSegAlignInput(&segAligns, "segalign", "<arch_type> <alignment>",
+	fset.MultipleFlagFixedStrings(&segAligns, "segalign", "<arch_type> <alignment>",
 		sflag.WithGroup(createGroup, sflag.TypeOption),
 		sflag.WithGroup(thinGroup, sflag.TypeOption), // apple lipo does not raise error if -thin with -segalign
 		sflag.WithGroup(extractGroup, sflag.TypeOption),
@@ -116,7 +62,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	fset.MultipleFlagString(&remove, "remove",
 		"-remove <arch_type> [-remove <arch_type> ...]",
 		sflag.WithGroup(removeGroup, sflag.TypeRequire))
-	fset.MultipleFlagReplaceInput(&replace, "replace",
+	fset.MultipleFlagFixedStrings(&replace, "replace",
 		"-replace <arch> <file>",
 		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
 	fset.Bool(&archs, "archs",
@@ -139,7 +85,10 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	}
 
 	in := fset.Args()
-	l := lipo.New(lipo.WithOutput(out), lipo.WithInputs(in...), lipo.WithSegAlign(segAligns))
+	l := lipo.New(
+		lipo.WithOutput(out),
+		lipo.WithInputs(in...),
+		lipo.WithSegAlign(conv(segAligns, newSegAlign)))
 	switch group.Name {
 	case "create":
 		if err := l.Create(); err != nil {
@@ -162,7 +111,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		}
 		return
 	case "replace":
-		if err := l.Replace(replace); err != nil {
+		if err := l.Replace(conv(replace, newReplace)); err != nil {
 			return fatal(stderr, fset, err.Error())
 		}
 		return
@@ -186,4 +135,20 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		fset.Usage()
 		return 1
 	}
+}
+
+func newSegAlign(r [2]string) *lipo.SegAlignInput {
+	return &lipo.SegAlignInput{Arch: r[0], AlignHex: r[1]}
+}
+
+func newReplace(r [2]string) *lipo.ReplaceInput {
+	return &lipo.ReplaceInput{Arch: r[0], Bin: r[1]}
+}
+
+func conv[T any](raw [][2]string, f func([2]string) T) []T {
+	ret := make([]T, 0, len(raw))
+	for _, r := range raw {
+		ret = append(ret, f(r))
+	}
+	return ret
 }

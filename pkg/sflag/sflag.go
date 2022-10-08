@@ -100,15 +100,15 @@ func FixedStrings(p *[]string) Value {
 	return FlagValues(p, from, func() int { return maxLen - cur })
 }
 
-func MultipleFlagFixedStrings(p *[][]string) Value {
+func MultipleFlagFixedStrings(p *[][2]string) Value {
 	var idx, cur int
-	maxLen := len((*p)[0])
-	from := func(v string) ([][]string, error) {
+	maxLen := 2
+	from := func(v string) ([][2]string, error) {
 		if cur >= maxLen {
 			return nil, fmt.Errorf("fill error. cur %d, len %d", cur, maxLen)
 		}
 		if len(*p) <= idx {
-			*p = append(*p, make([]string, maxLen))
+			*p = append(*p, [2]string{})
 		}
 		(*p)[idx][cur] = v
 		cur++

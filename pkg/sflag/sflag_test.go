@@ -10,7 +10,7 @@ var (
 	output, thin                = "", ""
 	create, archs               = false, false
 	extract, remove, verifyArch = []string{}, []string{}, []string{}
-	replace                     = [][]string{make([]string, 2)}
+	replace                     = [][2]string{}
 )
 
 func register() (*sflag.FlagSet, []*sflag.Group) {
@@ -18,7 +18,7 @@ func register() (*sflag.FlagSet, []*sflag.Group) {
 	// init
 	output, thin = "", ""
 	create, archs = false, false
-	replace = [][]string{make([]string, 2)}
+	replace = [][2]string{}
 	extract, remove, verifyArch = []string{}, []string{}, []string{}
 
 	createGroup := f.NewGroup("create")
@@ -106,8 +106,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			if replace[0][0] == "arm64" {
 				got1, got2 = got2, got1
 			}
-			equal(t, []string{"x86_64", "path/to/target1"}, got1)
-			equal(t, []string{"arm64", "path/to/target2"}, got2)
+			equal(t, []string{"x86_64", "path/to/target1"}, got1[:])
+			equal(t, []string{"arm64", "path/to/target2"}, got2[:])
 		}
 	})
 	t.Run("extract", func(t *testing.T) {
