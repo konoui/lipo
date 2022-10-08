@@ -1,6 +1,7 @@
 package lipo_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -70,4 +71,22 @@ func TestLipo_Remove(t *testing.T) {
 			diffSha256(t, want, got)
 		})
 	}
+}
+
+func TestLipo_RemoveError(t *testing.T) {
+	t.Run("not-match-arch", func(t *testing.T) {
+		p := testlipo.Setup(t, "arm64", "x86_64")
+
+		got := filepath.Join(p.Dir, randName())
+		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+		err := l.Remove("arm64e")
+		if err == nil {
+			t.Errorf("error does not occur")
+		}
+
+		want := fmt.Sprintf("-remove <arch_file> specified but fat file: %s does not contain that architecture", p.FatBin)
+		if got := err.Error(); got != want {
+			t.Errorf("want: %s, got: %s", want, got)
+		}
+	})
 }

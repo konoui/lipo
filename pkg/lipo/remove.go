@@ -28,7 +28,9 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 	}
 	perm := info.Mode().Perm()
 
+	num := 0
 	fatArches, err := fatArchesFromFatBin(fatBin, func(hdr *macho.FatArchHeader) bool {
+		num++
 		s := mcpu.ToString(hdr.Cpu, hdr.SubCpu)
 		return !contain(s, arches)
 	})
@@ -36,6 +38,11 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 		return err
 	}
 	defer func() { _ = close(fatArches) }()
+
+	// TODO replace <arch_file> with actual value
+	if (num - len(fatArches)) != len(arches) {
+		return fmt.Errorf(noMatchFmt, "-remove", fatBin)
+	}
 
 	if err := updateAlignBit(fatArches, l.segAligns); err != nil {
 		return err

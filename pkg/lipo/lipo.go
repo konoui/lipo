@@ -19,6 +19,10 @@ const (
 	alignBitMin uint32 = 5
 )
 
+const (
+	noMatchFmt = "%s <arch_file> specified but fat file: %s does not contain that architecture"
+)
+
 type Lipo struct {
 	in        []string
 	out       string
