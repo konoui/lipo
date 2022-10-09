@@ -1,7 +1,11 @@
 package lipo_test
 
 import (
+	"fmt"
 	"math/rand"
+	"os"
+	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/konoui/lipo/pkg/lipo"
@@ -13,6 +17,13 @@ import (
 func init() {
 	// using apple lipo sorter
 	lipo.SortFunc = cgo_qsort.Slice
+	tempDir := filepath.Join(os.TempDir(), "testlipo-output")
+	fmt.Println("using testlipo-output", tempDir)
+	err := os.MkdirAll(tempDir, 0740)
+	if err != nil {
+		panic(err)
+	}
+	testlipo.TempDir = tempDir
 }
 
 const (
@@ -21,7 +32,6 @@ const (
 )
 
 var (
-	randName   = testlipo.RandName
 	diffSha256 = testlipo.DiffSha256
 	cpuNames   = func() []string {
 		ret := []string{}
@@ -35,6 +45,14 @@ var (
 		return ret
 	}
 )
+
+func gotName(t *testing.T) string {
+	return "got_" + filepath.Base(t.Name())
+}
+
+func wantName(t *testing.T) string {
+	return "want_" + filepath.Base(t.Name())
+}
 
 func contain(tg string, l []string) bool {
 	for _, s := range l {

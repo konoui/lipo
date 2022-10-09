@@ -42,7 +42,7 @@ func TestLipo_Remove(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := testlipo.Setup(t, tt.inputs...)
 
-			got := filepath.Join(p.Dir, randName())
+			got := filepath.Join(p.Dir, gotName(t))
 			arches := tt.arches
 			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got), lipo.WithSegAlign(tt.segAligns))
 			if err := l.Remove(arches...); err != nil {
@@ -66,7 +66,7 @@ func TestLipo_Remove(t *testing.T) {
 				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
 			}
 
-			want := filepath.Join(p.Dir, randName())
+			want := filepath.Join(p.Dir, wantName(t))
 			p.Remove(t, want, p.FatBin, arches)
 			diffSha256(t, want, got)
 		})
@@ -77,14 +77,14 @@ func TestLipo_RemoveError(t *testing.T) {
 	t.Run("not-match-arch", func(t *testing.T) {
 		p := testlipo.Setup(t, "arm64", "x86_64")
 
-		got := filepath.Join(p.Dir, randName())
+		got := filepath.Join(p.Dir, wantName(t))
 		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 		err := l.Remove("arm64e")
 		if err == nil {
 			t.Errorf("error does not occur")
 		}
 
-		want := fmt.Sprintf("-remove <arch_file> specified but fat file: %s does not contain that architecture", p.FatBin)
+		want := fmt.Sprintf("%s specified but fat file: %s does not contain that architecture", "arm64e", p.FatBin)
 		if got := err.Error(); got != want {
 			t.Errorf("want: %s, got: %s", want, got)
 		}

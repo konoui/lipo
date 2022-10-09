@@ -1,23 +1,18 @@
 package lipo
 
 import (
-	"debug/macho"
-	"errors"
 	"fmt"
 	"os"
-
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
 func (l *Lipo) Extract(arches ...string) error {
-	if len(l.in) != 1 {
-		return errors.New("input must be 1")
+	if err := l.validateOneInput(); err != nil {
+		return err
 	}
 
-	for _, arch := range arches {
-		if !mcpu.IsSupported(arch) {
-			return fmt.Errorf("unsupported architecture %s", arch)
-		}
+	// check1 duplicate arches
+	if err := validateInputArches(arches); err != nil {
+		return err
 	}
 
 	fatBin := l.in[0]
@@ -27,26 +22,22 @@ func (l *Lipo) Extract(arches ...string) error {
 	}
 	perm := info.Mode().Perm()
 
-	fatArches, err := fatArchesFromFatBin(fatBin, func(hdr *macho.FatArchHeader) bool {
-		s := mcpu.ToString(hdr.Cpu, hdr.SubCpu)
-		return contain(s, arches)
-	})
+	all, err := fatArchesFromFatBin(fatBin)
 	if err != nil {
-		if errors.Is(err, errFoundNoFatArch) {
-			return fmt.Errorf(noMatchFmt, "-extract", fatBin)
-		}
 		return err
 	}
-	defer func() { _ = close(fatArches) }()
+	defer all.close()
 
-	// TODO replace <arch_file> with actual value
+	fatArches := all.extract(arches...)
+
 	if len(fatArches) != len(arches) {
-		return fmt.Errorf(noMatchFmt, "-extract", fatBin)
+		diffArch := remove(fatArches.arches(), arches)
+		return fmt.Errorf(noMatchFmt, diffArch, fatBin)
 	}
 
-	if err := updateAlignBit(fatArches, l.segAligns); err != nil {
+	if err := fatArches.updateAlignBit(l.segAligns); err != nil {
 		return err
 	}
 
-	return outputFatBinary(l.out, perm, fatArches)
+	return fatArches.createFatBinary(l.out, perm)
 }

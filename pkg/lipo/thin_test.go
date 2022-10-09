@@ -1,6 +1,7 @@
 package lipo_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -34,7 +35,7 @@ func TestLipo_Thin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := testlipo.Setup(t, tt.inputs...)
 
-			got := filepath.Join(p.Dir, randName())
+			got := filepath.Join(p.Dir, gotName(t))
 			arch := tt.arch
 			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 			if err := l.Thin(arch); err != nil {
@@ -45,9 +46,27 @@ func TestLipo_Thin(t *testing.T) {
 				t.Skip("skip lipo binary tests")
 			}
 
-			want := filepath.Join(p.Dir, randName())
+			want := filepath.Join(p.Dir, wantName(t))
 			p.Thin(t, want, p.FatBin, tt.arch)
 			diffSha256(t, want, got)
 		})
 	}
+}
+
+func TestLipo_ThinError(t *testing.T) {
+	t.Run("not-match-arch", func(t *testing.T) {
+		p := testlipo.Setup(t, "arm64", "x86_64")
+
+		got := filepath.Join(p.Dir, gotName(t))
+		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+		err := l.Thin("arm64e")
+		if err == nil {
+			t.Errorf("error does not occur")
+		}
+
+		want := fmt.Sprintf("fat input file (%s) does not contain the specified architecture (%s) to thin it to", p.FatBin, "arm64e")
+		if got := err.Error(); got != want {
+			t.Errorf("want: %s, got: %s", want, got)
+		}
+	})
 }

@@ -1,8 +1,6 @@
 package lipo
 
 import (
-	"debug/macho"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,8 +9,12 @@ import (
 )
 
 func (l *Lipo) Thin(arch string) error {
-	if len(l.in) != 1 {
-		return errors.New("input must be 1")
+	if err := l.validateOneInput(); err != nil {
+		return err
+	}
+
+	if !mcpu.IsSupported(arch) {
+		return fmt.Errorf("unsupported architecture %s", arch)
 	}
 
 	fatBin := l.in[0]
@@ -22,14 +24,16 @@ func (l *Lipo) Thin(arch string) error {
 	}
 	perm := info.Mode().Perm()
 
-	fatArches, err := fatArchesFromFatBin(fatBin, func(hdr *macho.FatArchHeader) bool {
-		s := mcpu.ToString(hdr.Cpu, hdr.SubCpu)
-		return s == arch
-	})
+	fatArches, err := fatArchesFromFatBin(fatBin)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = close(fatArches) }()
+	defer fatArches.close()
+
+	fatArches = fatArches.extract(arch)
+	if len(fatArches) == 0 {
+		return fmt.Errorf("fat input file (%s) does not contain the specified architecture (%s) to thin it to", fatBin, arch)
+	}
 
 	out, err := os.Create(l.out)
 	if err != nil {

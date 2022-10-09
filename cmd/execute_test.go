@@ -21,7 +21,7 @@ func replace(t *testing.T, p *testlipo.TestLipo, args []string) []string {
 	ret := []string{}
 	for _, arg := range args {
 		in := arg
-		in = strings.ReplaceAll(in, phOutput, filepath.Join(p.Dir, testlipo.RandName()))
+		in = strings.ReplaceAll(in, phOutput, filepath.Join(p.Dir, "output-"+filepath.Base(t.Name())))
 		in = strings.ReplaceAll(in, phInputFat, p.FatBin)
 		in = strings.ReplaceAll(in, phArm64Thin, p.Bin(t, "arm64"))
 		in = strings.ReplaceAll(in, phX86_64Thin, p.Bin(t, "x86_64"))

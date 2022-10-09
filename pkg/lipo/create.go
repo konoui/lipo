@@ -27,13 +27,13 @@ func (l *Lipo) Create() error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = close(fatArches) }()
+	defer fatArches.close()
 
-	if err := updateAlignBit(fatArches, l.segAligns); err != nil {
+	if err := fatArches.updateAlignBit(l.segAligns); err != nil {
 		return err
 	}
 
-	return outputFatBinary(l.out, perm, fatArches)
+	return fatArches.createFatBinary(l.out, perm)
 }
 
 type createInput struct {
@@ -46,7 +46,7 @@ type createInput struct {
 
 func newCreateInputs(paths ...string) ([]*createInput, error) {
 	if len(paths) == 0 {
-		return nil, fmt.Errorf("no inputs")
+		return nil, fmt.Errorf("no input files specified")
 	}
 
 	inputs := make([]*createInput, len(paths))
@@ -58,17 +58,24 @@ func newCreateInputs(paths ...string) ([]*createInput, error) {
 		inputs[idx] = in
 	}
 
+	if err := validateCreateInputs(inputs); err != nil {
+		return nil, err
+	}
+
+	return inputs, nil
+}
+
+func validateCreateInputs(inputs []*createInput) error {
 	// validate inputs
 	seenArches := make(map[string]bool, len(inputs))
 	for _, i := range inputs {
 		seenArch := mcpu.ToString(i.hdr.Cpu, i.hdr.SubCpu)
 		if o, k := seenArches[seenArch]; o || k {
-			return nil, fmt.Errorf("duplicate architecture %s", seenArch)
+			return fmt.Errorf("duplicate architecture %s", seenArch)
 		}
 		seenArches[seenArch] = true
 	}
-
-	return inputs, nil
+	return nil
 }
 
 func newCreateInput(bin string) (*createInput, error) {
@@ -104,47 +111,4 @@ func newCreateInput(bin string) (*createInput, error) {
 		perm:  perm,
 	}
 	return i, nil
-}
-
-func fatArchesFromCreateInputs(inputs []*createInput) ([]*fatArch, error) {
-	fatHdr := &fatHeader{
-		magic: macho.MagicFat,
-		narch: uint32(len(inputs)),
-	}
-
-	fatArches := make([]*fatArch, 0, len(inputs))
-
-	offset := int64(fatHdr.size())
-	for _, in := range inputs {
-		offset = align(offset, 1<<in.align)
-
-		// validate addressing boundary since size and offset of fat32 are uint32
-		if !(boundaryOK(offset) && boundaryOK(in.size)) {
-			return nil, fmt.Errorf("exceeds maximum fat32 size at %s", in.path)
-		}
-
-		hdrOffset := uint32(offset)
-		hdrSize := uint32(in.size)
-		hdr := macho.FatArchHeader{
-			Cpu:    in.hdr.Cpu,
-			SubCpu: in.hdr.SubCpu,
-			Offset: hdrOffset,
-			Size:   hdrSize,
-			Align:  in.align,
-		}
-
-		offset += int64(hdr.Size)
-
-		f, err := os.Open(in.path)
-		if err != nil {
-			return nil, err
-		}
-		fatArches = append(fatArches, &fatArch{
-			FatArchHeader: hdr,
-			r:             f,
-			c:             f,
-		})
-	}
-
-	return sortByArch(fatArches)
 }

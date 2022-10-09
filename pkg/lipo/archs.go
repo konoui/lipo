@@ -2,14 +2,13 @@ package lipo
 
 import (
 	"debug/macho"
-	"errors"
 
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
 func (l *Lipo) Archs() ([]string, error) {
-	if len(l.in) != 1 {
-		return nil, errors.New("only one input file allowed")
+	if err := l.validateOneInput(); err != nil {
+		return nil, err
 	}
 
 	bin := l.in[0]

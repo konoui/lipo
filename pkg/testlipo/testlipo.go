@@ -7,12 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
@@ -45,12 +44,18 @@ type TestLipo struct {
 	Dir    string
 	FatBin string
 	LipoBin
+	arm64Bin string
 }
+
+var TempDir string
 
 func Setup(t *testing.T, arches ...string) *TestLipo {
 	t.Helper()
 
-	dir := t.TempDir()
+	dir := TempDir
+	if TempDir == "" {
+		dir = t.TempDir()
+	}
 
 	mainfile := filepath.Join(dir, "main.go")
 	err := os.WriteFile(mainfile, []byte(godata), os.ModePerm)
@@ -83,7 +88,7 @@ func Setup(t *testing.T, arches ...string) *TestLipo {
 	}
 
 	lipoBin := NewLipoBin(t)
-	fatBin := filepath.Join(dir, RandName())
+	fatBin := filepath.Join(dir, "fat-"+strings.Join(arches, "-"))
 	if !lipoBin.Skip() && len(archBins) > 0 {
 		// create fat bit for inputs
 		inputs := make([]string, 0, len(archBins))
@@ -99,6 +104,7 @@ func Setup(t *testing.T, arches ...string) *TestLipo {
 		arches:   arches,
 		FatBin:   fatBin,
 		LipoBin:  lipoBin,
+		arm64Bin: arm64Bin,
 	}
 }
 
@@ -116,6 +122,13 @@ func (l *TestLipo) Bins() []string {
 		bins = append(bins, l.archBins[a])
 	}
 	return bins
+}
+
+func (l *TestLipo) NewArchBin(t *testing.T, arch string) (path string) {
+	t.Helper()
+	archBin := filepath.Join(l.Dir, "new-arch-bin-"+arch)
+	copyAndManipulate(t, l.arm64Bin, archBin, arch)
+	return archBin
 }
 
 func NewLipoBin(t *testing.T) LipoBin {
@@ -330,18 +343,4 @@ func copyAndManipulate(t *testing.T, src, dst string, arch string) {
 	if wantN := totalSize - int64(hdrSize); n != wantN {
 		t.Fatalf("wrote body size. want: %d, got: %d\n", n, wantN)
 	}
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func RandName() string {
-	b := make([]rune, 6)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
 }

@@ -7,7 +7,7 @@ func (l *Lipo) VerifyArch(arches ...string) (bool, error) {
 	}
 
 	for _, a := range arches {
-		if !contain(a, gotArches) {
+		if !contains(a, gotArches) {
 			return false, nil
 		}
 	}

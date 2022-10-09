@@ -1,11 +1,8 @@
 package lipo
 
 import (
-	"debug/macho"
-	"errors"
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
@@ -15,25 +12,9 @@ type ReplaceInput struct {
 	Bin  string
 }
 
-func arches(input []*ReplaceInput) []string {
-	arches := make([]string, 0, len(input))
-	for _, ri := range input {
-		arches = append(arches, ri.Arch)
-	}
-	return arches
-}
-
-func bins(input []*ReplaceInput) []string {
-	b := make([]string, 0, len(input))
-	for _, ri := range input {
-		b = append(b, ri.Bin)
-	}
-	return b
-}
-
 func (l *Lipo) Replace(inputs []*ReplaceInput) error {
-	if len(l.in) == 0 {
-		return errors.New("no inputs")
+	if err := l.validateOneInput(); err != nil {
+		return err
 	}
 
 	fatBin := l.in[0]
@@ -43,67 +24,57 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	}
 	perm := info.Mode().Perm()
 
-	targets, err := fatArchesFromFatBin(fatBin, func(hdr *macho.FatArchHeader) bool {
-		return contain(mcpu.ToString(hdr.Cpu, hdr.SubCpu), arches(inputs))
-	})
-	if err != nil {
-		return fmt.Errorf("search error: %w", err)
-	}
-	defer func() { _ = close(targets) }()
-
-	if len(targets) != len(inputs) {
-		return fmt.Errorf("replace inputs: want %d but got %d", len(targets), len(inputs))
-	}
-
-	in, err := newCreateInputs(bins(inputs)...)
+	all, err := fatArchesFromFatBin(fatBin)
 	if err != nil {
 		return err
 	}
+	defer all.close()
 
-	fatInputs, err := fatArchesFromCreateInputs(in)
+	// check1 replace input arch equals to replace input bin
+	createInputs, err := createInputsFromReplaceInputs(inputs)
 	if err != nil {
-		return fmt.Errorf("error fat arches: %w", err)
+		return err
 	}
-	defer func() { _ = close(fatInputs) }()
+	fatInputs, err := fatArchesFromCreateInputs(createInputs)
+	if err != nil {
+		return err
+	}
+	defer fatInputs.close()
 
-	sort.Slice(targets, func(i, j int) bool {
-		ih, jh := targets[i], targets[j]
-		return mcpu.ToString(ih.Cpu, ih.SubCpu) < mcpu.ToString(jh.Cpu, jh.SubCpu)
+	// check2 fat bin contains all replace inputs
+	if !all.contains(fatInputs) {
+		diffArch := remove(all.arches(), fatInputs.arches())
+		return fmt.Errorf("%s specified but fat file: %s does not contain that architecture", diffArch, fatBin)
+	}
 
-	})
-	sort.Slice(fatInputs, func(i, j int) bool {
-		ih, jh := fatInputs[i], fatInputs[j]
-		return mcpu.ToString(ih.Cpu, ih.SubCpu) < mcpu.ToString(jh.Cpu, jh.SubCpu)
-	})
-	for idx := range fatInputs {
-		from, to := targets[idx], fatInputs[idx]
-		fromArch := mcpu.ToString(from.Cpu, from.SubCpu)
-		toArch := mcpu.ToString(to.Cpu, to.SubCpu)
-		if fromArch != toArch {
-			return fmt.Errorf("specified architecture: %s for replacement file: %s does not match the file's architecture", fromArch, toArch)
+	fatArches := all.replace(fatInputs)
+	if err := fatArches.updateAlignBit(l.segAligns); err != nil {
+		return err
+	}
+
+	return fatArches.createFatBinary(l.out, perm)
+}
+
+func createInputsFromReplaceInputs(ins []*ReplaceInput) ([]*createInput, error) {
+	creates := make([]*createInput, 0, len(ins))
+	for _, r := range ins {
+		if !mcpu.IsSupported(r.Arch) {
+			return nil, fmt.Errorf("unsupported architecture %s", r.Arch)
 		}
-	}
 
-	others, err := fatArchesFromFatBin(fatBin, func(hdr *macho.FatArchHeader) bool {
-		return !contain(mcpu.ToString(hdr.Cpu, hdr.SubCpu), arches(inputs))
-	})
-	if err != nil {
-		// Note ignore case that replace all arches of fat bin with inputs
-		// e.g.) fat bin contains only arm64, replace arm64 to new arm64 bin
-		if !errors.Is(err, errFoundNoFatArch) {
-			return fmt.Errorf("search error: %w", err)
+		i, err := newCreateInput(r.Bin)
+		if err != nil {
+			return nil, err
 		}
-	}
-	defer func() { _ = close(others) }()
 
-	fatArches, err := sortByArch(append(others, fatInputs...))
-	if err != nil {
-		return err
-	}
-
-	if err := updateAlignBit(fatArches, l.segAligns); err != nil {
-		return err
+		if arch := mcpu.ToString(i.hdr.Cpu, i.hdr.SubCpu); arch != r.Arch {
+			return nil, fmt.Errorf("specified architecture: %s for replacement file: %s does not match the file's architecture", r.Arch, r.Bin)
+		}
+		creates = append(creates, i)
 	}
 
-	return outputFatBinary(l.out, perm, fatArches)
+	if err := validateCreateInputs(creates); err != nil {
+		return nil, err
+	}
+	return creates, nil
 }

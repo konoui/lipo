@@ -1,6 +1,7 @@
 package lipo_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -53,7 +54,7 @@ func TestLipo_Replace(t *testing.T) {
 				})
 			}
 
-			got := filepath.Join(p.Dir, randName())
+			got := filepath.Join(p.Dir, gotName(t))
 			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got), lipo.WithSegAlign(tt.segAligns))
 			if err := l.Replace(ri); err != nil {
 				t.Fatalf("replace error: %v\n", err)
@@ -66,7 +67,7 @@ func TestLipo_Replace(t *testing.T) {
 				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
 			}
 
-			want := filepath.Join(p.Dir, randName())
+			want := filepath.Join(p.Dir, wantName(t))
 			p.Replace(t, want, p.FatBin, rapReplaceInputs(ri))
 			diffSha256(t, want, got)
 		})
@@ -82,23 +83,33 @@ func rapReplaceInputs(ri []*lipo.ReplaceInput) [][2]string {
 }
 
 func TestLipo_ReplaceError(t *testing.T) {
+	p := testlipo.Setup(t, "arm64", "x86_64")
+	got := filepath.Join(p.Dir, gotName(t))
+	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+
 	t.Run("duplicate arch", func(t *testing.T) {
-		p := testlipo.Setup(t, "arm64", "x86_64")
-
 		to := p.Bin(t, "arm64")
-		got := filepath.Join(p.Dir, randName())
-		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
-
 		ri := []*lipo.ReplaceInput{{Arch: "arm64", Bin: to}, {Arch: "arm64", Bin: to}}
 		err := l.Replace(ri)
-		wantErrMsg := "replace inputs: want 1 but got 2"
+		wantErrMsg := "duplicate architecture arm64"
 		if err.Error() != wantErrMsg {
 			t.Errorf("want: %s, got: %s", wantErrMsg, err.Error())
 		}
+	})
 
-		ri = []*lipo.ReplaceInput{{Arch: "x86_64", Bin: p.Bin(t, "arm64")}}
-		err = l.Replace(ri)
-		wantErrMsg = "specified architecture: x86_64 for replacement file: arm64 does not match the file's architecture"
+	t.Run("not-match-arch-and-bin", func(t *testing.T) {
+		ri := []*lipo.ReplaceInput{{Arch: "x86_64", Bin: p.Bin(t, "arm64")}}
+		err := l.Replace(ri)
+		wantErrMsg := fmt.Sprintf("specified architecture: %s for replacement file: %s does not match the file's architecture", ri[0].Arch, ri[0].Bin)
+		if err.Error() != wantErrMsg {
+			t.Errorf("want: %s, got: %s", wantErrMsg, err.Error())
+		}
+	})
+
+	t.Run("fat-bin-not-have-input-arch", func(t *testing.T) {
+		ri := []*lipo.ReplaceInput{{Arch: "arm64e", Bin: p.NewArchBin(t, "arm64e")}}
+		err := l.Replace(ri)
+		wantErrMsg := fmt.Sprintf("%s specified but fat file: %s does not contain that architecture", ri[0].Arch, p.FatBin)
 		if err.Error() != wantErrMsg {
 			t.Errorf("want: %s, got: %s", wantErrMsg, err.Error())
 		}
