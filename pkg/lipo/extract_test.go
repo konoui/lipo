@@ -67,8 +67,8 @@ func TestLipo_ExtractError(t *testing.T) {
 	got := filepath.Join(p.Dir, gotName(t))
 	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 
-	t.Run("not-match-arch", func(t *testing.T) {
-		err := l.Extract("arm64e", "arm64")
+	t.Run("not-match-arch1", func(t *testing.T) {
+		err := l.Extract("arm64e")
 		if err == nil {
 			t.Errorf("error does not occur")
 		}
@@ -78,8 +78,8 @@ func TestLipo_ExtractError(t *testing.T) {
 			t.Errorf("want: %s, got: %s", want, got)
 		}
 	})
-	t.Run("not-match-arch", func(t *testing.T) {
-		err := l.Extract("arm64e")
+	t.Run("not-match-arch2", func(t *testing.T) {
+		err := l.Extract("arm64e", "arm64")
 		if err == nil {
 			t.Errorf("error does not occur")
 		}

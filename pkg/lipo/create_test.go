@@ -83,16 +83,19 @@ func TestLipo_CreateError(t *testing.T) {
 		{
 			name:       "-create -segalign x86_64 1",
 			segAligns:  []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "1"}},
-			wantErrMsg: "argument to -segalign <arch_type> 1 (hex) must be a non-zero power of two",
+			wantErrMsg: "segalign 1 (hex) must be a non-zero power of two",
 		},
 		{
-			name: "-create -segalign x86_64 10 (2^4) -segalign x86_64 (1^2)",
-
+			name:       "-create -segalign x86_64 10 (2^4) -segalign x86_64 (1^2)",
 			segAligns:  []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "10"}, {Arch: "x86_64", AlignHex: "2"}},
-			wantErrMsg: "-segalign x86_64 <value> specified multiple times",
+			wantErrMsg: "segalign x86_64 specified multiple times",
+		},
+		{
+			name:       "-create -segalign arm64e 10 (2^4)",
+			segAligns:  []*lipo.SegAlignInput{{Arch: "arm64e", AlignHex: "10"}},
+			wantErrMsg: "segalign arm64e specified but resulting fat file does not contain that architecture",
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := testlipo.Setup(t, inAmd64, inArm64)

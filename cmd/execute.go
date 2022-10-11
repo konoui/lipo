@@ -22,10 +22,8 @@ type fset struct {
 func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	var out, thin string
 	remove, extract, verifyArch := []string{}, []string{}, []string{}
-	replace := [][2]string{}
-	segAligns := [][2]string{}
-	create := false
-	archs := false
+	replace, segAligns := [][2]string{}, [][2]string{}
+	create, archs := false, false
 
 	fset := &fset{sflag.NewFlagSet("lipo")}
 	createGroup := fset.NewGroup("create")
@@ -74,6 +72,11 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 
 	if err := fset.Parse(args); err != nil {
 		return fatal(stderr, fset, err.Error())
+	}
+
+	if len(args) == 0 {
+		fmt.Fprint(stderr, fset.Usage())
+		return 1
 	}
 
 	group, err := sflag.LookupGroup(

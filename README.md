@@ -1,14 +1,12 @@
 ## LIPO
 
-This `lipo` creates Universal Binary a.k.a Fat Binary for macOS.
+This `lipo` aims to be compatible with macOS `lipo`.  
+macOS lipo is known as an utility for Universal Binary a.k.a Fat Binary.
 
 This is useful for following use-cases.
 
 - On CI/CD (e.g. GitLab) not providing macOS or [macOS `lipo`](https://ss64.com/osx/lipo.html).
 - On GitHub Actions not using macOS for [cost-effective](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions)
-
-Note: I recommend checking to see if your toolchains support Universal Binary or not first.  
-For example, GoReleaser GitHub Action supports [macOS Universal Binary](https://goreleaser.com/customization/universalbinaries/)
 
 ### INSTALL
 
@@ -52,6 +50,6 @@ hello-world (for architecture x86_64): Mach-O 64-bit executable x86_64
 hello-world (for architecture arm64): Mach-O 64-bit executable arm64
 ```
 
-### Note
+### Supported Options
 
-This `lipo` supports only 64-bit binary.
+`-archs`, `-create`, `-extract`, `-output`, `-remove`, `-replace`, `-segalign`, `-thin`, `-verify_arch`

@@ -224,11 +224,11 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 			return err
 		}
 		if (align % 2) != 0 {
-			return fmt.Errorf("argument to -segalign <arch_type> %s (hex) must be a non-zero power of two", a.AlignHex)
+			return fmt.Errorf("segalign %s (hex) must be a non-zero power of two", a.AlignHex)
 		}
 
 		if o, k := seen[a.Arch]; o || k {
-			return fmt.Errorf("-segalign %s <value> specified multiple times", a.Arch)
+			return fmt.Errorf("segalign %s specified multiple times", a.Arch)
 		}
 		seen[a.Arch] = true
 
@@ -242,12 +242,11 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 			}
 		}
 		if !found {
-			return fmt.Errorf("-segalign <arch_type> %s not found", a.Arch)
+			return fmt.Errorf("segalign %s specified but resulting fat file does not contain that architecture", a.Arch)
 		}
 	}
 
-	_, err := f.sort()
-	return err
+	return nil
 }
 
 // fatArchesFromFatBin gathers fatArches from fat binary header if `cond` returns true
