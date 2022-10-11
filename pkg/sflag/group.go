@@ -74,6 +74,7 @@ func (g *Group) Diff() []string {
 			diff = append(diff, name)
 		}
 	}
+
 	return diff
 }
 

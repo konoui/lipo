@@ -18,7 +18,8 @@ func (l *Lipo) Thin(arch string) error {
 	}
 
 	fatBin := l.in[0]
-	info, err := os.Stat(fatBin)
+
+	info, err := os.Stat(l.in[0])
 	if err != nil {
 		return err
 	}
@@ -35,12 +36,16 @@ func (l *Lipo) Thin(arch string) error {
 		return fmt.Errorf("fat input file (%s) does not contain the specified architecture (%s) to thin it to", fatBin, arch)
 	}
 
+	fatArch := fatArches[0]
+	return l.thin(perm, fatArch)
+}
+
+func (l *Lipo) thin(perm os.FileMode, fatArch *fatArch) error {
 	out, err := os.Create(l.out)
 	if err != nil {
 		return err
 	}
 
-	fatArch := fatArches[0]
 	if _, err := io.CopyN(out, fatArch, int64(fatArch.Size)); err != nil {
 		return fmt.Errorf("failed to write binary data: %w", err)
 	}

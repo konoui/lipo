@@ -7,23 +7,24 @@ import (
 )
 
 var (
-	output, thin                = "", ""
-	create, archs               = false, false
-	extract, remove, verifyArch = []string{}, []string{}, []string{}
-	replace                     = [][2]string{}
+	output, thin                               string
+	remove, extract, extractFamily, verifyArch = []string{}, []string{}, []string{}, []string{}
+	replace, segAligns                         = [][2]string{}, [][2]string{}
+	create, archs                              = false, false
 )
 
 func register() (*sflag.FlagSet, []*sflag.Group) {
 	f := sflag.NewFlagSet("lipo")
 	// init
 	output, thin = "", ""
+	remove, extract, extractFamily, verifyArch = []string{}, []string{}, []string{}, []string{}
+	replace, segAligns = [][2]string{}, [][2]string{}
 	create, archs = false, false
-	replace = [][2]string{}
-	extract, remove, verifyArch = []string{}, []string{}, []string{}
 
 	createGroup := f.NewGroup("create")
 	thinGroup := f.NewGroup("thin")
 	extractGroup := f.NewGroup("extract")
+	extractFamilyGroup := f.NewGroup("extract_family")
 	removeGroup := f.NewGroup("remove")
 	replaceGroup := f.NewGroup("replace")
 	archsGroup := f.NewGroup("archs")
@@ -32,8 +33,17 @@ func register() (*sflag.FlagSet, []*sflag.Group) {
 		sflag.WithGroup(createGroup, sflag.TypeRequire),
 		sflag.WithGroup(thinGroup, sflag.TypeRequire),
 		sflag.WithGroup(extractGroup, sflag.TypeRequire),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire),
 		sflag.WithGroup(removeGroup, sflag.TypeRequire),
 		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
+	f.MultipleFlagFixedStrings(&segAligns, "segalign", "<arch_type> <alignment>",
+		sflag.WithGroup(createGroup, sflag.TypeOption),
+		sflag.WithGroup(thinGroup, sflag.TypeOption),
+		sflag.WithGroup(extractGroup, sflag.TypeOption),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption),
+		sflag.WithGroup(removeGroup, sflag.TypeOption),
+		sflag.WithGroup(replaceGroup, sflag.TypeOption),
+	)
 	f.Bool(&create, "create", "-create",
 		sflag.WithGroup(createGroup, sflag.TypeRequire))
 	f.String(&thin, "thin", "thin <arch>",
@@ -41,7 +51,11 @@ func register() (*sflag.FlagSet, []*sflag.Group) {
 	f.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>",
 		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
 	f.MultipleFlagString(&extract, "extract", "-extract <arch>",
-		sflag.WithGroup(extractGroup, sflag.TypeRequire))
+		sflag.WithGroup(extractGroup, sflag.TypeRequire),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption)) // if specified, apple lipo regard values as family
+	f.MultipleFlagString(&extractFamily, "extract_family",
+		"-extract_family <arch>",
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire))
 	f.MultipleFlagString(&remove, "remove", "-remove <arch>",
 		sflag.WithGroup(removeGroup, sflag.TypeRequire))
 	f.Bool(&archs, "archs", "-archs <arch> ...",
@@ -49,20 +63,22 @@ func register() (*sflag.FlagSet, []*sflag.Group) {
 	f.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch>",
 		sflag.WithGroup(verifyArchGroup, sflag.TypeRequire))
 	return f, []*sflag.Group{
-		createGroup, thinGroup, extractGroup,
+		createGroup, thinGroup, extractGroup, extractFamilyGroup,
 		removeGroup, replaceGroup, archsGroup,
 		verifyArchGroup}
 }
 
-func fset(t *testing.T, in []string) *sflag.FlagSet {
+func fset(t *testing.T, in []string) (*sflag.FlagSet, *sflag.Group) {
 	f, groups := register()
 	if err := f.Parse(in); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := sflag.LookupGroup(groups...); err != nil {
+
+	group, err := sflag.LookupGroup(groups...)
+	if err != nil {
 		t.Fatal(err)
 	}
-	return f
+	return f, group
 }
 
 func TestFlagSet_Parse(t *testing.T) {
@@ -77,7 +93,8 @@ func TestFlagSet_Parse(t *testing.T) {
 		}
 		gotInput := []string{"path/to/in1", "path/to/in2", "path/to/in3", "path/to/in4"}
 		for _, in := range shuffle(dataSet) {
-			f := fset(t, in)
+			f, g := fset(t, in)
+			eq(t, g.Name, "create")
 			equal(t, gotInput, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			if !create {
@@ -93,7 +110,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-replace", "arm64", "path/to/target2"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f := fset(t, in)
+			f, g := fset(t, in)
+			eq(t, g.Name, "replace")
 			equal(t, []string{"path/to/in1"}, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			got1 := replace[0]
@@ -118,10 +136,27 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-extract", "arm64e"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f := fset(t, in)
+			f, g := fset(t, in)
+			eq(t, g.Name, "extract")
 			equal(t, []string{"path/to/in1"}, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			equal(t, []string{"arm64", "arm64e"}, extract)
+		}
+	})
+	t.Run("extract_family", func(t *testing.T) {
+		dataSet := [][]string{
+			{"path/to/in1"},
+			{"-output", "path/to/out"},
+			{"-extract_family", "arm64e"},
+			{"-extract", "x86_64"},
+		}
+		for _, in := range shuffle(dataSet) {
+			f, g := fset(t, in)
+			eq(t, g.Name, "extract_family")
+			equal(t, []string{"path/to/in1"}, f.Args())
+			equal(t, []string{"path/to/out"}, []string{output})
+			equal(t, []string{"arm64e"}, extractFamily)
+			equal(t, []string{"x86_64"}, extract)
 		}
 	})
 	t.Run("remove", func(t *testing.T) {
@@ -132,7 +167,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-remove", "x86_64h"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f := fset(t, in)
+			f, g := fset(t, in)
+			eq(t, g.Name, "remove")
 			equal(t, []string{"path/to/in1"}, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			equal(t, []string{"x86_64h", "x86_64"}, remove)
@@ -145,7 +181,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-thin", "x86_64"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f := fset(t, in)
+			f, g := fset(t, in)
+			eq(t, g.Name, "thin")
 			equal(t, []string{"path/to/in1"}, f.Args())
 			equal(t, []string{"path/to/out"}, []string{output})
 			equal(t, []string{"x86_64"}, []string{thin})
@@ -157,7 +194,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-archs"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f := fset(t, in)
+			f, g := fset(t, in)
+			eq(t, g.Name, "archs")
 			equal(t, []string{"path/to/in1"}, f.Args())
 			if !archs {
 				t.Errorf("archs is false")
@@ -166,7 +204,8 @@ func TestFlagSet_Parse(t *testing.T) {
 	})
 	t.Run("verify_arch", func(t *testing.T) {
 		in := []string{"path/to/in1", "-verify_arch", "x86_64", "arm64", "arm64e", "x86_64h", "arm"}
-		f := fset(t, in)
+		f, g := fset(t, in)
+		eq(t, g.Name, "verify_arch")
 		equal(t, []string{"path/to/in1"}, f.Args())
 		equal(t, []string{"x86_64", "arm64", "arm64e", "x86_64h", "arm"}, verifyArch)
 	})
@@ -325,5 +364,12 @@ func equal(t *testing.T, want []string, got []string) {
 		if _, ok := seen[v]; !ok {
 			t.Errorf("got: %v\n", v)
 		}
+	}
+}
+
+func eq(t *testing.T, want, got string) {
+	t.Helper()
+	if want != got {
+		t.Fatalf("want: %v got: %v\n", want, got)
 	}
 }

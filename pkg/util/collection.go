@@ -17,3 +17,12 @@ func Filter[T any](values []T, fn func(T) bool) []T {
 	}
 	return results
 }
+
+func Contains[T comparable](values []T, target T) bool {
+	for _, e := range values {
+		if e == target {
+			return true
+		}
+	}
+	return false
+}

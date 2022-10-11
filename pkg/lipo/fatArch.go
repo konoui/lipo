@@ -185,6 +185,16 @@ func (f fatArches) extract(arches ...string) fatArches {
 	})
 }
 
+func (f fatArches) extractFamily(arches ...string) fatArches {
+	cpus := util.Map(arches, func(a string) macho.Cpu {
+		c, _, _ := mcpu.ToCpu(a)
+		return c
+	})
+	return util.Filter(f, func(v *fatArch) bool {
+		return util.Contains(cpus, v.Cpu)
+	})
+}
+
 func (f fatArches) remove(arches ...string) fatArches {
 	return util.Filter(f, func(v *fatArch) bool {
 		return !contains(mcpu.ToString(v.Cpu, v.SubCpu), arches)

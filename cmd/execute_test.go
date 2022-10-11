@@ -70,6 +70,11 @@ func TestExecute(t *testing.T) {
 			args:         []string{"-extract", "x86_64", "-extract", "arm64", "-output", phOutput, phInputFat},
 		},
 		{
+			name:         "extract",
+			wantExitCode: 0,
+			args:         []string{"-extract", "x86_64", "-extract_family", "arm64", "-output", phOutput, phInputFat},
+		},
+		{
 			name:         "replace",
 			wantExitCode: 0,
 			args:         []string{"-replace", "arm64", phArm64Thin, "-replace", "x86_64", phX86_64Thin, "-output", phOutput, phInputFat},

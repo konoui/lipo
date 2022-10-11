@@ -182,6 +182,15 @@ func (l *LipoBin) Extract(t *testing.T, out, in string, arches []string) {
 	execute(t, cmd, true)
 }
 
+func (l *LipoBin) ExtractFamily(t *testing.T, out, in string, arches []string) {
+	t.Helper()
+	args := appendCmd("-extract_family", arches)
+	args = append([]string{in, "-output", out}, args...)
+	args = append(args, l.segAligns...)
+	cmd := exec.Command(l.Bin, args...)
+	execute(t, cmd, true)
+}
+
 func (l *LipoBin) Thin(t *testing.T, out, in, arch string) {
 	t.Helper()
 	cmd := exec.Command(l.Bin, in, "-thin", arch, "-output", out)

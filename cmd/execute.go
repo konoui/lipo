@@ -21,7 +21,7 @@ type fset struct {
 
 func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	var out, thin string
-	remove, extract, verifyArch := []string{}, []string{}, []string{}
+	remove, extract, extractFamily, verifyArch := []string{}, []string{}, []string{}, []string{}
 	replace, segAligns := [][2]string{}, [][2]string{}
 	create, archs := false, false
 
@@ -29,6 +29,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	createGroup := fset.NewGroup("create")
 	thinGroup := fset.NewGroup("thin")
 	extractGroup := fset.NewGroup("extract")
+	extractFamilyGroup := fset.NewGroup("extract_family")
 	removeGroup := fset.NewGroup("remove")
 	replaceGroup := fset.NewGroup("replace")
 	archsGroup := fset.NewGroup("archs")
@@ -39,12 +40,14 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		sflag.WithGroup(thinGroup, sflag.TypeRequire),
 		sflag.WithGroup(extractGroup, sflag.TypeRequire),
 		sflag.WithGroup(removeGroup, sflag.TypeRequire),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire),
 		sflag.WithGroup(replaceGroup, sflag.TypeRequire),
 	)
 	fset.MultipleFlagFixedStrings(&segAligns, "segalign", "<arch_type> <alignment>",
 		sflag.WithGroup(createGroup, sflag.TypeOption),
 		sflag.WithGroup(thinGroup, sflag.TypeOption), // apple lipo does not raise error if -thin with -segalign
 		sflag.WithGroup(extractGroup, sflag.TypeOption),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption),
 		sflag.WithGroup(removeGroup, sflag.TypeOption),
 		sflag.WithGroup(replaceGroup, sflag.TypeOption),
 	)
@@ -56,7 +59,11 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		sflag.WithGroup(thinGroup, sflag.TypeRequire))
 	fset.MultipleFlagString(&extract, "extract",
 		"-extract <arch_type> [-extract <arch_type> ...]",
-		sflag.WithGroup(extractGroup, sflag.TypeRequire))
+		sflag.WithGroup(extractGroup, sflag.TypeRequire),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption)) // if specified, apple lipo regard values as family
+	fset.MultipleFlagString(&extractFamily, "extract_family",
+		"-extract_family <arch_type> [-extract_family <arch_type> ...]",
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire))
 	fset.MultipleFlagString(&remove, "remove",
 		"-remove <arch_type> [-remove <arch_type> ...]",
 		sflag.WithGroup(removeGroup, sflag.TypeRequire))
@@ -81,8 +88,8 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 
 	group, err := sflag.LookupGroup(
 		createGroup, thinGroup, extractGroup,
-		removeGroup, replaceGroup, archsGroup,
-		verifyArchGroup)
+		extractFamilyGroup, removeGroup, replaceGroup,
+		archsGroup, verifyArchGroup)
 	if err != nil {
 		return fatal(stderr, fset, err.Error())
 	}
@@ -110,6 +117,12 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		return
 	case "extract":
 		if err := l.Extract(extract...); err != nil {
+			return fatal(stderr, fset, err.Error())
+		}
+		return
+	case "extract_family":
+		extractFamily = append(extractFamily, extract...)
+		if err := l.ExtractFamily(extractFamily...); err != nil {
 			return fatal(stderr, fset, err.Error())
 		}
 		return
