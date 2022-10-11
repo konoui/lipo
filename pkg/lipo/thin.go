@@ -24,13 +24,13 @@ func (l *Lipo) Thin(arch string) error {
 	}
 	perm := info.Mode().Perm()
 
-	fatArches, err := fatArchesFromFatBin(fatBin)
+	all, err := fatArchesFromFatBin(fatBin)
 	if err != nil {
 		return err
 	}
-	defer fatArches.close()
+	defer all.close()
 
-	fatArches = fatArches.extract(arch)
+	fatArches := all.extract(arch)
 	if len(fatArches) == 0 {
 		return fmt.Errorf("fat input file (%s) does not contain the specified architecture (%s) to thin it to", fatBin, arch)
 	}

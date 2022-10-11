@@ -85,6 +85,11 @@ func TestExecute(t *testing.T) {
 			args:         []string{phInputFat, "-verify_arch", "arm64", "x86_64"},
 		},
 		{
+			name:         "verify_arch not contains",
+			wantExitCode: 1,
+			args:         []string{phInputFat, "-verify_arch", "arm64", "x86_64", "arm64e"},
+		},
+		{
 			name:         "create",
 			wantExitCode: 0,
 			args:         []string{"-create", "-output", phOutput, phInputThins, "-segalign", "x86_64", "2"},

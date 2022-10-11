@@ -257,16 +257,12 @@ func fatArchesFromFatBin(path string) (fatArches, error) {
 	}
 	defer fat.Close()
 
-	if len(fat.Arches) < 1 {
-		return nil, errors.New("number of arches must be greater than 1")
-	}
-
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 
-	fatArches := fatArches{}
+	fatArches := make(fatArches, 0, len(fat.Arches))
 	count := int32(0)
 	for _, hdr := range fat.Arches {
 		fatArches = append(fatArches, &fatArch{
