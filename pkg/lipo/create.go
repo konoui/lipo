@@ -90,11 +90,12 @@ func newCreateInput(bin string) (*createInput, error) {
 	}
 	defer f.Close()
 
-	if f.Type != macho.TypeExec {
-		return nil, fmt.Errorf("not supported non TypeExec %s", bin)
+	var align uint32
+	if f.Type == macho.TypeObj {
+		align = guessAlignBit(uint64(os.Getpagesize()), alignBitMin, alignBitMax)
+	} else {
+		align = segmentAlignBit(f)
 	}
-
-	align := segmentAlignBit(f)
 
 	info, err := os.Stat(path)
 	if err != nil {
