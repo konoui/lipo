@@ -12,7 +12,7 @@ func (l *Lipo) Archs() ([]string, error) {
 	}
 
 	bin := l.in[0]
-	fat, err := macho.OpenFat(bin)
+	fat, err := OpenFat(bin)
 	if err != nil {
 		if err != macho.ErrNotFat {
 			return nil, err

@@ -8,6 +8,7 @@ import (
 
 	"github.com/konoui/lipo/pkg/lipo"
 	"github.com/konoui/lipo/pkg/testlipo"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 func TestLipo_Archs(t *testing.T) {
@@ -85,6 +86,10 @@ func TestLipo_ArchsToLocalFiles(t *testing.T) {
 func verifyArches(t *testing.T, bin string, arches ...string) {
 	t.Helper()
 
+	// trim object
+	arches = util.Map(arches, func(v string) string {
+		return strings.TrimPrefix(v, "obj_")
+	})
 	want := arches
 	got, err := lipo.New(lipo.WithInputs(bin)).Archs()
 	if err != nil {

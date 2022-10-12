@@ -80,7 +80,11 @@ func Setup(t *testing.T, arches ...string) *TestLipo {
 	}
 
 	for _, arch := range arches {
-		if !(arch == inAmd64 || arch == inArm64) {
+		if strings.HasPrefix(arch, "obj_") {
+			archBin := filepath.Join(dir, arch)
+			NewObject(t, archBin)
+			archBins[arch] = archBin
+		} else if !(arch == inAmd64 || arch == inArm64) {
 			archBin := filepath.Join(dir, arch)
 			copyAndManipulate(t, arm64Bin, archBin, arch)
 			archBins[arch] = archBin

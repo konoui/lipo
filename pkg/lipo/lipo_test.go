@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -45,6 +46,14 @@ var (
 		return ret
 	}
 )
+
+func currentArch() string {
+	a := runtime.GOARCH
+	if a == "amd64" {
+		return "x86_64"
+	}
+	return a
+}
 
 func gotName(t *testing.T) string {
 	return "got_" + filepath.Base(t.Name())

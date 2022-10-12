@@ -21,20 +21,20 @@ func TestLipo_Create(t *testing.T) {
 			arches: []string{inAmd64},
 		},
 		{
-			name:   "-create",
+			name:   "-create 2 files",
 			arches: []string{inAmd64, inArm64},
 		},
 		{
-			name:   "-create",
-			arches: []string{inAmd64, inArm64},
+			name:   "-create 3 files",
+			arches: []string{inArm64, inAmd64, "arm64e"},
 		},
 		{
-			name:   "-create",
-			arches: []string{inAmd64, inArm64, "arm64e"},
-		},
-		{
-			name:   "-create",
+			name:   "-create many files",
 			arches: mcpu.CpuNames(),
+		},
+		{
+			name:   "-create object files",
+			arches: []string{"obj_" + currentArch(), "arm64e", "x86_64h"},
 		},
 		{
 			name:      "-create -segalign x86_64 10 (2^4)",
