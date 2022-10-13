@@ -106,7 +106,7 @@ func TestExecute(t *testing.T) {
 		{
 			name:         "create but no input",
 			args:         []string{"-create", "-output", "out", "in", "in"},
-			wantErrMsg:   "no such file or directory for in",
+			wantErrMsg:   "no such file or directory",
 			wantExitCode: 1,
 		},
 	}

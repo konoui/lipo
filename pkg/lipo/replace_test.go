@@ -100,7 +100,10 @@ func TestLipo_ReplaceError(t *testing.T) {
 	t.Run("not-match-arch-and-bin", func(t *testing.T) {
 		ri := []*lipo.ReplaceInput{{Arch: "x86_64", Bin: p.Bin(t, "arm64")}}
 		err := l.Replace(ri)
-		wantErrMsg := fmt.Sprintf("specified architecture: %s for replacement file: %s does not match the file's architecture", ri[0].Arch, ri[0].Bin)
+		wantErrMsg := fmt.Sprintf("specified architecture: %s for input file: %s does not match the file's architecture", ri[0].Arch, ri[0].Bin)
+		if err == nil {
+			t.Fatal("no error")
+		}
 		if err.Error() != wantErrMsg {
 			t.Errorf("want: %s, got: %s", wantErrMsg, err.Error())
 		}
@@ -110,6 +113,9 @@ func TestLipo_ReplaceError(t *testing.T) {
 		ri := []*lipo.ReplaceInput{{Arch: "arm64e", Bin: p.NewArchBin(t, "arm64e")}}
 		err := l.Replace(ri)
 		wantErrMsg := fmt.Sprintf("%s specified but fat file: %s does not contain that architecture", ri[0].Arch, p.FatBin)
+		if err == nil {
+			t.Fatal("no error")
+		}
 		if err.Error() != wantErrMsg {
 			t.Errorf("want: %s, got: %s", wantErrMsg, err.Error())
 		}

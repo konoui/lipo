@@ -21,11 +21,17 @@ type Lipo struct {
 	in        []string
 	out       string
 	segAligns []*SegAlignInput
+	arches    []*ArchInput
 }
 
 type SegAlignInput struct {
 	Arch     string
 	AlignHex string
+}
+
+type ArchInput struct {
+	Arch string
+	Bin  string
 }
 
 type Option func(l *Lipo)
@@ -45,6 +51,12 @@ func WithOutput(out string) Option {
 func WithSegAlign(aligns []*SegAlignInput) Option {
 	return func(l *Lipo) {
 		l.segAligns = aligns
+	}
+}
+
+func WithArch(arches []*ArchInput) Option {
+	return func(l *Lipo) {
+		l.arches = arches
 	}
 }
 

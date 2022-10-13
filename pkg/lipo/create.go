@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 func (l *Lipo) Create() error {
-	inputs, err := newCreateInputs(l.in...)
+	archInputs := append(l.arches, util.Map(l.in, func(v string) *ArchInput { return &ArchInput{Bin: v} })...)
+	inputs, err := newCreateInputs(archInputs...)
 	if err != nil {
 		return err
 	}
@@ -44,16 +46,16 @@ type createInput struct {
 	perm  fs.FileMode
 }
 
-func newCreateInputs(paths ...string) ([]*createInput, error) {
-	if len(paths) == 0 {
+func newCreateInputs(in ...*ArchInput) ([]*createInput, error) {
+	if len(in) == 0 {
 		return nil, fmt.Errorf("no input files specified")
 	}
 
-	inputs := make([]*createInput, len(paths))
-	for idx, path := range paths {
+	inputs := make([]*createInput, len(in))
+	for idx, path := range in {
 		in, err := newCreateInput(path)
 		if err != nil {
-			return nil, fmt.Errorf("%v for %s", err, path)
+			return nil, err
 		}
 		inputs[idx] = in
 	}
@@ -78,8 +80,8 @@ func validateCreateInputs(inputs []*createInput) error {
 	return nil
 }
 
-func newCreateInput(bin string) (*createInput, error) {
-	path, err := filepath.Abs(bin)
+func newCreateInput(in *ArchInput) (*createInput, error) {
+	path, err := filepath.Abs(in.Bin)
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +91,19 @@ func newCreateInput(bin string) (*createInput, error) {
 		return nil, err
 	}
 	defer f.Close()
+
+	if in.Arch != "" {
+		if f.Cpu == 0 && f.SubCpu == 0 {
+			cpu, sub, ok := mcpu.ToCpu(in.Arch)
+			if !ok {
+				return nil, fmt.Errorf("unsupported architecture %s", in.Arch)
+			}
+			f.Cpu = cpu
+			f.SubCpu = sub
+		} else if mcpu.ToString(f.Cpu, f.SubCpu) != in.Arch {
+			return nil, fmt.Errorf("specified architecture: %s for input file: %s does not match the file's architecture", in.Arch, in.Bin)
+		}
+	}
 
 	var align uint32
 	if f.Type == macho.TypeObj {

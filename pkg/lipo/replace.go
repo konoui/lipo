@@ -56,25 +56,18 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 }
 
 func createInputsFromReplaceInputs(ins []*ReplaceInput) ([]*createInput, error) {
-	creates := make([]*createInput, 0, len(ins))
-	for _, r := range ins {
+	archInputs := make([]*ArchInput, len(ins))
+	for i, r := range ins {
 		if !mcpu.IsSupported(r.Arch) {
 			return nil, fmt.Errorf("unsupported architecture %s", r.Arch)
 		}
-
-		i, err := newCreateInput(r.Bin)
-		if err != nil {
-			return nil, err
-		}
-
-		if arch := mcpu.ToString(i.hdr.Cpu, i.hdr.SubCpu); arch != r.Arch {
-			return nil, fmt.Errorf("specified architecture: %s for replacement file: %s does not match the file's architecture", r.Arch, r.Bin)
-		}
-		creates = append(creates, i)
+		archInputs[i] = &ArchInput{Bin: r.Bin, Arch: r.Arch}
 	}
 
-	if err := validateCreateInputs(creates); err != nil {
+	creates, err := newCreateInputs(archInputs...)
+	if err != nil {
 		return nil, err
 	}
+
 	return creates, nil
 }
