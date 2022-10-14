@@ -67,7 +67,7 @@ func LookupGroup(groups ...*Group) (*Group, error) {
 		return nil, fmt.Errorf("found no flag group")
 	}
 	if len(found) > 1 {
-		return nil, fmt.Errorf("found multiple flag groups: %v", errNames)
+		return groups[0], fmt.Errorf("found multiple flag groups: %v", errNames)
 	}
 	return found[0], nil
 }
@@ -105,8 +105,8 @@ func UsageFunc(groups ...*Group) func() string {
 	return func() string {
 		var b strings.Builder
 		for _, g := range groups {
-			b.WriteString(g.Usage())
 			b.WriteString("\n")
+			b.WriteString(g.Usage())
 		}
 		return b.String()
 	}

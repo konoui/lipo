@@ -9,9 +9,9 @@ import (
 	"github.com/konoui/lipo/pkg/sflag"
 )
 
-func fatal(w io.Writer, fset *fset, msg string) (exitCode int) {
+func fatal(w io.Writer, g *sflag.Group, msg string) (exitCode int) {
 	fmt.Fprintf(w, "Error %s\n", msg)
-	fmt.Fprint(w, fset.Usage())
+	fmt.Fprint(w, g.Usage())
 	return 1
 }
 
@@ -22,7 +22,7 @@ type fset struct {
 func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	var out, thin string
 	remove, extract, extractFamily, verifyArch := []string{}, []string{}, []string{}, []string{}
-	replace, segAligns := [][2]string{}, [][2]string{}
+	replace, segAligns, arch := [][2]string{}, [][2]string{}, [][2]string{}
 	create, archs := false, false
 
 	fset := &fset{sflag.NewFlagSet("lipo")}
@@ -47,12 +47,16 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire),
 		sflag.WithGroup(replaceGroup, sflag.TypeRequire),
 	)
-	fset.MultipleFlagFixedStrings(&segAligns, "segalign", "<arch_type> <alignment>",
+	fset.MultipleFlagFixedStrings(&segAligns, "segalign", "-segalign <arch_type> <alignment>",
 		sflag.WithGroup(createGroup, sflag.TypeOption),
 		sflag.WithGroup(thinGroup, sflag.TypeOption), // apple lipo does not raise error if -thin with -segalign
 		sflag.WithGroup(extractGroup, sflag.TypeOption),
 		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption),
 		sflag.WithGroup(removeGroup, sflag.TypeOption),
+		sflag.WithGroup(replaceGroup, sflag.TypeOption),
+	)
+	fset.MultipleFlagFixedStrings(&arch, "arch", "-arch <arch_type> <input_file>",
+		sflag.WithGroup(createGroup, sflag.TypeOption),
 		sflag.WithGroup(replaceGroup, sflag.TypeOption),
 	)
 	fset.Bool(&create, "create",
@@ -82,7 +86,8 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		sflag.WithGroup(verifyArchGroup, sflag.TypeRequire))
 
 	if err := fset.Parse(args); err != nil {
-		return fatal(stderr, fset, err.Error())
+		fmt.Fprint(stderr, fset.Usage())
+		return 1
 	}
 
 	if len(args) == 0 {
@@ -92,57 +97,65 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 
 	group, err := sflag.LookupGroup(groups...)
 	if err != nil {
-		return fatal(stderr, fset, err.Error())
+		fmt.Fprintln(stderr, err.Error())
+		if group != nil {
+			fmt.Fprint(stderr, group.Usage())
+		} else {
+			fmt.Fprint(stderr, fset.Usage())
+		}
+		return 1
 	}
 
 	in := fset.Args()
 	l := lipo.New(
 		lipo.WithOutput(out),
 		lipo.WithInputs(in...),
-		lipo.WithSegAlign(conv(segAligns, newSegAlign)))
+		lipo.WithArch(conv(arch, newArch)),
+		lipo.WithSegAlign(conv(segAligns, newSegAlign)),
+	)
 	switch group.Name {
 	case "create":
 		if err := l.Create(); err != nil {
-			return fatal(stderr, fset, err.Error())
+			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "thin":
 		if err := l.Thin(thin); err != nil {
-			return fatal(stderr, fset, err.Error())
+			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "remove":
 		if err := l.Remove(remove...); err != nil {
-			return fatal(stderr, fset, err.Error())
+			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "extract":
 		if err := l.Extract(extract...); err != nil {
-			return fatal(stderr, fset, err.Error())
+			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "extract_family":
 		extractFamily = append(extractFamily, extract...)
 		if err := l.ExtractFamily(extractFamily...); err != nil {
-			return fatal(stderr, fset, err.Error())
+			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "replace":
 		if err := l.Replace(conv(replace, newReplace)); err != nil {
-			return fatal(stderr, fset, err.Error())
+			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "archs":
 		arches, err := l.Archs()
 		if err != nil {
-			return fatal(stderr, fset, err.Error())
+			return fatal(stderr, group, err.Error())
 		}
 		fmt.Fprintln(stdout, strings.Join(arches, " "))
 		return
 	case "verify_arch":
 		ok, err := l.VerifyArch(verifyArch...)
 		if err != nil {
-			return fatal(stderr, fset, err.Error())
+			return fatal(stderr, group, err.Error())
 		}
 		if !ok {
 			return 1
@@ -160,6 +173,10 @@ func newSegAlign(r [2]string) *lipo.SegAlignInput {
 
 func newReplace(r [2]string) *lipo.ReplaceInput {
 	return &lipo.ReplaceInput{Arch: r[0], Bin: r[1]}
+}
+
+func newArch(r [2]string) *lipo.ArchInput {
+	return &lipo.ArchInput{Arch: r[0], Bin: r[1]}
 }
 
 func conv[T any](raw [][2]string, f func([2]string) T) []T {
