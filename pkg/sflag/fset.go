@@ -32,13 +32,14 @@ type FlagSet struct {
 	flags map[string]*Flag
 	args  []string
 	seen  map[string]struct{}
+	Usage func() string
 }
 
 func NewFlagSet(name string) *FlagSet {
 	f := &FlagSet{
 		name: name,
 	}
-
+	f.Usage = f.usage
 	return f
 }
 
@@ -54,17 +55,18 @@ func (f *FlagSet) NewGroup(name string) *Group {
 	return &Group{Name: name, flagSet: f}
 }
 
-func (f *FlagSet) Usage() string {
+func (f *FlagSet) usage() string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("usage: %s:\n", f.name))
 
-	for _, flag := range sortFlags(f.flags) {
-		fmt.Fprintf(&b, "  -%s", flag.Name) // Two spaces before -; see next two comments.
-		name, usage := flag.Name, flag.Usage
-		if len(name) > 0 {
-			b.WriteString(" ")
-			b.WriteString(name)
-		}
+	buildFlagsUsage(&b, f.flags)
+	return b.String()
+}
+
+func buildFlagsUsage(b *strings.Builder, flags map[string]*Flag) {
+	for _, flag := range sortFlags(flags) {
+		fmt.Fprintf(b, "  -%s", flag.Name) // Two spaces before -; see next two comments.
+		usage := flag.Usage
 
 		if b.Len() <= 4 { // space, space, '-', 'x'.
 			b.WriteString("\t")
@@ -74,7 +76,6 @@ func (f *FlagSet) Usage() string {
 		b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
 		b.WriteString("\n")
 	}
-	return b.String()
 }
 
 func sortFlags(flags map[string]*Flag) []*Flag {

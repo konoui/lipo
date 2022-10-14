@@ -26,14 +26,18 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	create, archs := false, false
 
 	fset := &fset{sflag.NewFlagSet("lipo")}
-	createGroup := fset.NewGroup("create")
-	thinGroup := fset.NewGroup("thin")
-	extractGroup := fset.NewGroup("extract")
-	extractFamilyGroup := fset.NewGroup("extract_family")
-	removeGroup := fset.NewGroup("remove")
-	replaceGroup := fset.NewGroup("replace")
-	archsGroup := fset.NewGroup("archs")
-	verifyArchGroup := fset.NewGroup("verify_arch")
+	createGroup := fset.NewGroup("create").AddDescription(createDescription)
+	thinGroup := fset.NewGroup("thin").AddDescription(thinDescription)
+	extractGroup := fset.NewGroup("extract").AddDescription(extractDescription)
+	extractFamilyGroup := fset.NewGroup("extract_family").AddDescription(extractFamilyDescription)
+	removeGroup := fset.NewGroup("remove").AddDescription(removeDescription)
+	replaceGroup := fset.NewGroup("replace").AddDescription(replaceDescription)
+	archsGroup := fset.NewGroup("archs").AddDescription(archsDescription)
+	verifyArchGroup := fset.NewGroup("verify_arch").AddDescription(verifyArchDescription)
+	groups := []*sflag.Group{createGroup, thinGroup, extractGroup,
+		extractFamilyGroup, removeGroup, replaceGroup,
+		archsGroup, verifyArchGroup}
+	fset.Usage = sflag.UsageFunc(groups...)
 	fset.String(&out, "output",
 		"-output <output_file>",
 		sflag.WithGroup(createGroup, sflag.TypeRequire),
@@ -68,7 +72,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		"-remove <arch_type> [-remove <arch_type> ...]",
 		sflag.WithGroup(removeGroup, sflag.TypeRequire))
 	fset.MultipleFlagFixedStrings(&replace, "replace",
-		"-replace <arch> <file>",
+		"-replace <arch_type> <file_name> [-replace <arch_type> <file_name> ...]",
 		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
 	fset.Bool(&archs, "archs",
 		"-archs",
@@ -86,10 +90,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		return 1
 	}
 
-	group, err := sflag.LookupGroup(
-		createGroup, thinGroup, extractGroup,
-		extractFamilyGroup, removeGroup, replaceGroup,
-		archsGroup, verifyArchGroup)
+	group, err := sflag.LookupGroup(groups...)
 	if err != nil {
 		return fatal(stderr, fset, err.Error())
 	}

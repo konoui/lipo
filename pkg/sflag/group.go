@@ -2,6 +2,7 @@ package sflag
 
 import (
 	"fmt"
+	"strings"
 )
 
 const (
@@ -10,9 +11,10 @@ const (
 )
 
 type Group struct {
-	Name    string
-	types   map[string]int
-	flagSet *FlagSet
+	Name        string
+	types       map[string]int
+	flagSet     *FlagSet
+	description string
 }
 
 func (g *Group) Add(flag *Flag, typ int) {
@@ -20,6 +22,11 @@ func (g *Group) Add(flag *Flag, typ int) {
 		g.types = make(map[string]int)
 	}
 	g.types[flag.Name] = typ
+}
+
+func (g *Group) AddDescription(s string) *Group {
+	g.description = s
+	return g
 }
 
 func (g *Group) LookupByType(typ int) []*Flag {
@@ -92,4 +99,29 @@ func (g *Group) validate() error {
 	}
 
 	return nil
+}
+
+func UsageFunc(groups ...*Group) func() string {
+	return func() string {
+		var b strings.Builder
+		for _, g := range groups {
+			b.WriteString(g.Usage())
+			b.WriteString("\n")
+		}
+		return b.String()
+	}
+}
+
+func (g *Group) Usage() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("%s:", g.Name))
+	b.WriteString(strings.ReplaceAll(g.description, "\n", "\n  "))
+	b.WriteString("\n")
+	flags := make(map[string]*Flag)
+	for k := range g.types {
+		flags[k] = g.Lookup(k)
+	}
+
+	buildFlagsUsage(&b, flags)
+	return b.String()
 }
