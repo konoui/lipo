@@ -34,4 +34,8 @@ Verify the specified architecture are present in an universal binary.
 If present, exit status of 0 otherwise exit status of 1.
 e.g. lipo path/to/fat-binary x86_64 x86_64h arm64 arm64e
 `
+	infoDescription = `
+List the architectures in the input universal file.
+e.g. lipo path/to/fat-binary path/to/binary.x86_64 -info
+`
 )

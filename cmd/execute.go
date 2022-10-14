@@ -23,7 +23,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	var out, thin string
 	remove, extract, extractFamily, verifyArch := []string{}, []string{}, []string{}, []string{}
 	replace, segAligns, arch := [][2]string{}, [][2]string{}, [][2]string{}
-	create, archs := false, false
+	create, archs, info := false, false, false
 
 	fset := &fset{sflag.NewFlagSet("lipo")}
 	createGroup := fset.NewGroup("create").AddDescription(createDescription)
@@ -34,9 +34,10 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	replaceGroup := fset.NewGroup("replace").AddDescription(replaceDescription)
 	archsGroup := fset.NewGroup("archs").AddDescription(archsDescription)
 	verifyArchGroup := fset.NewGroup("verify_arch").AddDescription(verifyArchDescription)
+	infoGroup := fset.NewGroup("info").AddDescription(infoDescription)
 	groups := []*sflag.Group{createGroup, thinGroup, extractGroup,
 		extractFamilyGroup, removeGroup, replaceGroup,
-		archsGroup, verifyArchGroup}
+		archsGroup, verifyArchGroup, infoGroup}
 	fset.Usage = sflag.UsageFunc(groups...)
 	fset.String(&out, "output",
 		"-output <output_file>",
@@ -84,7 +85,9 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	fset.FlexStrings(&verifyArch, "verify_arch",
 		"-verify_arch <arch_type> ...",
 		sflag.WithGroup(verifyArchGroup, sflag.TypeRequire))
-
+	fset.Bool(&info, "info",
+		"-info",
+		sflag.WithGroup(infoGroup, sflag.TypeRequire))
 	if err := fset.Parse(args); err != nil {
 		fmt.Fprint(stderr, fset.Usage())
 		return 1
@@ -151,6 +154,15 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 			return fatal(stderr, group, err.Error())
 		}
 		fmt.Fprintln(stdout, strings.Join(arches, " "))
+		return
+	case "info":
+		res, err := l.Info()
+		if err != nil {
+			return fatal(stderr, group, err.Error())
+		}
+		for _, v := range res {
+			fmt.Fprintln(stdout, v)
+		}
 		return
 	case "verify_arch":
 		ok, err := l.VerifyArch(verifyArch...)

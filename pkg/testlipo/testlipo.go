@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 var godata = `
@@ -154,9 +155,22 @@ func (l *LipoBin) Skip() bool {
 
 func (l *LipoBin) DetailedInfo(t *testing.T, bin string) string {
 	t.Helper()
-
 	cmd := exec.Command(l.Bin, "-detailed_info", bin)
 	return execute(t, cmd, true)
+}
+
+func (l *LipoBin) Info(t *testing.T, bins ...string) string {
+	t.Helper()
+	args := append([]string{"-info"}, bins...)
+	cmd := exec.Command(l.Bin, args...)
+	// if no fat case, suffix has /n
+	// if fat case, suffix has space and /n
+	v := execute(t, cmd, true)
+	vs := strings.SplitN(v, "\n", len(bins))
+	vvs := util.Map(vs, func(s string) string {
+		return strings.TrimSuffix(strings.TrimSuffix(s, "\n"), " ")
+	})
+	return strings.Join(vvs, "\n")
 }
 
 func (l *LipoBin) Create(t *testing.T, out string, inputs ...string) {
@@ -217,7 +231,9 @@ func (l *LipoBin) Replace(t *testing.T, out, in string, archBins [][2]string) {
 func (l *LipoBin) Archs(t *testing.T, in string) string {
 	t.Helper()
 	cmd := exec.Command(l.Bin, in, "-archs")
-	return execute(t, cmd, false)
+	v := execute(t, cmd, false)
+	v = strings.TrimSuffix(v, "\n")
+	return v
 }
 
 func (l *LipoBin) AddSegAlign(arch string, hexAlign string) {

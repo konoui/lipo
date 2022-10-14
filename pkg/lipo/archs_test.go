@@ -26,7 +26,7 @@ func TestLipo_Archs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := strings.Join(gotArches, " ") + "\n"
+	got := strings.Join(gotArches, " ")
 	want := p.Archs(t, p.FatBin)
 	if want != got {
 		t.Errorf("fat bin want %v\ngot %v\n", want, got)
@@ -39,7 +39,7 @@ func TestLipo_Archs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got = strings.Join(gotArches, " ") + "\n"
+	got = strings.Join(gotArches, " ")
 	want = p.Archs(t, tg)
 	if want != got {
 		t.Errorf("thin bin want %v\ngot %v\n", want, got)
@@ -73,7 +73,7 @@ func TestLipo_ArchsToLocalFiles(t *testing.T) {
 			if err != nil {
 				t.Fatalf("archs error: %v", err)
 			}
-			got := strings.Join(gotArches, " ") + "\n"
+			got := strings.Join(gotArches, " ")
 
 			want := lipoBin.Archs(t, bin)
 			if want != got {

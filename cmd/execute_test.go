@@ -90,6 +90,11 @@ func TestExecute(t *testing.T) {
 			args:         []string{phInputFat, "-verify_arch", "arm64", "x86_64"},
 		},
 		{
+			name:         "verify_arch",
+			wantExitCode: 0,
+			args:         []string{phInputFat, phArm64Thin, phArm64Thin, "-info"},
+		},
+		{
 			name:         "verify_arch not contains",
 			wantExitCode: 1,
 			args:         []string{phInputFat, "-verify_arch", "arm64", "x86_64", "arm64e"},
