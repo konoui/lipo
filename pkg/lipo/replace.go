@@ -44,7 +44,7 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	// check2 fat bin contains all replace inputs
 	if !all.contains(fatInputs) {
 		diffArch := remove(all.arches(), fatInputs.arches())
-		return fmt.Errorf("%s specified but fat file: %s does not contain that architecture", diffArch, fatBin)
+		return fmt.Errorf(noMatchFmt, diffArch, fatBin)
 	}
 
 	fatArches := all.replace(fatInputs)
@@ -59,7 +59,7 @@ func createInputsFromReplaceInputs(ins []*ReplaceInput) ([]*createInput, error) 
 	archInputs := make([]*ArchInput, len(ins))
 	for i, r := range ins {
 		if !mcpu.IsSupported(r.Arch) {
-			return nil, fmt.Errorf("unsupported architecture %s", r.Arch)
+			return nil, fmt.Errorf(unsupportedArchFmt, r.Arch)
 		}
 		archInputs[i] = &ArchInput{Bin: r.Bin, Arch: r.Arch}
 	}

@@ -48,7 +48,7 @@ type createInput struct {
 
 func newCreateInputs(in ...*ArchInput) ([]*createInput, error) {
 	if len(in) == 0 {
-		return nil, fmt.Errorf("no input files specified")
+		return nil, errNoInput
 	}
 
 	inputs := make([]*createInput, len(in))
@@ -96,7 +96,7 @@ func newCreateInput(in *ArchInput) (*createInput, error) {
 		if f.Cpu == 0 && f.SubCpu == 0 {
 			cpu, sub, ok := mcpu.ToCpu(in.Arch)
 			if !ok {
-				return nil, fmt.Errorf("unsupported architecture %s", in.Arch)
+				return nil, fmt.Errorf(unsupportedArchFmt, in.Arch)
 			}
 			f.Cpu = cpu
 			f.SubCpu = sub

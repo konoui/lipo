@@ -2,14 +2,13 @@ package lipo
 
 import (
 	"debug/macho"
-	"errors"
 	"fmt"
 	"strings"
 )
 
 func (l *Lipo) Info() ([]string, error) {
 	if len(l.in) == 0 {
-		return nil, errors.New("no input files specified")
+		return nil, errNoInput
 	}
 
 	fat := make([]string, 0, len(l.in))

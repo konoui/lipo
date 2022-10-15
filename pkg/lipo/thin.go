@@ -14,7 +14,7 @@ func (l *Lipo) Thin(arch string) error {
 	}
 
 	if !mcpu.IsSupported(arch) {
-		return fmt.Errorf("unsupported architecture %s", arch)
+		return fmt.Errorf(unsupportedArchFmt, arch)
 	}
 
 	fatBin := l.in[0]

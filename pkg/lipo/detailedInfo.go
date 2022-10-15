@@ -1,7 +1,6 @@
 package lipo
 
 import (
-	"bytes"
 	"debug/macho"
 	"errors"
 	"fmt"
@@ -29,9 +28,32 @@ var tpl = template.Must(template.New("detailed_info").Parse(detailedInfoTpl))
 
 func (l *Lipo) DetailedInfo() (string, error) {
 	if len(l.in) == 0 {
-		return "", errors.New("no input files specified")
+		return "", errNoInput
 	}
 
+	var out strings.Builder
+
+	thin := []string{}
+	for _, bin := range l.in {
+		v, isFat, err := detailedInfo(bin)
+		if err != nil {
+			return "", err
+		}
+		if isFat {
+			out.WriteString(v)
+		} else {
+			thin = append(thin, v)
+		}
+	}
+
+	// append thin
+	if len(thin) > 0 {
+		out.WriteString(strings.Join(thin, "\n") + "\n")
+	}
+	return out.String(), nil
+}
+
+func detailedInfo(bin string) (string, bool, error) {
 	type fatArch struct {
 		CpuType      string
 		SubCpuType   string
@@ -50,54 +72,44 @@ func (l *Lipo) DetailedInfo() (string, error) {
 		Arches    []*fatArch
 	}
 
-	out := &bytes.Buffer{}
-
-	thin := []string{}
-	for _, bin := range l.in {
-		fat, err := OpenFat(bin)
+	var out strings.Builder
+	fat, err := OpenFat(bin)
+	if err != nil {
+		if !errors.Is(err, macho.ErrNotFat) {
+			return "", false, err
+		}
+		// fallback info if thin file
+		v, _, err := info(bin)
 		if err != nil {
-			if !errors.Is(err, macho.ErrNotFat) {
-				return "", err
-			}
-			// fallback info if thin file
-			v, _, err := info(bin)
-			if err != nil {
-				return "", err
-			}
-			thin = append(thin, fmt.Sprintf("input file %s is not a fat file\n%s", bin, v))
-			continue
+			return "", false, err
 		}
-		defer fat.Close()
+		return fmt.Sprintf("input file %s is not a fat file\n%s", bin, v), false, nil
+	}
+	fat.Close()
 
-		fb := &fatBinary{
-			FatBinary: bin,
-			FatMagic:  fmt.Sprintf("0x%x", fat.Magic),
-			NFatArch:  len(fat.Arches),
-			Arches:    []*fatArch{},
+	fb := &fatBinary{
+		FatBinary: bin,
+		FatMagic:  fmt.Sprintf("0x%x", fat.Magic),
+		NFatArch:  len(fat.Arches),
+		Arches:    make([]*fatArch, 0, len(fat.Arches)),
+	}
+	for _, a := range fat.Arches {
+		c, s := mcpu.StringValues(a.Cpu, a.SubCpu)
+		arch := &fatArch{
+			Arch:         mcpu.ToString(a.Cpu, a.SubCpu),
+			CpuType:      c,
+			SubCpuType:   s,
+			Capabilities: fmt.Sprintf("0x%x", (a.SubCpu&mcpu.MaskSubType)>>24),
+			Offset:       a.Offset,
+			Size:         a.Size,
+			AlignBit:     a.Align,
+			Align:        1 << a.Align,
 		}
-		for _, a := range fat.Arches {
-			c, s := mcpu.StringValues(a.Cpu, a.SubCpu)
-			arch := &fatArch{
-				Arch:         mcpu.ToString(a.Cpu, a.SubCpu),
-				CpuType:      c,
-				SubCpuType:   s,
-				Capabilities: fmt.Sprintf("0x%x", (a.SubCpu&mcpu.MaskSubType)>>24),
-				Offset:       a.Offset,
-				Size:         a.Size,
-				AlignBit:     a.Align,
-				Align:        1 << a.Align,
-			}
-			fb.Arches = append(fb.Arches, arch)
-		}
-
-		if err := tpl.Execute(out, *fb); err != nil {
-			return "", err
-		}
+		fb.Arches = append(fb.Arches, arch)
 	}
 
-	// append thin
-	if len(thin) > 0 {
-		out.WriteString(strings.Join(thin, "\n") + "\n")
+	if err := tpl.Execute(&out, *fb); err != nil {
+		return "", false, err
 	}
-	return out.String(), nil
+	return out.String(), true, nil
 }

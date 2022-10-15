@@ -14,7 +14,12 @@ const (
 )
 
 const (
-	noMatchFmt = "%s specified but fat file: %s does not contain that architecture"
+	noMatchFmt         = "%s specified but fat file: %s does not contain that architecture"
+	unsupportedArchFmt = "unsupported architecture: %s"
+)
+
+var (
+	errNoInput = errors.New("no input files specified")
 )
 
 type Lipo struct {
@@ -74,7 +79,7 @@ func New(opts ...Option) *Lipo {
 func (l *Lipo) validateOneInput() error {
 	num := len(l.in)
 	if num == 0 {
-		return errors.New("no input files specified")
+		return errNoInput
 	} else if num != 1 {
 		return fmt.Errorf("only one input file can be specified")
 	}
