@@ -90,9 +90,19 @@ func TestExecute(t *testing.T) {
 			args:         []string{phInputFat, "-verify_arch", "arm64", "x86_64"},
 		},
 		{
-			name:         "verify_arch",
+			name:         "-info",
 			wantExitCode: 0,
 			args:         []string{phInputFat, phArm64Thin, phArm64Thin, "-info"},
+		},
+		{
+			name:         "-detailed_info",
+			wantExitCode: 0,
+			args:         []string{phInputFat, phInputFat, "-detailed_info"},
+		},
+		{
+			name:         "create with segalign",
+			wantExitCode: 0,
+			args:         []string{"-create", "-output", phOutput, phInputThins, "-segalign", "x86_64", "2"},
 		},
 		{
 			name:         "verify_arch not contains",
@@ -100,9 +110,9 @@ func TestExecute(t *testing.T) {
 			args:         []string{phInputFat, "-verify_arch", "arm64", "x86_64", "arm64e"},
 		},
 		{
-			name:         "create",
+			name:         "-detailed_info but not fat",
 			wantExitCode: 0,
-			args:         []string{"-create", "-output", phOutput, phInputThins, "-segalign", "x86_64", "2"},
+			args:         []string{phInputFat, phArm64Thin, "-detailed_info"},
 		},
 		{
 			name:         "TODO usage if no inputs",

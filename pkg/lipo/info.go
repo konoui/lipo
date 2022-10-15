@@ -14,27 +14,37 @@ func (l *Lipo) Info() ([]string, error) {
 
 	fat := make([]string, 0, len(l.in))
 	thin := make([]string, 0, len(l.in))
-	for _, in := range l.in {
-		arches, err := archs(in)
+	for _, bin := range l.in {
+		v, isFat, err := info(bin)
 		if err != nil {
 			return nil, err
 		}
-		v := strings.Join(arches, " ")
-		fatFmt := "Architectures in the fat file: %s are: %s"
-		if len(arches) > 1 {
-			fat = append(fat, fmt.Sprintf(fatFmt, in, v))
-			continue
+		if isFat {
+			fat = append(fat, v)
+		} else {
+			thin = append(thin, v)
 		}
-
-		f, err := macho.Open(in)
-		if err == nil {
-			f.Close()
-			thin = append(thin, fmt.Sprintf("Non-fat file: %s is architecture: %s", in, v))
-			continue
-		}
-
-		fat = append(thin, fmt.Sprintf(fatFmt, in, v))
 	}
 
 	return append(fat, thin...), nil
+}
+
+func info(bin string) (string, bool, error) {
+	arches, err := archs(bin)
+	if err != nil {
+		return "", false, err
+	}
+	v := strings.Join(arches, " ")
+	fatFmt := "Architectures in the fat file: %s are: %s"
+	if len(arches) > 1 {
+		return fmt.Sprintf(fatFmt, bin, v), true, nil
+	}
+
+	f, err := macho.Open(bin)
+	if err == nil {
+		f.Close()
+		return fmt.Sprintf("Non-fat file: %s is architecture: %s", bin, v), false, nil
+	}
+
+	return fmt.Sprintf(fatFmt, bin, v), true, nil
 }

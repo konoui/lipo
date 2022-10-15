@@ -153,9 +153,10 @@ func (l *LipoBin) Skip() bool {
 	return !l.exist
 }
 
-func (l *LipoBin) DetailedInfo(t *testing.T, bin string) string {
+func (l *LipoBin) DetailedInfo(t *testing.T, bins ...string) string {
 	t.Helper()
-	cmd := exec.Command(l.Bin, "-detailed_info", bin)
+	args := append([]string{"-detailed_info"}, bins...)
+	cmd := exec.Command(l.Bin, args...)
 	return execute(t, cmd, true)
 }
 

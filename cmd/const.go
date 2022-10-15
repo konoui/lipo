@@ -35,7 +35,12 @@ If present, exit status of 0 otherwise exit status of 1.
 e.g. lipo path/to/fat-binary x86_64 x86_64h arm64 arm64e
 `
 	infoDescription = `
-List the architectures in the input universal file.
+List architectures in the input universal binary.
 e.g. lipo path/to/fat-binary path/to/binary.x86_64 -info
+`
+
+	detailedInfoDescription = `
+Display detailed information about universal binaries.
+e.g. lipo path/to/fat-binary -detailed_info
 `
 )
