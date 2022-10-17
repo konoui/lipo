@@ -15,6 +15,7 @@ func TestLipo_Create(t *testing.T) {
 		name      string
 		arches    []string
 		segAligns []*lipo.SegAlignInput
+		hideArm64 bool
 	}{
 		{
 			name:   "-create with single thin",
@@ -39,7 +40,23 @@ func TestLipo_Create(t *testing.T) {
 		{
 			name:      "-create -segalign x86_64 10 (2^4)",
 			arches:    []string{inAmd64, inArm64},
-			segAligns: []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "10"}, {Arch: "arm64", AlignHex: "2"}},
+			segAligns: []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "10"}, {Arch: "arm64", AlignHex: "1"}},
+		},
+		{
+			name:      "-create hideARM64",
+			arches:    []string{"armv7k", inArm64},
+			hideArm64: true,
+		},
+		{
+			name:      "-create hideARM64",
+			arches:    []string{"armv7k", inArm64, "arm64e"},
+			hideArm64: true,
+		},
+		{
+			name:      "-create hideARM64 -segalign armv7k 2 -segalign arm64 2",
+			arches:    []string{"armv7k", inArm64},
+			segAligns: []*lipo.SegAlignInput{{Arch: "armv7k", AlignHex: "1"}, {Arch: "arm64", AlignHex: "2"}},
+			hideArm64: true,
 		},
 	}
 	for _, tt := range tests {
@@ -47,11 +64,16 @@ func TestLipo_Create(t *testing.T) {
 			p := testlipo.Setup(t, tt.arches...)
 
 			got := filepath.Join(p.Dir, gotName(t))
-			l := lipo.New(
+			opts := []lipo.Option{
 				lipo.WithInputs(p.Bins()...),
 				lipo.WithOutput(got),
-				lipo.WithSegAlign(tt.segAligns))
-			if err := l.Create(); err != nil {
+				lipo.WithSegAlign(tt.segAligns),
+			}
+			if tt.hideArm64 {
+				opts = append(opts, lipo.WithHideArm64())
+			}
+
+			if err := lipo.New(opts...).Create(); err != nil {
 				t.Fatalf("failed to create fat bin %v", err)
 			}
 
@@ -66,7 +88,8 @@ func TestLipo_Create(t *testing.T) {
 			for _, segAlign := range tt.segAligns {
 				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
 			}
-			if len(tt.segAligns) != 0 {
+			if len(tt.segAligns) != 0 || tt.hideArm64 {
+				p.AddHideArm64()
 				p.Create(t, p.FatBin, p.Bins()...)
 			}
 			diffSha256(t, p.FatBin, got)
@@ -81,9 +104,9 @@ func TestLipo_CreateError(t *testing.T) {
 		wantErrMsg string
 	}{
 		{
-			name:       "-create -segalign x86_64 1",
-			segAligns:  []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "1"}},
-			wantErrMsg: "segalign 1 (hex) must be a non-zero power of two",
+			name:       "-create -segalign x86_64 0",
+			segAligns:  []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "0"}},
+			wantErrMsg: "segalign 0 (hex) must be a non-zero power of two",
 		},
 		{
 			name:       "-create -segalign x86_64 10 (2^4) -segalign x86_64 (1^2)",

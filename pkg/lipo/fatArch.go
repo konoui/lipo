@@ -21,8 +21,9 @@ var _ io.ReadCloser = &fatArch{}
 // fatArch consist of FatArchHeader and io.Reader for binary
 type fatArch struct {
 	macho.FatArchHeader
-	r io.Reader
-	c io.Closer
+	r      io.Reader
+	c      io.Closer
+	hidden bool
 	// TODO check work fine
 	count *int32
 }
@@ -64,7 +65,7 @@ func (f fatArches) close() error {
 	return nil
 }
 
-func (f fatArches) createFatBinary(p string, perm os.FileMode) (err error) {
+func (f fatArches) createFatBinary(p string, perm os.FileMode, hideArm64 bool) (err error) {
 	f, err = f.sort()
 	if err != nil {
 		return err
@@ -88,13 +89,23 @@ func (f fatArches) createFatBinary(p string, perm os.FileMode) (err error) {
 		}
 	}()
 
-	return f.outputFatBinary(out)
+	return f.outputFatBinary(out, hideArm64)
 }
 
-func (f fatArches) outputFatBinary(out io.Writer) error {
+func (f fatArches) outputFatBinary(out io.Writer, hideArm64 bool) error {
 	fatHeader := &fatHeader{
 		magic: macho.MagicFat,
 		narch: uint32(len(f)),
+	}
+
+	// calculate offset with raw narch before hide arches
+	off := fatHeader.size()
+
+	if hideArm64 {
+		arches := util.Filter(f.hideArm64(), func(v *fatArch) bool {
+			return !v.hidden
+		})
+		fatHeader.narch = uint32(len(arches))
 	}
 
 	// sort by offset by asc for effective writing binary data
@@ -115,7 +126,6 @@ func (f fatArches) outputFatBinary(out io.Writer) error {
 		}
 	}
 
-	off := fatHeader.size()
 	for _, fatArch := range f {
 		if off < fatArch.Offset {
 			// write empty data for alignment
@@ -222,6 +232,25 @@ func (f fatArches) arches() []string {
 	})
 }
 
+func (f fatArches) hideArm64() fatArches {
+	var found bool
+	for _, fatArch := range f {
+		if fatArch.Cpu == mcpu.TypeArm {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return f
+	}
+	for i := range f {
+		if f[i].Cpu == mcpu.TypeArm64 {
+			f[i].hidden = true
+		}
+	}
+	return f
+}
+
 func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 	if len(segAligns) == 0 {
 		return nil
@@ -233,7 +262,8 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 		if err != nil {
 			return err
 		}
-		if (align % 2) != 0 {
+
+		if align == 0 || (align != 1 && (align%2) != 0) {
 			return fmt.Errorf("segalign %s (hex) must be a non-zero power of two", a.AlignHex)
 		}
 
@@ -261,7 +291,7 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 
 // fatArchesFromFatBin gathers fatArches from fat binary header if `cond` returns true
 func fatArchesFromFatBin(path string) (fatArches, error) {
-	fat, err := macho.OpenFat(path)
+	fat, err := OpenFat(path)
 	if err != nil {
 		return nil, err
 	}
@@ -279,6 +309,17 @@ func fatArchesFromFatBin(path string) (fatArches, error) {
 			FatArchHeader: hdr.FatArchHeader,
 			r:             io.NewSectionReader(f, int64(hdr.Offset), int64(hdr.Size)),
 			c:             f,
+			count:         &count,
+		})
+		count++
+	}
+
+	for _, hdr := range fat.HiddenArches {
+		fatArches = append(fatArches, &fatArch{
+			FatArchHeader: hdr.FatArchHeader,
+			r:             io.NewSectionReader(f, int64(hdr.Offset), int64(hdr.Size)),
+			c:             f,
+			hidden:        true,
 			count:         &count,
 		})
 		count++

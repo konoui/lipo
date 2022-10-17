@@ -37,5 +37,5 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 		return err
 	}
 
-	return fatArches.createFatBinary(l.out, perm)
+	return fatArches.createFatBinary(l.out, perm, l.hideArm64)
 }

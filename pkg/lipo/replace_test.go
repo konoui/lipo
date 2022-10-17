@@ -15,6 +15,7 @@ func TestLipo_Replace(t *testing.T) {
 		replaceArches []string
 		arches        []string
 		segAligns     []*lipo.SegAlignInput
+		hideArm64     bool
 	}{
 		{
 			name:          "-replace x86_64",
@@ -37,10 +38,16 @@ func TestLipo_Replace(t *testing.T) {
 			arches:        []string{"x86_64"},
 		},
 		{
-			name:          "-replace x86_64 <file> -segalign x86_64 2 -segalign arm64 2",
+			name:          "-replace x86_64 <file> -segalign x86_64 1 -segalign arm64 2",
 			replaceArches: []string{"x86_64"},
 			arches:        []string{"x86_64", "arm64"},
-			segAligns:     []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "2"}, {Arch: "arm64", AlignHex: "2"}},
+			segAligns:     []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "1"}, {Arch: "arm64", AlignHex: "2"}},
+		},
+		{
+			name:          "-replace amd64 hideARM64",
+			arches:        []string{"arm64", "armv7k", "arm64e"},
+			replaceArches: []string{"arm64"},
+			hideArm64:     true,
 		},
 	}
 	for _, tt := range tests {
@@ -55,7 +62,15 @@ func TestLipo_Replace(t *testing.T) {
 			}
 
 			got := filepath.Join(p.Dir, gotName(t))
-			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got), lipo.WithSegAlign(tt.segAligns))
+			opts := []lipo.Option{
+				lipo.WithInputs(p.FatBin),
+				lipo.WithOutput(got),
+				lipo.WithSegAlign(tt.segAligns),
+			}
+			if tt.hideArm64 {
+				opts = append(opts, lipo.WithHideArm64())
+			}
+			l := lipo.New(opts...)
 			if err := l.Replace(ri); err != nil {
 				t.Fatalf("replace error: %v\n", err)
 			}
@@ -65,6 +80,9 @@ func TestLipo_Replace(t *testing.T) {
 			// set segalign for next Replace
 			for _, segAlign := range tt.segAligns {
 				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
+			}
+			if tt.hideArm64 {
+				p.AddHideArm64()
 			}
 
 			want := filepath.Join(p.Dir, wantName(t))

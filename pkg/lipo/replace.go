@@ -52,7 +52,7 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 		return err
 	}
 
-	return fatArches.createFatBinary(l.out, perm)
+	return fatArches.createFatBinary(l.out, perm, l.hideArm64)
 }
 
 func createInputsFromReplaceInputs(ins []*ReplaceInput) ([]*createInput, error) {

@@ -10,9 +10,10 @@ import (
 
 func TestLipo_DetailedInfo(t *testing.T) {
 	tests := []struct {
-		name    string
-		inputs  []string
-		addThin []string
+		name      string
+		inputs    []string
+		addThin   []string
+		hideArm64 bool
 	}{
 		{
 			name:   "two",
@@ -27,10 +28,19 @@ func TestLipo_DetailedInfo(t *testing.T) {
 			name:   "all arches",
 			inputs: cpuNames(),
 		},
+		{
+			name:      "all arches",
+			inputs:    []string{"arm64", "armv7k"},
+			hideArm64: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := testlipo.Setup(t, tt.inputs...)
+			if tt.hideArm64 {
+				p.AddHideArm64()
+				p.Create(t, p.FatBin, p.Bins()...)
+			}
 			fat1 := p.FatBin
 			fat2 := p.FatBin
 			args := append([]string{}, fat1, fat2)

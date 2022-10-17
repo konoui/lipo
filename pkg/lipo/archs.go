@@ -2,6 +2,7 @@ package lipo
 
 import (
 	"debug/macho"
+	"fmt"
 
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
@@ -25,7 +26,7 @@ func archs(bin string) ([]string, error) {
 		// if not fat file, assume single macho file
 		f, err := macho.Open(bin)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("not fat/thin file: %w", err)
 		}
 		defer f.Close()
 
@@ -33,8 +34,8 @@ func archs(bin string) ([]string, error) {
 	}
 	defer fat.Close()
 
-	cpus := make([]string, 0, len(fat.Arches))
-	for _, hdr := range fat.Arches {
+	cpus := make([]string, 0, len(fat.Arches)+len(fat.HiddenArches))
+	for _, hdr := range append(fat.Arches, fat.HiddenArches...) {
 		cpus = append(cpus, mcpu.ToString(hdr.Cpu, hdr.SubCpu))
 	}
 	return cpus, nil

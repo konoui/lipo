@@ -35,6 +35,7 @@ const (
 type LipoBin struct {
 	Bin       string
 	segAligns []string
+	hideArm64 bool
 	exist     bool
 }
 
@@ -179,6 +180,9 @@ func (l *LipoBin) Create(t *testing.T, out string, inputs ...string) {
 	args := []string{"-create", "-output", out}
 	args = append(args, inputs...)
 	args = append(args, l.segAligns...)
+	if l.hideArm64 {
+		args = append(args, "-hideARM64")
+	}
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -188,6 +192,9 @@ func (l *LipoBin) Remove(t *testing.T, out, in string, arches []string) {
 	args := appendCmd("-remove", arches)
 	args = append([]string{in, "-output", out}, args...)
 	args = append(args, l.segAligns...)
+	if l.hideArm64 {
+		args = append(args, "-hideARM64")
+	}
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -225,6 +232,9 @@ func (l *LipoBin) Replace(t *testing.T, out, in string, archBins [][2]string) {
 	}
 	args := append([]string{in, "-output", out}, archBinArgs...)
 	args = append(args, l.segAligns...)
+	if l.hideArm64 {
+		args = append(args, "-hideARM64")
+	}
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -239,6 +249,10 @@ func (l *LipoBin) Archs(t *testing.T, in string) string {
 
 func (l *LipoBin) AddSegAlign(arch string, hexAlign string) {
 	l.segAligns = append(l.segAligns, "-segalign", arch, hexAlign)
+}
+
+func (l *LipoBin) AddHideArm64() {
+	l.hideArm64 = true
 }
 
 func execute(t *testing.T, cmd *exec.Cmd, combine bool) string {
@@ -314,10 +328,9 @@ func calcSha256(t *testing.T, p string) string {
 
 func copyAndManipulate(t *testing.T, src, dst string, arch string) {
 	t.Helper()
-
 	cpu, sub, ok := mcpu.ToCpu(arch)
 	if !ok {
-		t.Fatalf("unsupported arch: %s\n", arch)
+		t.Fatalf("copyAndManipulate: unsupported arch: %s\n", arch)
 	}
 
 	f, err := os.Open(src)

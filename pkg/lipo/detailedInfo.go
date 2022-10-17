@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 const detailedInfoTpl = `Fat header in: {{ .FatBinary }}
@@ -54,7 +55,7 @@ func (l *Lipo) DetailedInfo() (string, error) {
 }
 
 func detailedInfo(bin string) (string, bool, error) {
-	type fatArch struct {
+	type tplFatArch struct {
 		CpuType      string
 		SubCpuType   string
 		Arch         string
@@ -65,15 +66,15 @@ func detailedInfo(bin string) (string, bool, error) {
 		Align        int
 	}
 
-	type fatBinary struct {
+	type tplFatBinary struct {
 		FatBinary string
 		FatMagic  string
-		NFatArch  int
-		Arches    []*fatArch
+		NFatArch  string
+		Arches    []*tplFatArch
 	}
 
 	var out strings.Builder
-	fat, err := OpenFat(bin)
+	fatArches, err := fatArchesFromFatBin(bin)
 	if err != nil {
 		if !errors.Is(err, macho.ErrNotFat) {
 			return "", false, err
@@ -85,18 +86,26 @@ func detailedInfo(bin string) (string, bool, error) {
 		}
 		return fmt.Sprintf("input file %s is not a fat file\n%s", bin, v), false, nil
 	}
-	fat.Close()
 
-	fb := &fatBinary{
-		FatBinary: bin,
-		FatMagic:  fmt.Sprintf("0x%x", fat.Magic),
-		NFatArch:  len(fat.Arches),
-		Arches:    make([]*fatArch, 0, len(fat.Arches)),
+	hideArches := util.Filter(fatArches, func(v *fatArch) bool { return v.hidden })
+	nFatArch := fmt.Sprintf("%d", len(fatArches))
+	if len(hideArches) > 0 {
+		nFatArch = fmt.Sprintf("%d (+%d hidden)", len(fatArches)-len(hideArches), len(hideArches))
 	}
-	for _, a := range fat.Arches {
+	fb := &tplFatBinary{
+		FatBinary: bin,
+		FatMagic:  fmt.Sprintf("0x%x", macho.MagicFat),
+		NFatArch:  nFatArch,
+		Arches:    make([]*tplFatArch, 0, len(fatArches)),
+	}
+	for _, a := range fatArches {
 		c, s := mcpu.StringValues(a.Cpu, a.SubCpu)
-		arch := &fatArch{
-			Arch:         mcpu.ToString(a.Cpu, a.SubCpu),
+		arch := mcpu.ToString(a.Cpu, a.SubCpu)
+		if a.hidden {
+			arch = fmt.Sprintf("%s (hidden)", arch)
+		}
+		fb.Arches = append(fb.Arches, &tplFatArch{
+			Arch:         arch,
 			CpuType:      c,
 			SubCpuType:   s,
 			Capabilities: fmt.Sprintf("0x%x", (a.SubCpu&mcpu.MaskSubType)>>24),
@@ -104,8 +113,7 @@ func detailedInfo(bin string) (string, bool, error) {
 			Size:         a.Size,
 			AlignBit:     a.Align,
 			Align:        1 << a.Align,
-		}
-		fb.Arches = append(fb.Arches, arch)
+		})
 	}
 
 	if err := tpl.Execute(&out, *fb); err != nil {

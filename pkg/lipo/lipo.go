@@ -27,6 +27,7 @@ type Lipo struct {
 	out       string
 	segAligns []*SegAlignInput
 	arches    []*ArchInput
+	hideArm64 bool
 }
 
 type SegAlignInput struct {
@@ -62,6 +63,12 @@ func WithSegAlign(aligns []*SegAlignInput) Option {
 func WithArch(arches []*ArchInput) Option {
 	return func(l *Lipo) {
 		l.arches = arches
+	}
+}
+
+func WithHideArm64() Option {
+	return func(l *Lipo) {
+		l.hideArm64 = true
 	}
 }
 

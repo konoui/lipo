@@ -39,5 +39,5 @@ func (l *Lipo) ExtractFamily(arches ...string) error {
 		return err
 	}
 
-	return fatArches.createFatBinary(l.out, perm)
+	return fatArches.createFatBinary(l.out, perm, false)
 }

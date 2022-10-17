@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/konoui/lipo/pkg/lipo/mcpu"
 )
 
 type FatFile struct {
-	Magic  uint32
-	Arches []macho.FatArch
-	closer io.Closer
+	Magic        uint32
+	Arches       []macho.FatArch
+	HiddenArches []macho.FatArch
+	closer       io.Closer
 }
 
 const fatArchHeaderSize = 5 * 4
@@ -52,14 +55,12 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 			return nil, errors.New("invalid magic number")
 		}
 	}
-	offset := int64(4)
 
 	var narch uint32
 	err = binary.Read(sr, binary.BigEndian, &narch)
 	if err != nil {
 		return nil, errors.New("invalid fat_header")
 	}
-	offset += 4
 
 	if narch < 1 {
 		return nil, errors.New("file contains no images")
@@ -74,9 +75,8 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 		if err != nil {
 			return nil, errors.New("invalid fat_arch header")
 		}
-		offset += fatArchHeaderSize
 
-		fr := io.NewSectionReader(r, int64(fa.Offset), int64(fa.Size))
+		fr := io.NewSectionReader(sr, int64(fa.Offset), int64(fa.Size))
 		fa.File, err = macho.NewFile(fr)
 		if err != nil {
 			return nil, err
@@ -87,6 +87,26 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 			return nil, fmt.Errorf("duplicate architecture cpu=%v, subcpu=%#x", fa.Cpu, fa.SubCpu)
 		}
 		seenArches[seenArch] = true
+	}
+
+	// handling hidden arm64
+	ff.HiddenArches = []macho.FatArch{}
+	fatHeader := &fatHeader{narch: narch}
+	nextHdrOffset := fatHeader.size()
+	firstOffset := ff.Arches[0].Offset
+	for start := nextHdrOffset + fatArchHeaderSize; start <= firstOffset; start += fatArchHeaderSize {
+		var fahdr macho.FatArchHeader
+		err := binary.Read(sr, binary.BigEndian, &fahdr)
+		if err == nil {
+			fr := io.NewSectionReader(sr, int64(fahdr.Offset), int64(fahdr.Size))
+			if fahdr.Cpu == mcpu.TypeArm64 {
+				f, err := macho.NewFile(fr)
+				if err != nil {
+					return nil, fmt.Errorf("hideARM64: %w", err)
+				}
+				ff.HiddenArches = append(ff.HiddenArches, macho.FatArch{File: f, FatArchHeader: fahdr})
+			}
+		}
 	}
 
 	return &ff, nil
