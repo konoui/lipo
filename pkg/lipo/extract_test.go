@@ -27,10 +27,13 @@ func TestLipo_Extract(t *testing.T) {
 			arches: []string{"arm64", "arm64e", "x86_64"},
 		},
 		{
-			name:      "-extract x86_64 -segalign x86_64 2 -segalign arm64e 2",
-			inputs:    []string{"x86_64", "arm64", "arm64e"},
-			arches:    []string{"x86_64", "arm64e"},
-			segAligns: []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "2"}, {Arch: "arm64e", AlignHex: "2"}},
+			name:   "-extract x86_64 -segalign x86_64 2 -segalign arm64e 2",
+			inputs: []string{"x86_64", "arm64", "arm64e"},
+			arches: []string{"x86_64", "arm64e"},
+			segAligns: []*lipo.SegAlignInput{
+				{Arch: "x86_64", AlignHex: "2"},
+				{Arch: "arm64e", AlignHex: "1"},
+			},
 		},
 	}
 	for _, tt := range tests {

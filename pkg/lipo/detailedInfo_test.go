@@ -29,7 +29,7 @@ func TestLipo_DetailedInfo(t *testing.T) {
 			inputs: cpuNames(),
 		},
 		{
-			name:      "all arches",
+			name:      "hideARM64",
 			inputs:    []string{"arm64", "armv7k"},
 			hideArm64: true,
 		},

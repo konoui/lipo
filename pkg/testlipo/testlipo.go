@@ -58,15 +58,15 @@ func WithHideArm64(v bool) Opt {
 	}
 }
 
-var TempDir string
-
 func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
 	t.Helper()
 
-	dir := TempDir
-	if TempDir == "" {
-		dir = t.TempDir()
+	tempDir := filepath.Join(os.TempDir(), "testlipo-output")
+	t.Log("using testlipo-output", tempDir)
+	if err := os.MkdirAll(tempDir, 0740); err != nil {
+		t.Fatal(err)
 	}
+	dir := tempDir
 
 	mainfile := filepath.Join(dir, "main.go")
 	err := os.WriteFile(mainfile, []byte(godata), os.ModePerm)

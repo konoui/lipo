@@ -1,9 +1,7 @@
 package lipo_test
 
 import (
-	"fmt"
 	"math/rand"
-	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -18,13 +16,6 @@ import (
 func init() {
 	// using apple lipo sorter
 	lipo.SortFunc = cgo_qsort.Slice
-	tempDir := filepath.Join(os.TempDir(), "testlipo-output")
-	fmt.Println("using testlipo-output", tempDir)
-	err := os.MkdirAll(tempDir, 0740)
-	if err != nil {
-		panic(err)
-	}
-	testlipo.TempDir = tempDir
 }
 
 func testSegAlignOpt(inputs []*lipo.SegAlignInput) testlipo.Opt {

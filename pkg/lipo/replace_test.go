@@ -42,7 +42,10 @@ func TestLipo_Replace(t *testing.T) {
 			name:          "-replace x86_64 <file> -segalign x86_64 1 -segalign arm64 2",
 			replaceArches: []string{"x86_64"},
 			arches:        []string{"x86_64", "arm64"},
-			segAligns:     []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "1"}, {Arch: "arm64", AlignHex: "2"}},
+			segAligns: []*lipo.SegAlignInput{
+				{Arch: "x86_64", AlignHex: "1"},
+				{Arch: "arm64", AlignHex: "2"},
+			},
 		},
 		{
 			name:          "-replace amd64 hideARM64",
