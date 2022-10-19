@@ -7,6 +7,7 @@ import (
 
 	"github.com/konoui/lipo/pkg/lipo"
 	"github.com/konoui/lipo/pkg/testlipo"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 func TestLipo_Replace(t *testing.T) {
@@ -20,17 +21,17 @@ func TestLipo_Replace(t *testing.T) {
 		{
 			name:          "-replace x86_64",
 			replaceArches: []string{"x86_64"},
-			arches:        []string{inArm64, inAmd64},
+			arches:        []string{"arm64", "x86_64"},
 		},
 		{
 			name:          "-replace arm64e",
 			replaceArches: []string{"arm64e"},
-			arches:        []string{inArm64, inAmd64, "arm64e"},
+			arches:        []string{"arm64", "x86_64", "arm64e"},
 		},
 		{
 			name:          "-replace arm64 -replace x86_64",
 			replaceArches: []string{"arm64", "x86_64", "arm64e"},
-			arches:        []string{inArm64, inAmd64, "arm64e"},
+			arches:        []string{"arm64", "x86_64", "arm64e"},
 		},
 		{
 			name:          "-replace x86_64 from x86_64 fat binary",
@@ -45,22 +46,19 @@ func TestLipo_Replace(t *testing.T) {
 		},
 		{
 			name:          "-replace amd64 hideARM64",
-			arches:        []string{"arm64", "armv7k", "arm64e"},
+			arches:        []string{"armv7k", "arm64"},
 			replaceArches: []string{"arm64"},
 			hideArm64:     true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.arches...)
-			ri := []*lipo.ReplaceInput{}
-			for _, a := range tt.replaceArches {
-				ri = append(ri, &lipo.ReplaceInput{
-					Arch: a,
-					Bin:  p.Bin(t, a),
-				})
-			}
-
+			p := testlipo.Setup(t, tt.arches,
+				testSegAlignOpt(tt.segAligns),
+				testlipo.WithHideArm64(tt.hideArm64))
+			ri := util.Map(tt.replaceArches, func(v string) *lipo.ReplaceInput {
+				return &lipo.ReplaceInput{Arch: v, Bin: p.Bin(t, v)}
+			})
 			got := filepath.Join(p.Dir, gotName(t))
 			opts := []lipo.Option{
 				lipo.WithInputs(p.FatBin),
@@ -76,14 +74,6 @@ func TestLipo_Replace(t *testing.T) {
 			}
 
 			verifyArches(t, got, tt.arches...)
-
-			// set segalign for next Replace
-			for _, segAlign := range tt.segAligns {
-				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
-			}
-			if tt.hideArm64 {
-				p.AddHideArm64()
-			}
 
 			want := filepath.Join(p.Dir, wantName(t))
 			p.Replace(t, want, p.FatBin, rapReplaceInputs(ri))
@@ -101,7 +91,7 @@ func rapReplaceInputs(ri []*lipo.ReplaceInput) [][2]string {
 }
 
 func TestLipo_ReplaceError(t *testing.T) {
-	p := testlipo.Setup(t, "arm64", "x86_64")
+	p := testlipo.Setup(t, []string{"arm64", "x86_64"})
 	got := filepath.Join(p.Dir, gotName(t))
 	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 

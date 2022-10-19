@@ -14,7 +14,7 @@ import (
 func TestLipo_Archs(t *testing.T) {
 	// fat binary test
 	arches := cpuNames()
-	p := testlipo.Setup(t, arches...)
+	p := testlipo.Setup(t, arches)
 
 	if p.Skip() {
 		t.Skip("skip lipo binary tests")
@@ -33,7 +33,7 @@ func TestLipo_Archs(t *testing.T) {
 	}
 
 	// single binary test
-	tg := p.Bin(t, inAmd64)
+	tg := p.Bin(t, "x86_64")
 	l = lipo.New(lipo.WithInputs(tg))
 	gotArches, err = l.Archs()
 	if err != nil {

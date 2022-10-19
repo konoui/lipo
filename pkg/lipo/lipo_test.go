@@ -27,10 +27,13 @@ func init() {
 	testlipo.TempDir = tempDir
 }
 
-const (
-	inArm64 = "arm64"
-	inAmd64 = "x86_64"
-)
+func testSegAlignOpt(inputs []*lipo.SegAlignInput) testlipo.Opt {
+	ain := []string{}
+	for _, v := range inputs {
+		ain = append(ain, "-segalign", v.Arch, v.AlignHex)
+	}
+	return testlipo.WithSegAlign(ain)
+}
 
 var (
 	diffSha256 = testlipo.DiffSha256

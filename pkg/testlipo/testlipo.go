@@ -27,11 +27,6 @@ func main() {
 }
 `
 
-const (
-	inArm64 = "arm64"
-	inAmd64 = "x86_64"
-)
-
 type LipoBin struct {
 	Bin       string
 	segAligns []string
@@ -49,9 +44,23 @@ type TestLipo struct {
 	arm64Bin string
 }
 
+type Opt func(l *LipoBin)
+
+func WithSegAlign(sa []string) Opt {
+	return func(l *LipoBin) {
+		l.segAligns = sa
+	}
+}
+
+func WithHideArm64(v bool) Opt {
+	return func(l *LipoBin) {
+		l.hideArm64 = v
+	}
+}
+
 var TempDir string
 
-func Setup(t *testing.T, arches ...string) *TestLipo {
+func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
 	t.Helper()
 
 	dir := TempDir
@@ -66,34 +75,30 @@ func Setup(t *testing.T, arches ...string) *TestLipo {
 	}
 
 	// base binaries
-	amd64Bin := filepath.Join(dir, inAmd64)
-	arm64Bin := filepath.Join(dir, inArm64)
+	amd64Bin := filepath.Join(dir, "x86_64")
+	arm64Bin := filepath.Join(dir, "arm64")
 	compile(t, mainfile, amd64Bin, "amd64")
 	compile(t, mainfile, arm64Bin, "arm64")
 
 	archBins := map[string]string{}
 	for _, arch := range arches {
 		// create base binary first,
-		if arch == inAmd64 {
-			archBins[inAmd64] = amd64Bin
-		} else if arch == inArm64 {
-			archBins[inArm64] = arm64Bin
-		}
-	}
-
-	for _, arch := range arches {
-		if strings.HasPrefix(arch, "obj_") {
+		if arch == "x86_64" {
+			archBins[arch] = amd64Bin
+		} else if arch == "arm64" {
+			archBins[arch] = arm64Bin
+		} else if strings.HasPrefix(arch, "obj_") {
 			archBin := filepath.Join(dir, arch)
 			NewObject(t, archBin)
 			archBins[arch] = archBin
-		} else if !(arch == inAmd64 || arch == inArm64) {
+		} else {
 			archBin := filepath.Join(dir, arch)
 			copyAndManipulate(t, arm64Bin, archBin, arch)
 			archBins[arch] = archBin
 		}
 	}
 
-	lipoBin := NewLipoBin(t)
+	lipoBin := NewLipoBin(t, opts...)
 	fatBin := filepath.Join(dir, "fat-"+strings.Join(arches, "-"))
 	if !lipoBin.Skip() && len(archBins) > 0 {
 		// create fat bit for inputs
@@ -137,17 +142,24 @@ func (l *TestLipo) NewArchBin(t *testing.T, arch string) (path string) {
 	return archBin
 }
 
-func NewLipoBin(t *testing.T) LipoBin {
+func NewLipoBin(t *testing.T, opts ...Opt) LipoBin {
 	t.Helper()
 	bin, err := exec.LookPath("lipo")
 	if errors.Is(err, exec.ErrNotFound) {
 		return LipoBin{exist: false}
 	}
 
+	l := LipoBin{exist: true, Bin: bin, segAligns: []string{}}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&l)
+		}
+	}
+
 	if err != nil {
 		t.Fatalf("could not find lipo command %v\n", err)
 	}
-	return LipoBin{exist: true, Bin: bin, segAligns: []string{}}
+	return l
 }
 
 func (l *LipoBin) Skip() bool {
@@ -245,14 +257,6 @@ func (l *LipoBin) Archs(t *testing.T, in string) string {
 	v := execute(t, cmd, false)
 	v = strings.TrimSuffix(v, "\n")
 	return v
-}
-
-func (l *LipoBin) AddSegAlign(arch string, hexAlign string) {
-	l.segAligns = append(l.segAligns, "-segalign", arch, hexAlign)
-}
-
-func (l *LipoBin) AddHideArm64() {
-	l.hideArm64 = true
 }
 
 func execute(t *testing.T, cmd *exec.Cmd, combine bool) string {

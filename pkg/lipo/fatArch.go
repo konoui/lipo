@@ -102,9 +102,7 @@ func (f fatArches) outputFatBinary(out io.Writer, hideArm64 bool) error {
 	off := fatHeader.size()
 
 	if hideArm64 {
-		arches := util.Filter(f.hideArm64(), func(v *fatArch) bool {
-			return !v.hidden
-		})
+		arches := util.Filter(f.hideArm64(), func(v *fatArch) bool { return !v.hidden })
 		fatHeader.narch = uint32(len(arches))
 	}
 

@@ -54,24 +54,25 @@ func (l *Lipo) DetailedInfo() (string, error) {
 	return out.String(), nil
 }
 
-func detailedInfo(bin string) (string, bool, error) {
-	type tplFatArch struct {
-		CpuType      string
-		SubCpuType   string
-		Arch         string
-		Capabilities string
-		Offset       uint32
-		Size         uint32
-		AlignBit     uint32
-		Align        int
-	}
+type tplFatArch struct {
+	CpuType      string
+	SubCpuType   string
+	Arch         string
+	Capabilities string
+	Offset       uint32
+	Size         uint32
+	AlignBit     uint32
+	Align        int
+}
 
-	type tplFatBinary struct {
-		FatBinary string
-		FatMagic  string
-		NFatArch  string
-		Arches    []*tplFatArch
-	}
+type tplFatBinary struct {
+	FatBinary string
+	FatMagic  string
+	NFatArch  string
+	Arches    []*tplFatArch
+}
+
+func detailedInfo(bin string) (string, bool, error) {
 
 	var out strings.Builder
 	fatArches, err := fatArchesFromFatBin(bin)

@@ -19,15 +19,15 @@ func TestLipo_Create(t *testing.T) {
 	}{
 		{
 			name:   "-create with single thin",
-			arches: []string{inAmd64},
+			arches: []string{"x86_64"},
 		},
 		{
 			name:   "-create 2 files",
-			arches: []string{inAmd64, inArm64},
+			arches: []string{"x86_64", "arm64"},
 		},
 		{
 			name:   "-create 3 files",
-			arches: []string{inArm64, inAmd64, "arm64e"},
+			arches: []string{"arm64", "x86_64", "arm64e"},
 		},
 		{
 			name:   "-create many files",
@@ -39,29 +39,31 @@ func TestLipo_Create(t *testing.T) {
 		},
 		{
 			name:      "-create -segalign x86_64 10 (2^4)",
-			arches:    []string{inAmd64, inArm64},
+			arches:    []string{"x86_64", "arm64"},
 			segAligns: []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "10"}, {Arch: "arm64", AlignHex: "1"}},
 		},
 		{
 			name:      "-create hideARM64",
-			arches:    []string{"armv7k", inArm64},
+			arches:    []string{"armv7k", "arm64"},
 			hideArm64: true,
 		},
 		{
 			name:      "-create hideARM64",
-			arches:    []string{"armv7k", inArm64, "arm64e"},
+			arches:    []string{"armv7k", "arm64", "arm64e"},
 			hideArm64: true,
 		},
 		{
 			name:      "-create hideARM64 -segalign armv7k 2 -segalign arm64 2",
-			arches:    []string{"armv7k", inArm64},
+			arches:    []string{"armv7k", "arm64"},
 			segAligns: []*lipo.SegAlignInput{{Arch: "armv7k", AlignHex: "1"}, {Arch: "arm64", AlignHex: "2"}},
 			hideArm64: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.arches...)
+			p := testlipo.Setup(t, tt.arches,
+				testSegAlignOpt(tt.segAligns),
+				testlipo.WithHideArm64(tt.hideArm64))
 
 			got := filepath.Join(p.Dir, gotName(t))
 			opts := []lipo.Option{
@@ -84,14 +86,6 @@ func TestLipo_Create(t *testing.T) {
 				t.Skip("skip lipo binary test")
 			}
 
-			// re-create fat binary with seg align
-			for _, segAlign := range tt.segAligns {
-				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
-			}
-			if len(tt.segAligns) != 0 || tt.hideArm64 {
-				p.AddHideArm64()
-				p.Create(t, p.FatBin, p.Bins()...)
-			}
 			diffSha256(t, p.FatBin, got)
 		})
 	}
@@ -121,7 +115,7 @@ func TestLipo_CreateError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, inAmd64, inArm64)
+			p := testlipo.Setup(t, []string{"x86_64", "arm64"})
 			got := filepath.Join(p.Dir, gotName(t))
 			l := lipo.New(
 				lipo.WithInputs(p.Bins()...),

@@ -18,24 +18,24 @@ func TestLipo_Extract(t *testing.T) {
 	}{
 		{
 			name:   "-extract arm64 -extract arm64e",
-			inputs: []string{inAmd64, inArm64, "arm64e"},
+			inputs: []string{"x86_64", "arm64", "arm64e"},
 			arches: []string{"arm64", "arm64e"},
 		},
 		{
 			name:   "-extract arm64 -extract arm64e -extract x86_64",
-			inputs: []string{inAmd64, inArm64, "arm64e"},
+			inputs: []string{"x86_64", "arm64", "arm64e"},
 			arches: []string{"arm64", "arm64e", "x86_64"},
 		},
 		{
 			name:      "-extract x86_64 -segalign x86_64 2 -segalign arm64e 2",
-			inputs:    []string{inAmd64, inArm64, "arm64e"},
+			inputs:    []string{"x86_64", "arm64", "arm64e"},
 			arches:    []string{"x86_64", "arm64e"},
 			segAligns: []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "2"}, {Arch: "arm64e", AlignHex: "2"}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.inputs...)
+			p := testlipo.Setup(t, tt.inputs, testSegAlignOpt(tt.segAligns))
 
 			got := filepath.Join(p.Dir, gotName(t))
 			arches := tt.arches
@@ -50,11 +50,6 @@ func TestLipo_Extract(t *testing.T) {
 				t.Skip("skip lipo binary tests")
 			}
 
-			// set segalign for next Extract
-			for _, segAlign := range tt.segAligns {
-				p.AddSegAlign(segAlign.Arch, segAlign.AlignHex)
-			}
-
 			want := filepath.Join(p.Dir, wantName(t))
 			p.Extract(t, want, p.FatBin, arches)
 			diffSha256(t, want, got)
@@ -63,7 +58,7 @@ func TestLipo_Extract(t *testing.T) {
 }
 
 func TestLipo_ExtractError(t *testing.T) {
-	p := testlipo.Setup(t, "arm64", "x86_64")
+	p := testlipo.Setup(t, []string{"arm64", "x86_64"})
 	got := filepath.Join(p.Dir, gotName(t))
 	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 

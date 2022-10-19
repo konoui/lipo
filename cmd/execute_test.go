@@ -128,7 +128,7 @@ func TestExecute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			outBuf, errBuf := &bytes.Buffer{}, &bytes.Buffer{}
-			p := testlipo.Setup(t, append(tt.addArches, "arm64", "x86_64")...)
+			p := testlipo.Setup(t, append(tt.addArches, "arm64", "x86_64"))
 			args := replace(t, p, tt.args)
 
 			gotExitCode := Execute(outBuf, errBuf, args)

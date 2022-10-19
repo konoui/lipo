@@ -18,22 +18,22 @@ func TestLipo_Thin(t *testing.T) {
 		{
 			name:   "-thin x86_64",
 			arch:   "x86_64",
-			inputs: []string{inAmd64, inArm64},
+			inputs: []string{"x86_64", "arm64"},
 		},
 		{
 			name:   "-thin arm64",
 			arch:   "arm64",
-			inputs: []string{inAmd64, inArm64},
+			inputs: []string{"x86_64", "arm64"},
 		},
 		{
 			name:   "-thin arm64",
 			arch:   "arm64",
-			inputs: []string{inAmd64, inArm64, "arm64e"},
+			inputs: []string{"x86_64", "arm64", "arm64e"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.inputs...)
+			p := testlipo.Setup(t, tt.inputs)
 
 			got := filepath.Join(p.Dir, gotName(t))
 			arch := tt.arch
@@ -55,7 +55,7 @@ func TestLipo_Thin(t *testing.T) {
 
 func TestLipo_ThinError(t *testing.T) {
 	t.Run("not-match-arch", func(t *testing.T) {
-		p := testlipo.Setup(t, "arm64", "x86_64")
+		p := testlipo.Setup(t, []string{"arm64", "x86_64"})
 
 		got := filepath.Join(p.Dir, gotName(t))
 		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
