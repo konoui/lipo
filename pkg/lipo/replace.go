@@ -31,7 +31,7 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	defer all.close()
 
 	// check1 replace input arch equals to replace input bin
-	createInputs, err := createInputsFromReplaceInputs(inputs)
+	createInputs, err := createInputsFromReplaceInputs(inputs, l.hideArm64)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	return fatArches.createFatBinary(l.out, perm, l.hideArm64)
 }
 
-func createInputsFromReplaceInputs(ins []*ReplaceInput) ([]*createInput, error) {
+func createInputsFromReplaceInputs(ins []*ReplaceInput, hideArm64 bool) ([]*createInput, error) {
 	archInputs := make([]*ArchInput, len(ins))
 	for i, r := range ins {
 		if !mcpu.IsSupported(r.Arch) {
@@ -64,7 +64,7 @@ func createInputsFromReplaceInputs(ins []*ReplaceInput) ([]*createInput, error) 
 		archInputs[i] = &ArchInput{Bin: r.Bin, Arch: r.Arch}
 	}
 
-	creates, err := newCreateInputs(archInputs...)
+	creates, err := newCreateInputs(archInputs, hideArm64)
 	if err != nil {
 		return nil, err
 	}

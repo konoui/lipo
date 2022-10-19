@@ -13,7 +13,7 @@ import (
 
 func (l *Lipo) Create() error {
 	archInputs := append(l.arches, util.Map(l.in, func(v string) *ArchInput { return &ArchInput{Bin: v} })...)
-	inputs, err := newCreateInputs(archInputs...)
+	inputs, err := newCreateInputs(archInputs, l.hideArm64)
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ type createInput struct {
 	perm  fs.FileMode
 }
 
-func newCreateInputs(in ...*ArchInput) ([]*createInput, error) {
+func newCreateInputs(in []*ArchInput, hideArm64 bool) ([]*createInput, error) {
 	if len(in) == 0 {
 		return nil, errNoInput
 	}
@@ -60,21 +60,26 @@ func newCreateInputs(in ...*ArchInput) ([]*createInput, error) {
 		inputs[idx] = in
 	}
 
-	if err := validateCreateInputs(inputs); err != nil {
+	if err := validateCreateInputs(inputs, hideArm64); err != nil {
 		return nil, err
 	}
 
 	return inputs, nil
 }
 
-func validateCreateInputs(inputs []*createInput) error {
+func validateCreateInputs(inputs []*createInput, hideArm64 bool) error {
 	// validate inputs
 	seenArches := make(map[string]bool, len(inputs))
 	for _, i := range inputs {
+		if hideArm64 && i.hdr.Type != macho.TypeExec {
+			return fmt.Errorf("hideARM64 specified but thin file %s is not of type MH_EXECUTE", i.path)
+		}
+
 		seenArch := mcpu.ToString(i.hdr.Cpu, i.hdr.SubCpu)
 		if o, k := seenArches[seenArch]; o || k {
 			return fmt.Errorf("duplicate architecture %s", seenArch)
 		}
+
 		seenArches[seenArch] = true
 	}
 	return nil

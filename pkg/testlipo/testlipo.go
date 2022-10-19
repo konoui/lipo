@@ -89,11 +89,11 @@ func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
 			archBins[arch] = arm64Bin
 		} else if strings.HasPrefix(arch, "obj_") {
 			archBin := filepath.Join(dir, arch)
-			NewObject(t, archBin)
+			copyAndManipulate(t, arm64Bin, archBin, arch[4:], macho.TypeObj)
 			archBins[arch] = archBin
 		} else {
 			archBin := filepath.Join(dir, arch)
-			copyAndManipulate(t, arm64Bin, archBin, arch)
+			copyAndManipulate(t, arm64Bin, archBin, arch, macho.TypeExec)
 			archBins[arch] = archBin
 		}
 	}
@@ -138,7 +138,14 @@ func (l *TestLipo) Bins() []string {
 func (l *TestLipo) NewArchBin(t *testing.T, arch string) (path string) {
 	t.Helper()
 	archBin := filepath.Join(l.Dir, "new-arch-bin-"+arch)
-	copyAndManipulate(t, l.arm64Bin, archBin, arch)
+	copyAndManipulate(t, l.arm64Bin, archBin, arch, macho.TypeExec)
+	return archBin
+}
+
+func (l *TestLipo) NewArchObj(t *testing.T, arch string) (path string) {
+	t.Helper()
+	archBin := filepath.Join(l.Dir, "new-arch-obj-"+arch)
+	copyAndManipulate(t, l.arm64Bin, archBin, arch, macho.TypeObj)
 	return archBin
 }
 
@@ -330,7 +337,7 @@ func calcSha256(t *testing.T, p string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func copyAndManipulate(t *testing.T, src, dst string, arch string) {
+func copyAndManipulate(t *testing.T, src, dst string, arch string, typ macho.Type) {
 	t.Helper()
 	cpu, sub, ok := mcpu.ToCpu(arch)
 	if !ok {
@@ -359,6 +366,7 @@ func copyAndManipulate(t *testing.T, src, dst string, arch string) {
 	wantHdrSize := binary.Size(hdr)
 	hdr.Cpu = cpu
 	hdr.SubCpu = sub
+	hdr.Type = typ
 	hdrSize := binary.Size(hdr)
 
 	if hdrSize != wantHdrSize {

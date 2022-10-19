@@ -128,4 +128,21 @@ func TestLipo_ReplaceError(t *testing.T) {
 			t.Errorf("want: %s, got: %s", wantErrMsg, err.Error())
 		}
 	})
+
+	t.Run("-hideARM64-with-obj", func(t *testing.T) {
+		p := testlipo.Setup(t, []string{"arm64", "armv7k"})
+		objArm64 := p.NewArchObj(t, "arm64")
+		l := lipo.New(
+			lipo.WithInputs(p.FatBin),
+			lipo.WithOutput(got),
+			lipo.WithHideArm64())
+		err := l.Replace([]*lipo.ReplaceInput{{Arch: "arm64", Bin: objArm64}})
+		wantErrMsg := fmt.Sprintf("hideARM64 specified but thin file %s is not of type MH_EXECUTE", objArm64)
+		if err == nil {
+			t.Fatal("no error")
+		}
+		if err.Error() != wantErrMsg {
+			t.Errorf("want: %s, got: %s", wantErrMsg, err.Error())
+		}
+	})
 }
