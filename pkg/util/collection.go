@@ -18,6 +18,14 @@ func Filter[T any](values []T, fn func(T) bool) []T {
 	return results
 }
 
+func ExistMap[T comparable, K comparable](values []T, fn func(v T) K) map[K]struct{} {
+	results := map[K]struct{}{}
+	for _, e := range values {
+		results[fn(e)] = struct{}{}
+	}
+	return results
+}
+
 func Contains[T comparable](values []T, target T) bool {
 	for _, e := range values {
 		if e == target {

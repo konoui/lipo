@@ -3,6 +3,8 @@ package lipo
 import (
 	"fmt"
 	"os"
+
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 func (l *Lipo) ExtractFamily(arches ...string) error {
@@ -21,10 +23,11 @@ func (l *Lipo) ExtractFamily(arches ...string) error {
 	}
 	perm := info.Mode().Perm()
 
-	all, err := fatArchesFromFatBin(fatBin)
+	ff, err := lmacho.OpenFat(fatBin)
 	if err != nil {
 		return err
 	}
+	all := fatArches(ff.AllArches())
 
 	fatArches := all.extractFamily(arches...)
 	if len(fatArches) == 0 {

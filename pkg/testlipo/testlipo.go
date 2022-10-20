@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
 
@@ -62,7 +62,6 @@ func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
 	t.Helper()
 
 	tempDir := filepath.Join(os.TempDir(), "testlipo-output")
-	t.Log("using testlipo-output", tempDir)
 	if err := os.MkdirAll(tempDir, 0740); err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +338,7 @@ func calcSha256(t *testing.T, p string) string {
 
 func copyAndManipulate(t *testing.T, src, dst string, arch string, typ macho.Type) {
 	t.Helper()
-	cpu, sub, ok := mcpu.ToCpu(arch)
+	cpu, sub, ok := lmacho.ToCpu(arch)
 	if !ok {
 		t.Fatalf("copyAndManipulate: unsupported arch: %s\n", arch)
 	}

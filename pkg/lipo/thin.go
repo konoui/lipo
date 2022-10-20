@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 func (l *Lipo) Thin(arch string) error {
@@ -13,7 +13,7 @@ func (l *Lipo) Thin(arch string) error {
 		return err
 	}
 
-	if !mcpu.IsSupported(arch) {
+	if !lmacho.IsSupportedCpu(arch) {
 		return fmt.Errorf(unsupportedArchFmt, arch)
 	}
 
@@ -25,11 +25,11 @@ func (l *Lipo) Thin(arch string) error {
 	}
 	perm := info.Mode().Perm()
 
-	all, err := fatArchesFromFatBin(fatBin)
+	ff, err := lmacho.OpenFat(fatBin)
 	if err != nil {
 		return err
 	}
-	defer all.close()
+	all := fatArches(ff.AllArches())
 
 	fatArches := all.extract(arch)
 	if len(fatArches) == 0 {
@@ -40,13 +40,19 @@ func (l *Lipo) Thin(arch string) error {
 	return l.thin(perm, fatArch)
 }
 
-func (l *Lipo) thin(perm os.FileMode, fatArch *fatArch) error {
+func (l *Lipo) thin(perm os.FileMode, fatArch lmacho.FatArch) error {
 	out, err := os.Create(l.out)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.CopyN(out, fatArch, int64(fatArch.Size)); err != nil {
+	r, err := fatArch.Open()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	if _, err := io.CopyN(out, r, int64(fatArch.Size)); err != nil {
 		return fmt.Errorf("failed to write binary data: %w", err)
 	}
 

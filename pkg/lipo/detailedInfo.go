@@ -7,8 +7,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
-	"github.com/konoui/lipo/pkg/util"
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 const detailedInfoTpl = `Fat header in: {{ .FatBinary }}
@@ -75,7 +74,7 @@ type tplFatBinary struct {
 func detailedInfo(bin string) (string, bool, error) {
 
 	var out strings.Builder
-	fatArches, err := fatArchesFromFatBin(bin)
+	ff, err := lmacho.OpenFat(bin)
 	if err != nil {
 		if !errors.Is(err, macho.ErrNotFat) {
 			return "", false, err
@@ -88,37 +87,42 @@ func detailedInfo(bin string) (string, bool, error) {
 		return fmt.Sprintf("input file %s is not a fat file\n%s", bin, v), false, nil
 	}
 
-	hideArches := util.Filter(fatArches, func(v *fatArch) bool { return v.hidden })
-	nFatArch := fmt.Sprintf("%d", len(fatArches))
-	if len(hideArches) > 0 {
-		nFatArch = fmt.Sprintf("%d (+%d hidden)", len(fatArches)-len(hideArches), len(hideArches))
+	nFatArch := fmt.Sprintf("%d", len(ff.Arches))
+	if len(ff.HiddenArches) > 0 {
+		nFatArch = fmt.Sprintf("%d (+%d hidden)", len(ff.Arches), len(ff.HiddenArches))
 	}
 	fb := &tplFatBinary{
 		FatBinary: bin,
 		FatMagic:  fmt.Sprintf("0x%x", macho.MagicFat),
 		NFatArch:  nFatArch,
-		Arches:    make([]*tplFatArch, 0, len(fatArches)),
+		Arches:    make([]*tplFatArch, 0, len(ff.Arches)),
 	}
-	for _, a := range fatArches {
-		c, s := mcpu.StringValues(a.Cpu, a.SubCpu)
-		arch := mcpu.ToString(a.Cpu, a.SubCpu)
-		if a.hidden {
-			arch = fmt.Sprintf("%s (hidden)", arch)
-		}
-		fb.Arches = append(fb.Arches, &tplFatArch{
-			Arch:         arch,
-			CpuType:      c,
-			SubCpuType:   s,
-			Capabilities: fmt.Sprintf("0x%x", (a.SubCpu&mcpu.MaskSubType)>>24),
-			Offset:       a.Offset,
-			Size:         a.Size,
-			AlignBit:     a.Align,
-			Align:        1 << a.Align,
-		})
+	for _, a := range ff.Arches {
+		fb.Arches = append(fb.Arches, tplArch(a))
+	}
+	for _, a := range ff.HiddenArches {
+		ta := tplArch(a)
+		ta.Arch = fmt.Sprintf("%s (hidden)", ta.Arch)
+		fb.Arches = append(fb.Arches, ta)
 	}
 
 	if err := tpl.Execute(&out, *fb); err != nil {
 		return "", false, err
 	}
 	return out.String(), true, nil
+}
+
+func tplArch(a lmacho.FatArch) *tplFatArch {
+	c, s := lmacho.ToCpuValues(a.Cpu, a.SubCpu)
+	arch := lmacho.ToCpuString(a.Cpu, a.SubCpu)
+	return &tplFatArch{
+		Arch:         arch,
+		CpuType:      c,
+		SubCpuType:   s,
+		Capabilities: fmt.Sprintf("0x%x", (a.SubCpu&lmacho.MaskSubCpuType)>>24),
+		Offset:       a.Offset,
+		Size:         a.Size,
+		AlignBit:     a.Align,
+		Align:        1 << a.Align,
+	}
 }

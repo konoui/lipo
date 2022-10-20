@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/testlipo"
 )
 
@@ -31,10 +31,14 @@ func TestLipo_Create(t *testing.T) {
 		},
 		{
 			name:   "-create many files",
-			arches: mcpu.CpuNames(),
+			arches: lmacho.CpuNames(),
 		},
 		{
 			name:   "-create object files",
+			arches: []string{"obj_" + currentArch(), "arm64e", "x86_64h"},
+		},
+		{
+			name:   "-create -arch arm64 file.arm64",
 			arches: []string{"obj_" + currentArch(), "arm64e", "x86_64h"},
 		},
 		{
@@ -64,7 +68,6 @@ func TestLipo_Create(t *testing.T) {
 			p := testlipo.Setup(t, tt.arches,
 				testSegAlignOpt(tt.segAligns),
 				testlipo.WithHideArm64(tt.hideArm64))
-
 			got := filepath.Join(p.Dir, gotName(t))
 			opts := []lipo.Option{
 				lipo.WithInputs(p.Bins()...),
@@ -89,6 +92,21 @@ func TestLipo_Create(t *testing.T) {
 			diffSha256(t, p.FatBin, got)
 		})
 	}
+}
+
+func TestLipo_CreateWithArch(t *testing.T) {
+	t.Run("arch-inputs", func(t *testing.T) {
+		p := testlipo.Setup(t, []string{"x86_64", "arm64", "arm64e"})
+		archInputs := []*lipo.ArchInput{{Arch: "arm64e", Bin: p.Bin(t, "arm64e")}}
+		got := filepath.Join(p.Dir, gotName(t))
+		opts := []lipo.Option{lipo.WithInputs(p.Bin(t, "arm64"), p.Bin(t, "x86_64")), lipo.WithOutput(got), lipo.WithArch(archInputs)}
+		if err := lipo.New(opts...).Create(); err != nil {
+			t.Fatalf("failed to create fat bin %v", err)
+		}
+
+		verifyArches(t, got, "x86_64", "arm64", "arm64e")
+		diffSha256(t, p.FatBin, got)
+	})
 }
 
 func TestLipo_CreateError(t *testing.T) {

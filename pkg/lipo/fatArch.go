@@ -2,75 +2,19 @@ package lipo
 
 import (
 	"debug/macho"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"os"
-	"sort"
 	"strconv"
-	"sync/atomic"
 
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
 
-var _ io.ReadCloser = &fatArch{}
-
-// fatArch consist of FatArchHeader and io.Reader for binary
-type fatArch struct {
-	macho.FatArchHeader
-	r      io.Reader
-	c      io.Closer
-	hidden bool
-	// TODO check work fine
-	count *int32
-}
-
-func (fa *fatArch) Read(p []byte) (int, error) {
-	return fa.r.Read(p)
-}
-
-func (fa *fatArch) Close() error {
-	if fa == nil || fa.c == nil {
-		return nil
-	}
-
-	if fa.count != nil && *fa.count > 0 {
-		atomic.AddInt32(fa.count, -1)
-		return nil
-	}
-
-	err := fa.c.Close()
-	if errors.Is(err, os.ErrClosed) {
-		return nil
-	}
-	return err
-}
-
-type fatArches []*fatArch
-
-func (f fatArches) close() error {
-	msg := ""
-	for _, closer := range f {
-		err := closer.Close()
-		if err != nil {
-			msg += err.Error()
-		}
-	}
-	if msg != "" {
-		return fmt.Errorf("close errors: %s", msg)
-	}
-	return nil
-}
+type fatArches []lmacho.FatArch
 
 func (f fatArches) createFatBinary(p string, perm os.FileMode, hideArm64 bool) (err error) {
-	f, err = f.sort()
-	if err != nil {
-		return err
-	}
-
 	if len(f) == 0 {
 		return errors.New("error empty fat file due to no inputs")
 	}
@@ -89,164 +33,55 @@ func (f fatArches) createFatBinary(p string, perm os.FileMode, hideArm64 bool) (
 		}
 	}()
 
-	return f.outputFatBinary(out, hideArm64)
-}
-
-func (f fatArches) outputFatBinary(out io.Writer, hideArm64 bool) error {
-	fatHeader := &fatHeader{
-		magic: macho.MagicFat,
-		narch: uint32(len(f)),
-	}
-
-	// calculate offset with raw narch before hide arches
-	off := fatHeader.size()
-
-	if hideArm64 {
-		arches := util.Filter(f.hideArm64(), func(v *fatArch) bool { return !v.hidden })
-		fatHeader.narch = uint32(len(arches))
-	}
-
-	// sort by offset by asc for effective writing binary data
-	sort.Slice(f, func(i, j int) bool {
-		return f[i].Offset < f[j].Offset
-	})
-
-	// write header
-	// see https://cs.opensource.google/go/go/+/refs/tags/go1.18:src/debug/macho/fat.go;l=45
-	if err := binary.Write(out, binary.BigEndian, fatHeader); err != nil {
-		return fmt.Errorf("error write fat header: %w", err)
-	}
-
-	// write headers
-	for _, hdr := range f {
-		if err := binary.Write(out, binary.BigEndian, hdr.FatArchHeader); err != nil {
-			return fmt.Errorf("error write arch headers: %w", err)
-		}
-	}
-
-	for _, fatArch := range f {
-		if off < fatArch.Offset {
-			// write empty data for alignment
-			empty := make([]byte, fatArch.Offset-off)
-			if _, err := out.Write(empty); err != nil {
-				return fmt.Errorf("error alignment: %w", err)
-			}
-			off = fatArch.Offset
-		}
-
-		// write binary data
-		if _, err := io.CopyN(out, fatArch.r, int64(fatArch.Size)); err != nil {
-			return fmt.Errorf("error write binary data: %w", err)
-		}
-		off += fatArch.Size
-	}
-
-	return nil
-}
-
-// Note mock using qsort
-var SortFunc = sort.Slice
-
-// https://github.com/apple-oss-distributions/cctools/blob/cctools-973.0.1/misc/lipo.c#L2677
-func compare(i, j *fatArch) bool {
-	if i.Cpu == j.Cpu {
-		return (i.SubCpu & ^mcpu.MaskSubType) < (j.SubCpu & ^mcpu.MaskSubType)
-	}
-
-	if i.Cpu == mcpu.TypeArm64 {
-		return false
-	}
-	if j.Cpu == mcpu.TypeArm64 {
-		return true
-	}
-
-	return i.Align < j.Align
-}
-
-func (f fatArches) sort() (fatArches, error) {
-	SortFunc(f, func(i, j int) bool {
-		return compare(f[i], f[j])
-	})
-
-	fatHeader := &fatHeader{
-		magic: macho.MagicFat,
-		narch: uint32(len(f)),
-	}
-
-	// update offset
-	offset := int64(fatHeader.size())
-	for i := range f {
-		offset = align(int64(offset), 1<<int64(f[i].Align))
-		if !boundaryOK(offset) {
-			return nil, fmt.Errorf("exceeds maximum fat32 size")
-		}
-		f[i].Offset = uint32(offset)
-		offset += int64(f[i].Size)
-	}
-
-	return f, nil
+	return lmacho.NewFatFileFromArch(f, hideArm64).Create(out)
 }
 
 func (f fatArches) extract(arches ...string) fatArches {
-	return util.Filter(f, func(v *fatArch) bool {
-		return contains(mcpu.ToString(v.Cpu, v.SubCpu), arches)
+	exist := util.ExistMap(arches, func(v string) string { return v })
+	return util.Filter(f, func(v lmacho.FatArch) bool {
+		_, ok := exist[lmacho.ToCpuString(v.Cpu, v.SubCpu)]
+		return ok
 	})
 }
 
 func (f fatArches) extractFamily(arches ...string) fatArches {
-	cpus := util.Map(arches, func(a string) macho.Cpu {
-		c, _, _ := mcpu.ToCpu(a)
+	exist := util.ExistMap(arches, func(v string) macho.Cpu {
+		c, _, _ := lmacho.ToCpu(v)
 		return c
 	})
-	return util.Filter(f, func(v *fatArch) bool {
-		return util.Contains(cpus, v.Cpu)
+	return util.Filter(f, func(v lmacho.FatArch) bool {
+		_, ok := exist[v.Cpu]
+		return ok
 	})
 }
 
 func (f fatArches) remove(arches ...string) fatArches {
-	return util.Filter(f, func(v *fatArch) bool {
-		return !contains(mcpu.ToString(v.Cpu, v.SubCpu), arches)
+	exist := util.ExistMap(arches, func(v string) string { return v })
+	return util.Filter(f, func(v lmacho.FatArch) bool {
+		_, ok := exist[lmacho.ToCpuString(v.Cpu, v.SubCpu)]
+		return !ok
 	})
 }
 
 func (f fatArches) contains(in fatArches) bool {
-	arches := util.Map(in, func(v *fatArch) string {
-		return mcpu.ToString(v.Cpu, v.SubCpu)
+	arches := util.Map(in, func(v lmacho.FatArch) string {
+		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
 	})
 	return len(f.extract(arches...)) == len(in)
 }
 
 func (f fatArches) replace(with fatArches) fatArches {
-	arches := util.Map(with, func(v *fatArch) string {
-		return mcpu.ToString(v.Cpu, v.SubCpu)
+	arches := util.Map(with, func(v lmacho.FatArch) string {
+		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
 	})
 	new := f.remove(arches...)
 	return append(new, with...)
 }
 
 func (f fatArches) arches() []string {
-	return util.Map(f, func(v *fatArch) string {
-		return mcpu.ToString(v.Cpu, v.SubCpu)
+	return util.Map(f, func(v lmacho.FatArch) string {
+		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
 	})
-}
-
-func (f fatArches) hideArm64() fatArches {
-	var found bool
-	for _, fatArch := range f {
-		if fatArch.Cpu == mcpu.TypeArm {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return f
-	}
-	for i := range f {
-		if f[i].Cpu == mcpu.TypeArm64 {
-			f[i].hidden = true
-		}
-	}
-	return f
 }
 
 func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
@@ -273,7 +108,7 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 		alignBit := uint32(math.Log2(float64(align)))
 		found := false
 		for idx := range f {
-			if mcpu.ToString(f[idx].Cpu, f[idx].SubCpu) == a.Arch {
+			if lmacho.ToCpuString(f[idx].Cpu, f[idx].SubCpu) == a.Arch {
 				f[idx].Align = alignBit
 				found = true
 				break
@@ -285,86 +120,4 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 	}
 
 	return nil
-}
-
-// fatArchesFromFatBin gathers fatArches from fat binary header if `cond` returns true
-func fatArchesFromFatBin(path string) (fatArches, error) {
-	fat, err := OpenFat(path)
-	if err != nil {
-		return nil, err
-	}
-	defer fat.Close()
-
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	fatArches := make(fatArches, 0, len(fat.Arches))
-	count := int32(0)
-	for _, hdr := range fat.Arches {
-		fatArches = append(fatArches, &fatArch{
-			FatArchHeader: hdr.FatArchHeader,
-			r:             io.NewSectionReader(f, int64(hdr.Offset), int64(hdr.Size)),
-			c:             f,
-			count:         &count,
-		})
-		count++
-	}
-
-	for _, hdr := range fat.HiddenArches {
-		fatArches = append(fatArches, &fatArch{
-			FatArchHeader: hdr.FatArchHeader,
-			r:             io.NewSectionReader(f, int64(hdr.Offset), int64(hdr.Size)),
-			c:             f,
-			hidden:        true,
-			count:         &count,
-		})
-		count++
-	}
-
-	return fatArches, nil
-}
-
-func fatArchesFromCreateInputs(inputs []*createInput) (fatArches, error) {
-	fatHdr := &fatHeader{
-		magic: macho.MagicFat,
-		narch: uint32(len(inputs)),
-	}
-
-	fatArches := make(fatArches, 0, len(inputs))
-
-	offset := int64(fatHdr.size())
-	for _, in := range inputs {
-		offset = align(offset, 1<<in.align)
-
-		// validate addressing boundary since size and offset of fat32 are uint32
-		if !(boundaryOK(offset) && boundaryOK(in.size)) {
-			return nil, fmt.Errorf("exceeds maximum fat32 size at %s", in.path)
-		}
-
-		hdrOffset := uint32(offset)
-		hdrSize := uint32(in.size)
-		hdr := macho.FatArchHeader{
-			Cpu:    in.hdr.Cpu,
-			SubCpu: in.hdr.SubCpu,
-			Offset: hdrOffset,
-			Size:   hdrSize,
-			Align:  in.align,
-		}
-
-		offset += int64(hdr.Size)
-
-		f, err := os.Open(in.path)
-		if err != nil {
-			return nil, err
-		}
-		fatArches = append(fatArches, &fatArch{
-			FatArchHeader: hdr,
-			r:             f,
-			c:             f,
-		})
-	}
-
-	return fatArches, nil
 }

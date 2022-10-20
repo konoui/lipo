@@ -9,13 +9,13 @@ import (
 
 	"github.com/konoui/lipo/pkg/lipo"
 	"github.com/konoui/lipo/pkg/lipo/cgo_qsort"
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/testlipo"
 )
 
 func init() {
 	// using apple lipo sorter
-	lipo.SortFunc = cgo_qsort.Slice
+	lmacho.SortFunc = cgo_qsort.Slice
 }
 
 func testSegAlignOpt(inputs []*lipo.SegAlignInput) testlipo.Opt {
@@ -30,7 +30,7 @@ var (
 	diffSha256 = testlipo.DiffSha256
 	cpuNames   = func() []string {
 		ret := []string{}
-		for _, v := range mcpu.CpuNames() {
+		for _, v := range lmacho.CpuNames() {
 			// apple lipo does not support them
 			if v == "armv8m" || v == "arm64_32" {
 				continue

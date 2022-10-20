@@ -4,7 +4,7 @@ import (
 	"debug/macho"
 	"fmt"
 
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 func (l *Lipo) Archs() ([]string, error) {
@@ -17,7 +17,7 @@ func (l *Lipo) Archs() ([]string, error) {
 }
 
 func archs(bin string) ([]string, error) {
-	fat, err := OpenFat(bin)
+	fat, err := lmacho.OpenFat(bin)
 	if err != nil {
 		if err != macho.ErrNotFat {
 			return nil, err
@@ -30,13 +30,12 @@ func archs(bin string) ([]string, error) {
 		}
 		defer f.Close()
 
-		return []string{mcpu.ToString(f.Cpu, f.SubCpu)}, nil
+		return []string{lmacho.ToCpuString(f.Cpu, f.SubCpu)}, nil
 	}
-	defer fat.Close()
 
-	cpus := make([]string, 0, len(fat.Arches)+len(fat.HiddenArches))
-	for _, hdr := range append(fat.Arches, fat.HiddenArches...) {
-		cpus = append(cpus, mcpu.ToString(hdr.Cpu, hdr.SubCpu))
+	cpus := make([]string, 0, len(fat.Arches))
+	for _, hdr := range fat.AllArches() {
+		cpus = append(cpus, lmacho.ToCpuString(hdr.Cpu, hdr.SubCpu))
 	}
 	return cpus, nil
 }

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 type ReplaceInput struct {
@@ -24,22 +25,29 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	}
 	perm := info.Mode().Perm()
 
-	all, err := fatArchesFromFatBin(fatBin)
+	ff, err := lmacho.OpenFat(fatBin)
 	if err != nil {
 		return err
 	}
-	defer all.close()
+	all := fatArches(ff.AllArches())
 
 	// check1 replace input arch equals to replace input bin
-	createInputs, err := createInputsFromReplaceInputs(inputs, l.hideArm64)
+	archInputs := util.Map(inputs, func(i *ReplaceInput) *ArchInput {
+		return &ArchInput{
+			Arch: i.Arch,
+			Bin:  i.Bin,
+		}
+	})
+	fatInputs, err := newFatArches(archInputs...)
 	if err != nil {
 		return err
 	}
-	fatInputs, err := fatArchesFromCreateInputs(createInputs)
-	if err != nil {
-		return err
+
+	if l.hideArm64 {
+		if err := hideARmObjectErr(fatInputs); err != nil {
+			return err
+		}
 	}
-	defer fatInputs.close()
 
 	// check2 fat bin contains all replace inputs
 	if !all.contains(fatInputs) {
@@ -53,21 +61,4 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	}
 
 	return fatArches.createFatBinary(l.out, perm, l.hideArm64)
-}
-
-func createInputsFromReplaceInputs(ins []*ReplaceInput, hideArm64 bool) ([]*createInput, error) {
-	archInputs := make([]*ArchInput, len(ins))
-	for i, r := range ins {
-		if !mcpu.IsSupported(r.Arch) {
-			return nil, fmt.Errorf(unsupportedArchFmt, r.Arch)
-		}
-		archInputs[i] = &ArchInput{Bin: r.Bin, Arch: r.Arch}
-	}
-
-	creates, err := newCreateInputs(archInputs, hideArm64)
-	if err != nil {
-		return nil, err
-	}
-
-	return creates, nil
 }

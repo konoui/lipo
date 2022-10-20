@@ -5,12 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/konoui/lipo/pkg/lipo/mcpu"
-)
-
-const (
-	alignBitMax uint32 = 15
-	alignBitMin uint32 = 5
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 const (
@@ -83,6 +79,32 @@ func New(opts ...Option) *Lipo {
 	return l
 }
 
+func hideARmObjectErr(arches fatArches) error {
+	for _, arch := range arches {
+		if arch.FileHeader.Type == macho.TypeObj {
+			return fmt.Errorf("hideARM64 specified but thin file %s is not of type MH_EXECUTE", arch.Name)
+		}
+	}
+	return nil
+}
+
+func newFatArches(arches ...*ArchInput) (fatArches, error) {
+	fatArches := make(fatArches, len(arches))
+	for i, arch := range arches {
+		fa, err := lmacho.NewFatArch(arch.Bin)
+		if err != nil {
+			return nil, err
+		}
+		if arch.Arch != "" {
+			if cpu := lmacho.ToCpuString(fa.Cpu, fa.SubCpu); cpu != arch.Arch {
+				return nil, fmt.Errorf("specified architecture: %s for input file: %s does not match the file's architecture", arch.Arch, arch.Bin)
+			}
+		}
+		fatArches[i] = *fa
+	}
+	return fatArches, lmacho.ValidateFatArches(fatArches)
+}
+
 func (l *Lipo) validateOneInput() error {
 	num := len(l.in)
 	if num == 0 {
@@ -93,65 +115,6 @@ func (l *Lipo) validateOneInput() error {
 	return nil
 }
 
-// see /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach-o/fat.h
-type fatHeader struct {
-	magic uint32
-	narch uint32
-}
-
-func (h *fatHeader) size() uint32 {
-	// sizeof(fatHeader) = uint32 * 2
-	sizeofFatHdr := uint32(4 * 2)
-	// sizeof(macho.FatArchHeader) = uint32 * 5
-	sizeofFatArchHdr := uint32(4 * 5)
-	size := sizeofFatHdr + sizeofFatArchHdr*h.narch
-	return size
-}
-
-func segmentAlignBit(f *macho.File) uint32 {
-	cur := alignBitMax
-	for _, l := range f.Loads {
-		if s, ok := l.(*macho.Segment); ok {
-			align := guessAlignBit(s.Addr, alignBitMin, alignBitMax)
-			if align < cur {
-				cur = align
-			}
-		}
-	}
-	return cur
-}
-
-func guessAlignBit(addr uint64, min, max uint32) uint32 {
-	segAlign := uint64(1)
-	align := uint32(0)
-	if addr == 0 {
-		return max
-	}
-	for {
-		segAlign = segAlign << 1
-		align++
-		if (segAlign & addr) != 0 {
-			break
-		}
-	}
-
-	if align < min {
-		return min
-	}
-	if max < align {
-		return max
-	}
-	return align
-}
-
-func align(offset, v int64) int64 {
-	return (offset + v - 1) / v * v
-}
-
-func boundaryOK(s int64) (ok bool) {
-	return s < 1<<32
-}
-
 func validateInputArches(arches []string) error {
 	dup := duplicates(arches)
 	if dup != "" {
@@ -159,20 +122,11 @@ func validateInputArches(arches []string) error {
 	}
 
 	for _, arch := range arches {
-		if !mcpu.IsSupported(arch) {
+		if !lmacho.IsSupportedCpu(arch) {
 			return fmt.Errorf("unsupported architecture %s", arch)
 		}
 	}
 	return nil
-}
-
-func contains(tg string, l []string) bool {
-	for _, s := range l {
-		if tg == s {
-			return true
-		}
-	}
-	return false
 }
 
 func duplicates(l []string) string {
@@ -189,7 +143,7 @@ func duplicates(l []string) string {
 // remove return values `a` does not have
 func remove(a []string, b []string) string {
 	for _, v := range b {
-		if !contains(v, a) {
+		if !util.Contains(a, v) {
 			return v
 		}
 	}

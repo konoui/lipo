@@ -3,6 +3,8 @@ package lipo
 import (
 	"fmt"
 	"os"
+
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 func (l *Lipo) Remove(arches ...string) (err error) {
@@ -21,11 +23,17 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 	}
 	perm := info.Mode().Perm()
 
-	all, err := fatArchesFromFatBin(fatBin)
+	ff, err := lmacho.OpenFat(fatBin)
 	if err != nil {
 		return err
 	}
-	defer all.close()
+	all := fatArches(ff.AllArches())
+
+	if l.hideArm64 {
+		if err := hideARmObjectErr(all); err != nil {
+			return err
+		}
+	}
 
 	fatArches := all.remove(arches...)
 	if (len(all) - len(fatArches)) != len(arches) {

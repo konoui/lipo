@@ -98,7 +98,7 @@ func TestLipo_ReplaceError(t *testing.T) {
 	got := filepath.Join(p.Dir, gotName(t))
 	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 
-	t.Run("duplicate arch", func(t *testing.T) {
+	t.Run("duplicate-arch", func(t *testing.T) {
 		to := p.Bin(t, "arm64")
 		ri := []*lipo.ReplaceInput{{Arch: "arm64", Bin: to}, {Arch: "arm64", Bin: to}}
 		err := l.Replace(ri)
