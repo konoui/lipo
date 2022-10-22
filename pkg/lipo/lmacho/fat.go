@@ -23,6 +23,12 @@ const (
 	fatArchHeaderSize = uint32(4 * 5)
 )
 
+type FatFile struct {
+	Magic        uint32
+	Arches       []FatArch
+	HiddenArches []FatArch
+}
+
 func OpenFat(name string) (*FatFile, error) {
 	f, err := os.OpenFile(name, os.O_RDONLY, 0766)
 	if err != nil {
@@ -35,12 +41,6 @@ func OpenFat(name string) (*FatFile, error) {
 		return nil, err
 	}
 	return ff, nil
-}
-
-type FatFile struct {
-	Magic        uint32
-	Arches       []FatArch
-	HiddenArches []FatArch
 }
 
 func NewFatFileFromArch(farches []FatArch, hideArm64 bool) *FatFile {
@@ -160,7 +160,7 @@ type FatArch struct {
 	macho.FatArchHeader
 	FileHeader *macho.FileHeader
 	Name       string
-	fileOffset uint32
+	fileOffset uint64
 }
 
 func NewFatArch(name string) (*FatArch, error) {
@@ -175,9 +175,14 @@ func NewFatArch(name string) (*FatArch, error) {
 		return nil, err
 	}
 
+	size := info.Size()
+	if size > 1<<32 {
+		return nil, fmt.Errorf("%s(%d) exceeds maximum 32 bit size", name, size)
+	}
+
 	align := SegmentAlignBit(f)
 	if f.Type == macho.TypeObj {
-		align = GuessAlignBit(uint64(os.Getpagesize()), AlignBitMin, AlignBitMax)
+		align = GuessAlignBit(uint64(os.Getpagesize()), alignBitMin, alignBitMax)
 	}
 
 	fa := &FatArch{
@@ -187,7 +192,7 @@ func NewFatArch(name string) (*FatArch, error) {
 		FatArchHeader: macho.FatArchHeader{
 			Cpu:    f.Cpu,
 			SubCpu: f.SubCpu,
-			Size:   uint32(info.Size()),
+			Size:   uint32(size),
 			Align:  align,
 			// offset will be updated
 			Offset: 0,
@@ -241,7 +246,7 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 			return nil, errors.New("invalid fat_arch header")
 		}
 		fa.Name = name
-		fa.fileOffset = fa.Offset
+		fa.fileOffset = uint64(fa.Offset)
 
 		fr := io.NewSectionReader(sr, int64(fa.Offset), int64(fa.Size))
 		f, err := macho.NewFile(fr)
@@ -276,7 +281,7 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 			FatArchHeader: fahdr,
 			FileHeader:    &f.FileHeader,
 			Name:          name,
-			fileOffset:    fahdr.Offset,
+			fileOffset:    uint64(fahdr.Offset),
 		})
 	}
 

@@ -7,15 +7,15 @@ import (
 )
 
 const (
-	AlignBitMax uint32 = 15
-	AlignBitMin uint32 = 5
+	alignBitMax uint32 = 15
+	alignBitMin uint32 = 5
 )
 
 func SegmentAlignBit(f *macho.File) uint32 {
-	cur := AlignBitMax
+	cur := alignBitMax
 	for _, l := range f.Loads {
 		if s, ok := l.(*macho.Segment); ok {
-			align := GuessAlignBit(s.Addr, AlignBitMin, AlignBitMax)
+			align := GuessAlignBit(s.Addr, alignBitMin, alignBitMax)
 			if align < cur {
 				cur = align
 			}
@@ -76,7 +76,7 @@ func SortBy(arches []FatArch) ([]FatArch, error) {
 	for i := range arches {
 		offset = align(int64(offset), 1<<int64(arches[i].Align))
 		if !boundaryOK(offset) {
-			return nil, fmt.Errorf("exceeds maximum fat32 size")
+			return nil, fmt.Errorf("exceeds maximum 32 bit size")
 		}
 		arches[i].Offset = uint32(offset)
 		offset += int64(arches[i].Size)
