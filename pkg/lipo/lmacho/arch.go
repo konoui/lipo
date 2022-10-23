@@ -73,14 +73,14 @@ func (f *FatFile) allSortedArches() ([]FatArch, error) {
 	})
 
 	// update offset
-	offset := uint64(f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches)))
+	offset := f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches))
 	for i := range arches {
-		offset = align(uint64(offset), 1<<arches[i].Align)
-		if f.Magic == macho.MagicFat && !boundaryOK(offset) {
-			return nil, fmt.Errorf("exceeds maximum 32 bit size")
-		}
+		offset = align(offset, 1<<arches[i].Align)
 		arches[i].Offset = offset
 		offset += arches[i].Size
+		if f.Magic == macho.MagicFat && !boundaryOK(offset) {
+			return nil, fmt.Errorf("exceeds maximum 32 bit size at %s. please handle it as fat64", arches[i].Name)
+		}
 	}
 
 	return arches, nil
