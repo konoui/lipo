@@ -2,7 +2,6 @@ package lmacho
 
 import (
 	"debug/macho"
-	"fmt"
 	"sort"
 )
 
@@ -64,26 +63,6 @@ func compare(i, j FatArch) bool {
 	}
 
 	return i.Align < j.Align
-}
-
-func (f *FatFile) allSortedArches() ([]FatArch, error) {
-	arches := f.AllArches()
-	SortFunc(arches, func(i, j int) bool {
-		return compare(arches[i], arches[j])
-	})
-
-	// update offset
-	offset := f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches))
-	for i := range arches {
-		offset = align(offset, 1<<arches[i].Align)
-		arches[i].Offset = offset
-		offset += arches[i].Size
-		if f.Magic == macho.MagicFat && !boundaryOK(offset) {
-			return nil, fmt.Errorf("exceeds maximum 32 bit size at %s. please handle it as fat64", arches[i].Name)
-		}
-	}
-
-	return arches, nil
 }
 
 func align(offset, v uint64) uint64 {

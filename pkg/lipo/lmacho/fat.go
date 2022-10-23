@@ -10,8 +10,6 @@ import (
 	"sort"
 )
 
-const MagicFat64 = macho.MagicFat + 1
-
 // FatHeader is a header for a Macho-0 32 bit or 64 bit
 // see /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach-o/fat.h
 type FatHeader struct {
@@ -190,11 +188,31 @@ func (f *FatFile) AllArches() []FatArch {
 	return fa
 }
 
+func (f *FatFile) sortedArches() ([]FatArch, error) {
+	arches := f.AllArches()
+	SortFunc(arches, func(i, j int) bool {
+		return compare(arches[i], arches[j])
+	})
+
+	// update offset
+	offset := f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches))
+	for i := range arches {
+		offset = align(offset, 1<<arches[i].Align)
+		arches[i].Offset = offset
+		offset += arches[i].Size
+		if f.Magic == macho.MagicFat && !boundaryOK(offset) {
+			return nil, fmt.Errorf("exceeds maximum 32 bit size at %s. please handle it as fat64", arches[i].Name)
+		}
+	}
+
+	return arches, nil
+}
+
 func (f *FatFile) Create(out io.Writer) error {
 	fatHeader := f.fatHeader()
 
 	// sort and update offset
-	arches, err := f.allSortedArches()
+	arches, err := f.sortedArches()
 	if err != nil {
 		return err
 	}
@@ -350,9 +368,9 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 		if nextHdrOffset+ff.fatArchHeaderSize() > firstOffset {
 			break
 		}
-		nextHdrOffset += ff.fatArchHeaderSize()
 
-		fatHdr, err := ff.readFatArchHeader(sr)
+		hr := io.NewSectionReader(sr, int64(nextHdrOffset), int64(ff.fatArchHeaderSize()))
+		fatHdr, err := ff.readFatArchHeader(hr)
 		if err != nil {
 			return nil, err
 		}
@@ -372,6 +390,7 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 			Name:          name,
 			fileOffset:    uint64(fatHdr.Offset),
 		})
+		nextHdrOffset += ff.fatArchHeaderSize()
 	}
 
 	if err := ValidateFatArches(ff.AllArches()); err != nil {

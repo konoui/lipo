@@ -19,6 +19,7 @@ jobs:
     - name: test
       run: |
         make test
+        make test-large-file
   release:
     runs-on: macos-latest
     name: goreleaser
