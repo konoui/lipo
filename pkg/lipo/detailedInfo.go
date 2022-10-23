@@ -93,7 +93,7 @@ func detailedInfo(bin string) (string, bool, error) {
 	}
 	fb := &tplFatBinary{
 		FatBinary: bin,
-		FatMagic:  fmt.Sprintf("0x%x", macho.MagicFat),
+		FatMagic:  fmt.Sprintf("0x%x", ff.Magic),
 		NFatArch:  nFatArch,
 		Arches:    make([]*tplFatArch, 0, len(ff.Arches)),
 	}

@@ -76,7 +76,7 @@ func (f *FatFile) readFatArchHeader(r io.Reader) (*FatArchHeader, error) {
 			Cpu:    fatHdr.Cpu,
 			SubCpu: fatHdr.SubCpu,
 			Align:  fatHdr.Align,
-			Size:   fatHdr.Offset,
+			Size:   fatHdr.Size,
 			Offset: fatHdr.Offset,
 		}, nil
 	}
@@ -137,6 +137,10 @@ type FatFileConfig struct {
 }
 
 func NewFatFileFromArch(farches []FatArch, cfg *FatFileConfig) *FatFile {
+	if cfg == nil {
+		cfg = &FatFileConfig{}
+	}
+
 	magic := macho.MagicFat
 	if cfg.Fat64 {
 		magic = MagicFat64

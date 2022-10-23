@@ -111,6 +111,11 @@ func TestExecute(t *testing.T) {
 			addArches:    []string{"armv7k"},
 		},
 		{
+			name:         "create with fat64",
+			wantExitCode: 0,
+			args:         []string{"-create", "-output", phOutput, phInputThins, "-fat64"},
+		},
+		{
 			name:         "verify_arch not contains",
 			wantExitCode: 1,
 			args:         []string{phInputFat, "-verify_arch", "arm64", "x86_64", "arm64e"},

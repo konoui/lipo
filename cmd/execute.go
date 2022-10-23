@@ -23,7 +23,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	var out, thin string
 	remove, extract, extractFamily, verifyArch := []string{}, []string{}, []string{}, []string{}
 	replace, segAligns, arch := [][2]string{}, [][2]string{}, [][2]string{}
-	create, archs, info, detailedInfo, hideArm64 := false, false, false, false, false
+	create, archs, info, detailedInfo, hideArm64, fat64 := false, false, false, false, false, false
 
 	fset := &fset{sflag.NewFlagSet("lipo")}
 	createGroup := fset.NewGroup("create").AddDescription(createDescription)
@@ -99,6 +99,13 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		sflag.WithGroup(removeGroup, sflag.TypeOption),
 		sflag.WithGroup(replaceGroup, sflag.TypeOption),
 	)
+	fset.Bool(&fat64, "fat64", "-fat64",
+		sflag.WithGroup(createGroup, sflag.TypeOption),
+		sflag.WithGroup(removeGroup, sflag.TypeOption),
+		sflag.WithGroup(replaceGroup, sflag.TypeOption),
+		sflag.WithGroup(extractGroup, sflag.TypeOption),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption),
+	)
 	if err := fset.Parse(args); err != nil {
 		fmt.Fprint(stderr, fset.Usage())
 		return 1
@@ -129,6 +136,9 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	}
 	if hideArm64 {
 		opts = append(opts, lipo.WithHideArm64())
+	}
+	if fat64 {
+		opts = append(opts, lipo.WithFat64())
 	}
 	l := lipo.New(opts...)
 	switch group.Name {

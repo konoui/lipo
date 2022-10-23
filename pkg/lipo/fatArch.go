@@ -14,7 +14,7 @@ import (
 
 type fatArches []lmacho.FatArch
 
-func (f fatArches) createFatBinary(p string, perm os.FileMode, hideArm64 bool) (err error) {
+func (f fatArches) createFatBinary(p string, perm os.FileMode, cfg *lmacho.FatFileConfig) (err error) {
 	if len(f) == 0 {
 		return errors.New("error empty fat file due to no inputs")
 	}
@@ -33,7 +33,7 @@ func (f fatArches) createFatBinary(p string, perm os.FileMode, hideArm64 bool) (
 		}
 	}()
 
-	return lmacho.NewFatFileFromArch(f, &lmacho.FatFileConfig{HideArm64: hideArm64}).Create(out)
+	return lmacho.NewFatFileFromArch(f, cfg).Create(out)
 }
 
 func (f fatArches) extract(arches ...string) fatArches {

@@ -24,6 +24,7 @@ type Lipo struct {
 	segAligns []*SegAlignInput
 	arches    []*ArchInput
 	hideArm64 bool
+	fat64     bool
 }
 
 type SegAlignInput struct {
@@ -68,6 +69,12 @@ func WithHideArm64() Option {
 	}
 }
 
+func WithFat64() Option {
+	return func(l *Lipo) {
+		l.fat64 = true
+	}
+}
+
 func New(opts ...Option) *Lipo {
 	l := &Lipo{}
 	for _, opt := range opts {
@@ -79,7 +86,7 @@ func New(opts ...Option) *Lipo {
 	return l
 }
 
-func hideARmObjectErr(arches fatArches) error {
+func hideArmObjectErr(arches fatArches) error {
 	for _, arch := range arches {
 		if arch.FileHeader.Type == macho.TypeObj {
 			return fmt.Errorf("hideARM64 specified but thin file %s is not of type MH_EXECUTE", arch.Name)

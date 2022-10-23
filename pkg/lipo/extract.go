@@ -41,5 +41,8 @@ func (l *Lipo) Extract(arches ...string) error {
 		return err
 	}
 
-	return fatArches.createFatBinary(l.out, perm, false)
+	return fatArches.createFatBinary(l.out, perm, &lmacho.FatFileConfig{
+		HideArm64: false,
+		Fat64:     l.fat64,
+	})
 }

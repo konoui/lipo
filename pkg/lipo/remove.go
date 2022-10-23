@@ -30,7 +30,7 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 	all := fatArches(ff.AllArches())
 
 	if l.hideArm64 {
-		if err := hideARmObjectErr(all); err != nil {
+		if err := hideArmObjectErr(all); err != nil {
 			return err
 		}
 	}
@@ -45,5 +45,8 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 		return err
 	}
 
-	return fatArches.createFatBinary(l.out, perm, l.hideArm64)
+	return fatArches.createFatBinary(l.out, perm, &lmacho.FatFileConfig{
+		HideArm64: l.hideArm64,
+		Fat64:     l.fat64,
+	})
 }
