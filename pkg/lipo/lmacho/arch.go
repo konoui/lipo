@@ -66,29 +66,30 @@ func compare(i, j FatArch) bool {
 	return i.Align < j.Align
 }
 
-func SortBy(arches []FatArch) ([]FatArch, error) {
+func (f *FatFile) allSortedArches() ([]FatArch, error) {
+	arches := f.AllArches()
 	SortFunc(arches, func(i, j int) bool {
 		return compare(arches[i], arches[j])
 	})
 
 	// update offset
-	offset := int64(fatHeaderSize + fatArchHeaderSize*uint32(len(arches)))
+	offset := uint64(f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches)))
 	for i := range arches {
-		offset = align(int64(offset), 1<<int64(arches[i].Align))
-		if !boundaryOK(offset) {
+		offset = align(uint64(offset), 1<<arches[i].Align)
+		if f.Magic == macho.MagicFat && !boundaryOK(offset) {
 			return nil, fmt.Errorf("exceeds maximum 32 bit size")
 		}
-		arches[i].Offset = uint32(offset)
-		offset += int64(arches[i].Size)
+		arches[i].Offset = offset
+		offset += arches[i].Size
 	}
 
 	return arches, nil
 }
 
-func align(offset, v int64) int64 {
+func align(offset, v uint64) uint64 {
 	return (offset + v - 1) / v * v
 }
 
-func boundaryOK(s int64) (ok bool) {
+func boundaryOK(s uint64) (ok bool) {
 	return s < 1<<32
 }

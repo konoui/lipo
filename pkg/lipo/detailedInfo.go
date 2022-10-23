@@ -58,8 +58,8 @@ type tplFatArch struct {
 	SubCpuType   string
 	Arch         string
 	Capabilities string
-	Offset       uint32
-	Size         uint32
+	Offset       uint64
+	Size         uint64
 	AlignBit     uint32
 	Align        int
 }
