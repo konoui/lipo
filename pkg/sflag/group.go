@@ -140,7 +140,13 @@ func (g *Group) Usage() string {
 
 	// sort by flag type
 	sort.Slice(flags, func(i, j int) bool {
-		return g.types[flags[i].Name] < g.types[flags[j].Name]
+		iv, jv := g.types[flags[i].Name], g.types[flags[j].Name]
+		if iv < jv {
+			return true
+		} else if iv == jv {
+			return flags[i].Name < flags[j].Name
+		}
+		return false
 	})
 
 	for _, flag := range flags {
