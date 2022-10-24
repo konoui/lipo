@@ -30,12 +30,12 @@ func register() (*sflag.FlagSet, []*sflag.Group) {
 	archsGroup := f.NewGroup("archs")
 	verifyArchGroup := f.NewGroup("verify_arch")
 	f.String(&output, "output", "-output <file>",
-		sflag.WithGroup(createGroup, sflag.TypeRequire),
-		sflag.WithGroup(thinGroup, sflag.TypeRequire),
-		sflag.WithGroup(extractGroup, sflag.TypeRequire),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire),
-		sflag.WithGroup(removeGroup, sflag.TypeRequire),
-		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
+		sflag.WithGroup(createGroup, sflag.TypeRequired),
+		sflag.WithGroup(thinGroup, sflag.TypeRequired),
+		sflag.WithGroup(extractGroup, sflag.TypeRequired),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired),
+		sflag.WithGroup(removeGroup, sflag.TypeRequired),
+		sflag.WithGroup(replaceGroup, sflag.TypeRequired))
 	f.MultipleFlagFixedStrings(&segAligns, "segalign", "<arch_type> <alignment>",
 		sflag.WithGroup(createGroup, sflag.TypeOption),
 		sflag.WithGroup(thinGroup, sflag.TypeOption),
@@ -45,23 +45,23 @@ func register() (*sflag.FlagSet, []*sflag.Group) {
 		sflag.WithGroup(replaceGroup, sflag.TypeOption),
 	)
 	f.Bool(&create, "create", "-create",
-		sflag.WithGroup(createGroup, sflag.TypeRequire))
+		sflag.WithGroup(createGroup, sflag.TypeRequired))
 	f.String(&thin, "thin", "thin <arch>",
-		sflag.WithGroup(thinGroup, sflag.TypeRequire))
+		sflag.WithGroup(thinGroup, sflag.TypeRequired))
 	f.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>",
-		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
+		sflag.WithGroup(replaceGroup, sflag.TypeRequired))
 	f.MultipleFlagString(&extract, "extract", "-extract <arch>",
-		sflag.WithGroup(extractGroup, sflag.TypeRequire),
+		sflag.WithGroup(extractGroup, sflag.TypeRequired),
 		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption)) // if specified, apple lipo regard values as family
 	f.MultipleFlagString(&extractFamily, "extract_family",
 		"-extract_family <arch>",
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire))
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired))
 	f.MultipleFlagString(&remove, "remove", "-remove <arch>",
-		sflag.WithGroup(removeGroup, sflag.TypeRequire))
+		sflag.WithGroup(removeGroup, sflag.TypeRequired))
 	f.Bool(&archs, "archs", "-archs <arch> ...",
-		sflag.WithGroup(archsGroup, sflag.TypeRequire))
+		sflag.WithGroup(archsGroup, sflag.TypeRequired))
 	f.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch>",
-		sflag.WithGroup(verifyArchGroup, sflag.TypeRequire))
+		sflag.WithGroup(verifyArchGroup, sflag.TypeRequired))
 	return f, []*sflag.Group{
 		createGroup, thinGroup, extractGroup, extractFamilyGroup,
 		removeGroup, replaceGroup, archsGroup,

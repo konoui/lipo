@@ -8,7 +8,7 @@ func WithDenyDuplicate() FlagOption {
 	}
 }
 
-func WithGroup(g *Group, typ int) FlagOption {
+func WithGroup(g *Group, typ FlagType) FlagOption {
 	return func(flag *Flag) {
 		g.Add(flag, typ)
 	}

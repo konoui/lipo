@@ -44,12 +44,12 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	fset.Usage = sflag.UsageFunc(groups...)
 	fset.String(&out, "output",
 		"-output <output_file>",
-		sflag.WithGroup(createGroup, sflag.TypeRequire),
-		sflag.WithGroup(thinGroup, sflag.TypeRequire),
-		sflag.WithGroup(extractGroup, sflag.TypeRequire),
-		sflag.WithGroup(removeGroup, sflag.TypeRequire),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire),
-		sflag.WithGroup(replaceGroup, sflag.TypeRequire),
+		sflag.WithGroup(createGroup, sflag.TypeRequired),
+		sflag.WithGroup(thinGroup, sflag.TypeRequired),
+		sflag.WithGroup(extractGroup, sflag.TypeRequired),
+		sflag.WithGroup(removeGroup, sflag.TypeRequired),
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired),
+		sflag.WithGroup(replaceGroup, sflag.TypeRequired),
 	)
 	fset.MultipleFlagFixedStrings(&segAligns, "segalign", "-segalign <arch_type> <alignment>",
 		sflag.WithGroup(createGroup, sflag.TypeOption),
@@ -65,35 +65,35 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	)
 	fset.Bool(&create, "create",
 		"-create",
-		sflag.WithGroup(createGroup, sflag.TypeRequire))
+		sflag.WithGroup(createGroup, sflag.TypeRequired))
 	fset.String(&thin, "thin",
 		"-thin <arch_type>",
-		sflag.WithGroup(thinGroup, sflag.TypeRequire))
+		sflag.WithGroup(thinGroup, sflag.TypeRequired))
 	fset.MultipleFlagString(&extract, "extract",
 		"-extract <arch_type> [-extract <arch_type> ...]",
-		sflag.WithGroup(extractGroup, sflag.TypeRequire),
+		sflag.WithGroup(extractGroup, sflag.TypeRequired),
 		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption)) // if specified, apple lipo regard values as family
 	fset.MultipleFlagString(&extractFamily, "extract_family",
 		"-extract_family <arch_type> [-extract_family <arch_type> ...]",
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequire))
+		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired))
 	fset.MultipleFlagString(&remove, "remove",
 		"-remove <arch_type> [-remove <arch_type> ...]",
-		sflag.WithGroup(removeGroup, sflag.TypeRequire))
+		sflag.WithGroup(removeGroup, sflag.TypeRequired))
 	fset.MultipleFlagFixedStrings(&replace, "replace",
 		"-replace <arch_type> <file_name> [-replace <arch_type> <file_name> ...]",
-		sflag.WithGroup(replaceGroup, sflag.TypeRequire))
+		sflag.WithGroup(replaceGroup, sflag.TypeRequired))
 	fset.Bool(&archs, "archs",
 		"-archs",
-		sflag.WithGroup(archsGroup, sflag.TypeRequire))
+		sflag.WithGroup(archsGroup, sflag.TypeRequired))
 	fset.FlexStrings(&verifyArch, "verify_arch",
 		"-verify_arch <arch_type> ...",
-		sflag.WithGroup(verifyArchGroup, sflag.TypeRequire))
+		sflag.WithGroup(verifyArchGroup, sflag.TypeRequired))
 	fset.Bool(&info, "info",
 		"-info",
-		sflag.WithGroup(infoGroup, sflag.TypeRequire))
+		sflag.WithGroup(infoGroup, sflag.TypeRequired))
 	fset.Bool(&detailedInfo, "detailed_info",
 		"-detailed_info",
-		sflag.WithGroup(detailedInfoGroup, sflag.TypeRequire))
+		sflag.WithGroup(detailedInfoGroup, sflag.TypeRequired))
 	fset.Bool(&hideArm64, "hideARM64", "-hideARM64",
 		sflag.WithGroup(createGroup, sflag.TypeOption),
 		sflag.WithGroup(removeGroup, sflag.TypeOption),

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 )
 
 // FatHeader is a header for a Macho-0 32 bit or 64 bit
@@ -39,6 +38,10 @@ type FatFile struct {
 	Magic        uint32
 	Arches       []FatArch
 	HiddenArches []FatArch
+}
+
+func (f *FatFile) offset() uint64 {
+	return f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(f.Arches)+len(f.HiddenArches))
 }
 
 func (f *FatFile) fatHeaderSize() uint64 {
@@ -195,7 +198,7 @@ func (f *FatFile) sortedArches() ([]FatArch, error) {
 	})
 
 	// update offset
-	offset := f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches))
+	offset := f.offset()
 	for i := range arches {
 		offset = align(offset, 1<<arches[i].Align)
 		arches[i].Offset = offset
@@ -221,11 +224,6 @@ func (f *FatFile) Create(out io.Writer) error {
 		return err
 	}
 
-	// sort by offset by asc for effective writing binary data
-	sort.Slice(arches, func(i, j int) bool {
-		return arches[i].Offset < arches[j].Offset
-	})
-
 	// write header
 	// see https://cs.opensource.google/go/go/+/refs/tags/go1.18:src/debug/macho/fat.go;l=45
 	if err := binary.Write(out, binary.BigEndian, fatHeader); err != nil {
@@ -239,8 +237,7 @@ func (f *FatFile) Create(out io.Writer) error {
 		}
 	}
 
-	// calculate offset with raw narch
-	off := f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches))
+	off := f.offset()
 	for _, fatArch := range arches {
 		if off < fatArch.Offset {
 			// write empty data for alignment
@@ -362,7 +359,7 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 
 	// handling hidden arm64
 	ff.HiddenArches = []FatArch{}
-	nextHdrOffset := ff.fatHeaderSize() + ff.fatArchHeaderSize()*uint64(narch)
+	nextHdrOffset := ff.offset()
 	firstOffset := ff.Arches[0].Offset
 	for {
 		if nextHdrOffset+ff.fatArchHeaderSize() > firstOffset {

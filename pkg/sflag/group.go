@@ -2,24 +2,40 @@ package sflag
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
+type FlagType int
+
+func (t FlagType) String() string {
+	switch t {
+	case TypeRequired:
+		return "required"
+	case TypeOption:
+		return "option"
+	case typeNotDefined:
+		return "not-defined"
+	}
+	return "unknown"
+}
+
 const (
-	TypeRequire = iota
+	TypeRequired FlagType = iota + 1
 	TypeOption
+	typeNotDefined
 )
 
 type Group struct {
 	Name        string
-	types       map[string]int
+	types       map[string]FlagType
 	flagSet     *FlagSet
 	description string
 }
 
-func (g *Group) Add(flag *Flag, typ int) {
+func (g *Group) Add(flag *Flag, typ FlagType) {
 	if g.types == nil {
-		g.types = make(map[string]int)
+		g.types = make(map[string]FlagType)
 	}
 	g.types[flag.Name] = typ
 }
@@ -29,7 +45,7 @@ func (g *Group) AddDescription(s string) *Group {
 	return g
 }
 
-func (g *Group) LookupByType(typ int) []*Flag {
+func (g *Group) LookupByType(typ FlagType) []*Flag {
 	flags := []*Flag{}
 	for name, ft := range g.types {
 		if ft == typ {
@@ -86,7 +102,7 @@ func (g *Group) Diff() []string {
 }
 
 func (g *Group) validate() error {
-	flags := g.LookupByType(TypeRequire)
+	flags := g.LookupByType(TypeRequired)
 	for _, flag := range flags {
 		if !g.Seen(flag.Name) {
 			return fmt.Errorf("required flag -%s is not specified", flag.Name)
@@ -117,11 +133,18 @@ func (g *Group) Usage() string {
 	b.WriteString(fmt.Sprintf("%s:", g.Name))
 	b.WriteString(strings.ReplaceAll(g.description, "\n", "\n  "))
 	b.WriteString("\n")
-	flags := make(map[string]*Flag)
+	flags := make([]*Flag, 0, len(g.types))
 	for k := range g.types {
-		flags[k] = g.Lookup(k)
+		flags = append(flags, g.Lookup(k))
 	}
 
-	buildFlagsUsage(&b, flags)
+	// sort by flag type
+	sort.Slice(flags, func(i, j int) bool {
+		return g.types[flags[i].Name] < g.types[flags[j].Name]
+	})
+
+	for _, flag := range flags {
+		buildFlagUsage(&b, flag, g.types[flag.Name])
+	}
 	return b.String()
 }

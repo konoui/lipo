@@ -59,23 +59,28 @@ func (f *FlagSet) usage() string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("usage: %s:\n", f.name))
 
-	buildFlagsUsage(&b, f.flags)
+	for _, flag := range sortFlags(f.flags) {
+		buildFlagUsage(&b, flag, typeNotDefined)
+	}
 	return b.String()
 }
 
-func buildFlagsUsage(b *strings.Builder, flags map[string]*Flag) {
-	for _, flag := range sortFlags(flags) {
-		fmt.Fprintf(b, "  -%s", flag.Name) // Two spaces before -; see next two comments.
-		usage := flag.Usage
-
-		if b.Len() <= 4 { // space, space, '-', 'x'.
-			b.WriteString("\t")
-		} else {
-			b.WriteString("\n    \t")
-		}
-		b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
-		b.WriteString("\n")
+func buildFlagUsage(b *strings.Builder, flag *Flag, typ FlagType) {
+	if typ == TypeRequired {
+		fmt.Fprintf(b, "  -%s  *%s*", flag.Name, typ.String())
+	} else {
+		fmt.Fprintf(b, "  -%s", flag.Name)
 	}
+
+	usage := flag.Usage
+
+	if b.Len() <= 4 { // space, space, '-', 'x'.
+		b.WriteString("\t")
+	} else {
+		b.WriteString("\n    \t")
+	}
+	b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
+	b.WriteString("\n")
 }
 
 func sortFlags(flags map[string]*Flag) []*Flag {
