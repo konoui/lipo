@@ -6,14 +6,19 @@ import (
 )
 
 const (
-	alignBitMax uint32 = 15
-	alignBitMin uint32 = 5
+	alignBitMax   uint32 = 15
+	alignBitMin32 uint32 = 2
+	alignBitMin64 uint32 = 3
 )
 
 func SegmentAlignBit(f *macho.File) uint32 {
 	cur := alignBitMax
 	for _, l := range f.Loads {
 		if s, ok := l.(*macho.Segment); ok {
+			alignBitMin := alignBitMin64
+			if s.Cmd == macho.LoadCmdSegment {
+				alignBitMin = alignBitMin32
+			}
 			align := GuessAlignBit(s.Addr, alignBitMin, alignBitMax)
 			if align < cur {
 				cur = align

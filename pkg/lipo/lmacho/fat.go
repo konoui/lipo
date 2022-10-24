@@ -279,6 +279,10 @@ func NewFatArch(name string) (*FatArch, error) {
 	size := info.Size()
 	align := SegmentAlignBit(f)
 	if f.Type == macho.TypeObj {
+		alignBitMin := alignBitMin64
+		if f.Magic == macho.Magic32 {
+			alignBitMin = alignBitMin32
+		}
 		align = GuessAlignBit(uint64(os.Getpagesize()), alignBitMin, alignBitMax)
 	}
 
