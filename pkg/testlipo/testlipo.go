@@ -31,6 +31,7 @@ type LipoBin struct {
 	Bin       string
 	segAligns []string
 	hideArm64 bool
+	fat64     bool
 	exist     bool
 }
 
@@ -55,6 +56,12 @@ func WithSegAlign(sa []string) Opt {
 func WithHideArm64(v bool) Opt {
 	return func(l *LipoBin) {
 		l.hideArm64 = v
+	}
+}
+
+func WithFat64(v bool) Opt {
+	return func(l *LipoBin) {
+		l.fat64 = v
 	}
 }
 
@@ -201,6 +208,9 @@ func (l *LipoBin) Create(t *testing.T, out string, inputs ...string) {
 	if l.hideArm64 {
 		args = append(args, "-hideARM64")
 	}
+	if l.fat64 {
+		args = append(args, "-fat64")
+	}
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -222,6 +232,9 @@ func (l *LipoBin) Extract(t *testing.T, out, in string, arches []string) {
 	args := appendCmd("-extract", arches)
 	args = append([]string{in, "-output", out}, args...)
 	args = append(args, l.segAligns...)
+	if l.fat64 {
+		args = append(args, "-fat64")
+	}
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -231,6 +244,9 @@ func (l *LipoBin) ExtractFamily(t *testing.T, out, in string, arches []string) {
 	args := appendCmd("-extract_family", arches)
 	args = append([]string{in, "-output", out}, args...)
 	args = append(args, l.segAligns...)
+	if l.fat64 {
+		args = append(args, "-fat64")
+	}
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)
 }
@@ -252,6 +268,9 @@ func (l *LipoBin) Replace(t *testing.T, out, in string, archBins [][2]string) {
 	args = append(args, l.segAligns...)
 	if l.hideArm64 {
 		args = append(args, "-hideARM64")
+	}
+	if l.fat64 {
+		args = append(args, "-fat64")
 	}
 	cmd := exec.Command(l.Bin, args...)
 	execute(t, cmd, true)

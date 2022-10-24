@@ -2,20 +2,19 @@ package lmacho
 
 import (
 	"debug/macho"
-	"fmt"
 	"sort"
 )
 
 const (
-	AlignBitMax uint32 = 15
-	AlignBitMin uint32 = 5
+	alignBitMax uint32 = 15
+	alignBitMin uint32 = 5
 )
 
 func SegmentAlignBit(f *macho.File) uint32 {
-	cur := AlignBitMax
+	cur := alignBitMax
 	for _, l := range f.Loads {
 		if s, ok := l.(*macho.Segment); ok {
-			align := GuessAlignBit(s.Addr, AlignBitMin, AlignBitMax)
+			align := GuessAlignBit(s.Addr, alignBitMin, alignBitMax)
 			if align < cur {
 				cur = align
 			}
@@ -66,29 +65,10 @@ func compare(i, j FatArch) bool {
 	return i.Align < j.Align
 }
 
-func SortBy(arches []FatArch) ([]FatArch, error) {
-	SortFunc(arches, func(i, j int) bool {
-		return compare(arches[i], arches[j])
-	})
-
-	// update offset
-	offset := int64(fatHeaderSize + fatArchHeaderSize*uint32(len(arches)))
-	for i := range arches {
-		offset = align(int64(offset), 1<<int64(arches[i].Align))
-		if !boundaryOK(offset) {
-			return nil, fmt.Errorf("exceeds maximum fat32 size")
-		}
-		arches[i].Offset = uint32(offset)
-		offset += int64(arches[i].Size)
-	}
-
-	return arches, nil
-}
-
-func align(offset, v int64) int64 {
+func align(offset, v uint64) uint64 {
 	return (offset + v - 1) / v * v
 }
 
-func boundaryOK(s int64) (ok bool) {
+func boundaryOK(s uint64) (ok bool) {
 	return s < 1<<32
 }

@@ -16,6 +16,7 @@ func TestLipo_Remove(t *testing.T) {
 		arches    []string
 		segAligns []*lipo.SegAlignInput
 		hideArm64 bool
+		fat64     bool
 	}{
 		{
 			name:   "-remove x86_64",
@@ -44,12 +45,20 @@ func TestLipo_Remove(t *testing.T) {
 			arches:    []string{"x86_64"},
 			hideArm64: true,
 		},
+		{
+			name:   "-remove -fat64",
+			inputs: []string{"armv7k", "arm64", "arm64e"},
+			arches: []string{"arm64"},
+			fat64:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := testlipo.Setup(t, tt.inputs,
 				testSegAlignOpt(tt.segAligns),
-				testlipo.WithHideArm64(tt.hideArm64))
+				testlipo.WithHideArm64(tt.hideArm64),
+				testlipo.WithFat64(tt.fat64),
+			)
 
 			got := filepath.Join(p.Dir, gotName(t))
 			arches := tt.arches
@@ -60,6 +69,9 @@ func TestLipo_Remove(t *testing.T) {
 			}
 			if tt.hideArm64 {
 				opts = append(opts, lipo.WithHideArm64())
+			}
+			if tt.fat64 {
+				opts = append(opts, lipo.WithFat64())
 			}
 			l := lipo.New(opts...)
 			if err := l.Remove(arches...); err != nil {

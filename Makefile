@@ -19,6 +19,9 @@ test:
 	GODEBUG=cgocheck=0 \
 	go test ./...
 
+test-large-file:
+	./test-large-file.sh
+
 cover:
 	go test -coverprofile=cover.out ./...
 	go tool cover -html=cover.out -o cover.html

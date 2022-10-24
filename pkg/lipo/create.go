@@ -1,6 +1,7 @@
 package lipo
 
 import (
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
 
@@ -20,10 +21,13 @@ func (l *Lipo) Create() error {
 	}
 
 	if l.hideArm64 {
-		if err := hideARmObjectErr(fatArches); err != nil {
+		if err := hideArmObjectErr(fatArches); err != nil {
 			return err
 		}
 	}
 
-	return fatArches.createFatBinary(l.out, 0731, l.hideArm64)
+	return fatArches.createFatBinary(l.out, 0731, &lmacho.FatFileConfig{
+		HideArm64: l.hideArm64,
+		Fat64:     l.fat64,
+	})
 }

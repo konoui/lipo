@@ -10,18 +10,110 @@ import (
 	"sort"
 )
 
+// FatHeader is a header for a Macho-0 32 bit or 64 bit
 // see /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach-o/fat.h
 type FatHeader struct {
 	Magic uint32
 	NArch uint32
 }
 
-const (
-	// sizeof(fatHeader) = uint32 * 2
-	fatHeaderSize = uint32(4 * 2)
+// FatArchHeader is a header for a Macho-0 32 bit or 64 bit
+type FatArchHeader struct {
+	Cpu    macho.Cpu
+	SubCpu uint32
+	Offset uint64
+	Size   uint64
+	Align  uint32
+}
+
+// FatArchHeader is a header for a Macho-0 32 bit or 64 bit
+type FatArch struct {
+	FatArchHeader
+	FileHeader *macho.FileHeader
+	Name       string
+	fileOffset uint64
+}
+
+// FatFile presets an universal file for 32 bit or 64 bit
+type FatFile struct {
+	Magic        uint32
+	Arches       []FatArch
+	HiddenArches []FatArch
+}
+
+func (f *FatFile) fatHeaderSize() uint64 {
+	// sizeof(FatHeader) = uint32 * 2
+	return uint64(4 * 2)
+}
+
+func (f *FatFile) fatArchHeaderSize() uint64 {
+	if f.Magic == MagicFat64 {
+		// sizeof(Fat64ArchHeader) = uint32 * 4 + uint64 * 2
+		return uint64(4*4 + 8*2)
+	}
 	// sizeof(macho.FatArchHeader) = uint32 * 5
-	fatArchHeaderSize = uint32(4 * 5)
-)
+	return uint64(4 * 5)
+}
+
+func (f *FatFile) fatHeader() *FatHeader {
+	return &FatHeader{
+		NArch: uint32(len(f.Arches)),
+		Magic: f.Magic,
+	}
+}
+
+func (f *FatFile) readFatArchHeader(r io.Reader) (*FatArchHeader, error) {
+	if f.Magic == MagicFat64 {
+		var fatHdr fatArch64Header
+		err := binary.Read(r, binary.BigEndian, &fatHdr)
+		if err != nil {
+			return nil, errors.New("invalid fat arch64 header")
+		}
+
+		return &FatArchHeader{
+			Cpu:    fatHdr.Cpu,
+			SubCpu: fatHdr.SubCpu,
+			Align:  fatHdr.Align,
+			Size:   fatHdr.Size,
+			Offset: fatHdr.Offset,
+		}, nil
+	}
+
+	var fatHdr macho.FatArchHeader
+	err := binary.Read(r, binary.BigEndian, &fatHdr)
+	if err != nil {
+		return nil, errors.New("invalid fat arch header")
+	}
+	return &FatArchHeader{
+		Cpu:    fatHdr.Cpu,
+		SubCpu: fatHdr.SubCpu,
+		Align:  fatHdr.Align,
+		Size:   uint64(fatHdr.Size),
+		Offset: uint64(fatHdr.Offset),
+	}, nil
+}
+
+func (f *FatFile) writeFatArchHeader(out io.Writer, hdr FatArchHeader) error {
+	if f.Magic == MagicFat64 {
+		fatArchHdr := fatArch64Header{FatArchHeader: hdr, Reserved: 0}
+		if err := binary.Write(out, binary.BigEndian, fatArchHdr); err != nil {
+			return fmt.Errorf("error write fat arch64 headers: %w", err)
+		}
+		return nil
+	}
+
+	fatArchHdr := macho.FatArchHeader{
+		Cpu:    hdr.Cpu,
+		SubCpu: hdr.SubCpu,
+		Offset: uint32(hdr.Offset),
+		Size:   uint32(hdr.Size),
+		Align:  hdr.Align,
+	}
+	if err := binary.Write(out, binary.BigEndian, fatArchHdr); err != nil {
+		return fmt.Errorf("error write fat arch headers: %w", err)
+	}
+	return nil
+}
 
 func OpenFat(name string) (*FatFile, error) {
 	f, err := os.OpenFile(name, os.O_RDONLY, 0766)
@@ -37,16 +129,24 @@ func OpenFat(name string) (*FatFile, error) {
 	return ff, nil
 }
 
-type FatFile struct {
-	Magic        uint32
-	Arches       []FatArch
-	HiddenArches []FatArch
+type FatFileConfig struct {
+	HideArm64 bool
+	Fat64     bool
 }
 
-func NewFatFileFromArch(farches []FatArch, hideArm64 bool) *FatFile {
-	if !hideArm64 {
+func NewFatFileFromArch(farches []FatArch, cfg *FatFileConfig) *FatFile {
+	if cfg == nil {
+		cfg = &FatFileConfig{}
+	}
+
+	magic := macho.MagicFat
+	if cfg.Fat64 {
+		magic = MagicFat64
+	}
+
+	if !cfg.HideArm64 {
 		return &FatFile{
-			Magic:  macho.MagicFat,
+			Magic:  magic,
 			Arches: farches,
 		}
 	}
@@ -61,15 +161,15 @@ func NewFatFileFromArch(farches []FatArch, hideArm64 bool) *FatFile {
 
 	if !found {
 		return &FatFile{
-			Magic:  macho.MagicFat,
+			Magic:  magic,
 			Arches: farches,
 		}
 	}
 
 	ff := FatFile{
+		Magic:        magic,
 		Arches:       make([]FatArch, 0, len(farches)),
 		HiddenArches: make([]FatArch, 0),
-		Magic:        macho.MagicFat,
 	}
 	for i := range farches {
 		if farches[i].Cpu == CpuTypeArm64 {
@@ -88,25 +188,36 @@ func (f *FatFile) AllArches() []FatArch {
 	return fa
 }
 
-func (f *FatFile) FatHeader() *FatHeader {
-	return &FatHeader{
-		NArch: uint32(len(f.Arches)),
-		Magic: f.Magic,
+func (f *FatFile) sortedArches() ([]FatArch, error) {
+	arches := f.AllArches()
+	SortFunc(arches, func(i, j int) bool {
+		return compare(arches[i], arches[j])
+	})
+
+	// update offset
+	offset := f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches))
+	for i := range arches {
+		offset = align(offset, 1<<arches[i].Align)
+		arches[i].Offset = offset
+		offset += arches[i].Size
+		if f.Magic == macho.MagicFat && !boundaryOK(offset) {
+			return nil, fmt.Errorf("exceeds maximum 32 bit size at %s. please handle it as fat64", arches[i].Name)
+		}
 	}
+
+	return arches, nil
 }
 
 func (f *FatFile) Create(out io.Writer) error {
-	fatHeader := f.FatHeader()
+	fatHeader := f.fatHeader()
 
-	arches := f.AllArches()
-
-	if err := ValidateFatArches(arches); err != nil {
+	// sort and update offset
+	arches, err := f.sortedArches()
+	if err != nil {
 		return err
 	}
 
-	// sort and update offset
-	arches, err := SortBy(arches)
-	if err != nil {
+	if err := ValidateFatArches(arches); err != nil {
 		return err
 	}
 
@@ -123,13 +234,13 @@ func (f *FatFile) Create(out io.Writer) error {
 
 	// write headers
 	for _, hdr := range arches {
-		if err := binary.Write(out, binary.BigEndian, hdr.FatArchHeader); err != nil {
-			return fmt.Errorf("error write arch headers: %w", err)
+		if err := f.writeFatArchHeader(out, hdr.FatArchHeader); err != nil {
+			return err
 		}
 	}
 
 	// calculate offset with raw narch
-	off := fatHeaderSize + fatArchHeaderSize*uint32(len(arches))
+	off := f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(arches))
 	for _, fatArch := range arches {
 		if off < fatArch.Offset {
 			// write empty data for alignment
@@ -156,13 +267,6 @@ func (f *FatFile) Create(out io.Writer) error {
 	return nil
 }
 
-type FatArch struct {
-	macho.FatArchHeader
-	FileHeader *macho.FileHeader
-	Name       string
-	fileOffset uint32
-}
-
 func NewFatArch(name string) (*FatArch, error) {
 	f, err := macho.Open(name)
 	if err != nil {
@@ -175,19 +279,20 @@ func NewFatArch(name string) (*FatArch, error) {
 		return nil, err
 	}
 
+	size := info.Size()
 	align := SegmentAlignBit(f)
 	if f.Type == macho.TypeObj {
-		align = GuessAlignBit(uint64(os.Getpagesize()), AlignBitMin, AlignBitMax)
+		align = GuessAlignBit(uint64(os.Getpagesize()), alignBitMin, alignBitMax)
 	}
 
 	fa := &FatArch{
 		Name:       name,
 		fileOffset: 0,
 		FileHeader: &f.FileHeader,
-		FatArchHeader: macho.FatArchHeader{
+		FatArchHeader: FatArchHeader{
 			Cpu:    f.Cpu,
 			SubCpu: f.SubCpu,
-			Size:   uint32(info.Size()),
+			Size:   uint64(size),
 			Align:  align,
 			// offset will be updated
 			Offset: 0,
@@ -212,15 +317,16 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 	err := binary.Read(sr, binary.BigEndian, &ff.Magic)
 	if err != nil {
 		return nil, errors.New("error reading magic number")
-	} else if ff.Magic != macho.MagicFat {
+	}
+
+	if ff.Magic != macho.MagicFat && ff.Magic != MagicFat64 {
 		var buf [4]byte
 		binary.BigEndian.PutUint32(buf[:], ff.Magic)
 		leMagic := binary.LittleEndian.Uint32(buf[:])
 		if leMagic == macho.Magic32 || leMagic == macho.Magic64 {
 			return nil, macho.ErrNotFat
-		} else {
-			return nil, errors.New("invalid magic number")
 		}
+		return nil, errors.New("invalid magic number")
 	}
 
 	var narch uint32
@@ -235,36 +341,42 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 
 	ff.Arches = make([]FatArch, narch)
 	for i := uint32(0); i < narch; i++ {
-		fa := &ff.Arches[i]
-		err = binary.Read(sr, binary.BigEndian, &fa.FatArchHeader)
-		if err != nil {
-			return nil, errors.New("invalid fat_arch header")
-		}
-		fa.Name = name
-		fa.fileOffset = fa.Offset
-
-		fr := io.NewSectionReader(sr, int64(fa.Offset), int64(fa.Size))
-		f, err := macho.NewFile(fr)
+		fatHdr, err := ff.readFatArchHeader(sr)
 		if err != nil {
 			return nil, err
 		}
+
+		fr := io.NewSectionReader(sr, int64(fatHdr.Offset), int64(fatHdr.Size))
+		f, err := macho.NewFile(fr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid macho-file: %w", err)
+		}
 		defer f.Close()
+
+		fa := &ff.Arches[i]
+		fa.FatArchHeader = *fatHdr
 		fa.FileHeader = &f.FileHeader
+		fa.Name = name
+		fa.fileOffset = uint64(fatHdr.Offset)
 	}
 
 	// handling hidden arm64
 	ff.HiddenArches = []FatArch{}
-	nextHdrOffset := fatHeaderSize + fatArchHeaderSize*narch
+	nextHdrOffset := ff.fatHeaderSize() + ff.fatArchHeaderSize()*uint64(narch)
 	firstOffset := ff.Arches[0].Offset
-	for start := nextHdrOffset + fatArchHeaderSize; start <= firstOffset; start += fatArchHeaderSize {
-		var fahdr macho.FatArchHeader
-		err := binary.Read(sr, binary.BigEndian, &fahdr)
-		if err != nil {
+	for {
+		if nextHdrOffset+ff.fatArchHeaderSize() > firstOffset {
 			break
 		}
 
-		fr := io.NewSectionReader(sr, int64(fahdr.Offset), int64(fahdr.Size))
-		if fahdr.Cpu != CpuTypeArm64 {
+		hr := io.NewSectionReader(sr, int64(nextHdrOffset), int64(ff.fatArchHeaderSize()))
+		fatHdr, err := ff.readFatArchHeader(hr)
+		if err != nil {
+			return nil, err
+		}
+
+		fr := io.NewSectionReader(sr, int64(fatHdr.Offset), int64(fatHdr.Size))
+		if fatHdr.Cpu != CpuTypeArm64 {
 			break
 		}
 		f, err := macho.NewFile(fr)
@@ -273,11 +385,12 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 		}
 		defer f.Close()
 		ff.HiddenArches = append(ff.HiddenArches, FatArch{
-			FatArchHeader: fahdr,
+			FatArchHeader: *fatHdr,
 			FileHeader:    &f.FileHeader,
 			Name:          name,
-			fileOffset:    fahdr.Offset,
+			fileOffset:    uint64(fatHdr.Offset),
 		})
+		nextHdrOffset += ff.fatArchHeaderSize()
 	}
 
 	if err := ValidateFatArches(ff.AllArches()); err != nil {

@@ -14,6 +14,7 @@ func TestLipo_ExtractFamily(t *testing.T) {
 		inputs    []string
 		arches    []string
 		segAligns []*lipo.SegAlignInput
+		fat64     bool
 	}{
 		{
 			name:   "-extract_family arm64e",
@@ -39,14 +40,30 @@ func TestLipo_ExtractFamily(t *testing.T) {
 				{Arch: "arm64e", AlignHex: "1"},
 			},
 		},
+		{
+			name:   "-extract_family -fat64",
+			inputs: []string{"armv7k", "arm64", "arm64e"},
+			arches: []string{"arm64"},
+			fat64:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.inputs, testSegAlignOpt(tt.segAligns))
+			p := testlipo.Setup(t, tt.inputs,
+				testSegAlignOpt(tt.segAligns),
+				testlipo.WithFat64(tt.fat64))
 
 			got := filepath.Join(p.Dir, gotName(t))
 			arches := tt.arches
-			l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got), lipo.WithSegAlign(tt.segAligns))
+			opts := []lipo.Option{
+				lipo.WithInputs(p.FatBin),
+				lipo.WithOutput(got),
+				lipo.WithSegAlign(tt.segAligns),
+			}
+			if tt.fat64 {
+				opts = append(opts, lipo.WithFat64())
+			}
+			l := lipo.New(opts...)
 			if err := l.ExtractFamily(arches...); err != nil {
 				t.Errorf("extract error %v\n", err)
 			}

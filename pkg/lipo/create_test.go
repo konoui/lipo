@@ -16,6 +16,7 @@ func TestLipo_Create(t *testing.T) {
 		arches    []string
 		segAligns []*lipo.SegAlignInput
 		hideArm64 bool
+		fat64     bool
 	}{
 		{
 			name:   "-create with single thin",
@@ -62,12 +63,19 @@ func TestLipo_Create(t *testing.T) {
 			segAligns: []*lipo.SegAlignInput{{Arch: "armv7k", AlignHex: "1"}, {Arch: "arm64", AlignHex: "2"}},
 			hideArm64: true,
 		},
+		{
+			name:   "-create -fat64",
+			arches: []string{"armv7k", "arm64", "arm64e"},
+			fat64:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := testlipo.Setup(t, tt.arches,
 				testSegAlignOpt(tt.segAligns),
-				testlipo.WithHideArm64(tt.hideArm64))
+				testlipo.WithHideArm64(tt.hideArm64),
+				testlipo.WithFat64(tt.fat64),
+			)
 			got := filepath.Join(p.Dir, gotName(t))
 			opts := []lipo.Option{
 				lipo.WithInputs(p.Bins()...),
@@ -76,6 +84,9 @@ func TestLipo_Create(t *testing.T) {
 			}
 			if tt.hideArm64 {
 				opts = append(opts, lipo.WithHideArm64())
+			}
+			if tt.fat64 {
+				opts = append(opts, lipo.WithFat64())
 			}
 
 			if err := lipo.New(opts...).Create(); err != nil {
