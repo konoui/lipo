@@ -53,7 +53,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	)
 	fset.MultipleFlagFixedStrings(&segAligns, "segalign", "-segalign <arch_type> <alignment>",
 		sflag.WithGroup(createGroup, sflag.TypeOption),
-		sflag.WithGroup(thinGroup, sflag.TypeOption), // apple lipo does not raise error if -thin with -segalign
+		// apple lipo does not raise error if -thin with -segalign but this this lipo will raise an error
 		sflag.WithGroup(extractGroup, sflag.TypeOption),
 		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption),
 		sflag.WithGroup(removeGroup, sflag.TypeOption),
