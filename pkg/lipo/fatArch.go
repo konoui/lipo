@@ -33,7 +33,7 @@ func (f fatArches) createFatBinary(p string, perm os.FileMode, cfg *lmacho.FatFi
 		}
 	}()
 
-	return lmacho.NewFatFileFromArch(f, cfg).Create(out)
+	return lmacho.NewFatFileFromArches(f, cfg).Create(out)
 }
 
 func (f fatArches) extract(arches ...string) fatArches {

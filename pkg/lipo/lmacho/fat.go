@@ -137,7 +137,7 @@ type FatFileConfig struct {
 	Fat64     bool
 }
 
-func NewFatFileFromArch(farches []FatArch, cfg *FatFileConfig) *FatFile {
+func NewFatFileFromArches(farches []FatArch, cfg *FatFileConfig) *FatFile {
 	if cfg == nil {
 		cfg = &FatFileConfig{}
 	}
