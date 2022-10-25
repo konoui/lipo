@@ -89,7 +89,11 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 		return nil
 	}
 
-	seen := map[string]bool{}
+	dup := util.Duplicates(segAligns, func(k *SegAlignInput) string { return k.Arch })
+	if dup != nil {
+		return fmt.Errorf("segalign %s specified multiple times", *dup)
+	}
+
 	for _, a := range segAligns {
 		align, err := strconv.ParseInt(a.AlignHex, 16, 64)
 		if err != nil {
@@ -99,11 +103,6 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 		if align == 0 || (align != 1 && (align%2) != 0) {
 			return fmt.Errorf("segalign %s (hex) must be a non-zero power of two", a.AlignHex)
 		}
-
-		if o, k := seen[a.Arch]; o || k {
-			return fmt.Errorf("segalign %s specified multiple times", a.Arch)
-		}
-		seen[a.Arch] = true
 
 		alignBit := uint32(math.Log2(float64(align)))
 		found := false

@@ -125,9 +125,11 @@ func (l *Lipo) validateOneInput() error {
 }
 
 func validateInputArches(arches []string) error {
-	dup := duplicates(arches)
-	if dup != "" {
-		return fmt.Errorf("architecture %s specified multiple times", dup)
+	dup := util.Duplicates(arches, func(v string) string {
+		return v
+	})
+	if dup != nil {
+		return fmt.Errorf("architecture %s specified multiple times", *dup)
 	}
 
 	for _, arch := range arches {
@@ -149,23 +151,12 @@ func perm(f string) (fs.FileMode, error) {
 	return perm, nil
 }
 
-func duplicates(l []string) string {
-	seen := map[string]bool{}
-	for _, v := range l {
-		if o, k := seen[v]; o || k {
-			return v
-		}
-		seen[v] = true
-	}
-	return ""
-}
-
 // remove return values `a` does not have
-func remove(a []string, b []string) string {
+func remove[T comparable](a []T, b []T) T {
 	for _, v := range b {
 		if !util.Contains(a, v) {
 			return v
 		}
 	}
-	return ""
+	return *new(T)
 }
