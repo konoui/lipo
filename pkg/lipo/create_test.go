@@ -101,6 +101,7 @@ func TestLipo_Create(t *testing.T) {
 			}
 
 			diffSha256(t, p.FatBin, got)
+			diffPerm(t, p.FatBin, got)
 		})
 	}
 }
@@ -116,7 +117,6 @@ func TestLipo_CreateWithArch(t *testing.T) {
 		}
 
 		verifyArches(t, got, "x86_64", "arm64", "arm64e")
-		diffSha256(t, p.FatBin, got)
 	})
 }
 

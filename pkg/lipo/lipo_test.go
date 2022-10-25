@@ -2,6 +2,7 @@ package lipo_test
 
 import (
 	"math/rand"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -27,8 +28,11 @@ func testSegAlignOpt(inputs []*lipo.SegAlignInput) testlipo.Opt {
 }
 
 var (
-	diffSha256 = testlipo.DiffSha256
-	cpuNames   = func() []string {
+	diffSha256 = func(t *testing.T, wantBin, gotBin string) {
+		testlipo.DiffSha256(t, wantBin, gotBin)
+		diffPerm(t, wantBin, gotBin)
+	}
+	cpuNames = func() []string {
 		ret := []string{}
 		for _, v := range lmacho.CpuNames() {
 			// apple lipo does not support them
@@ -38,6 +42,20 @@ var (
 			ret = append(ret, v)
 		}
 		return ret
+	}
+	diffPerm = func(t *testing.T, wantBin, gotBin string) {
+		wantInfo, err := os.Stat(wantBin)
+		if err != nil {
+			t.Fatal(err)
+		}
+		gotInfo, err := os.Stat(gotBin)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, got := wantInfo.Mode().Perm(), gotInfo.Mode().Perm()
+		if want != got {
+			t.Errorf("want %s got %s", want, got)
+		}
 	}
 )
 

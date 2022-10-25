@@ -2,7 +2,6 @@ package lipo
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
@@ -17,11 +16,10 @@ func (l *Lipo) ExtractFamily(arches ...string) error {
 	}
 
 	fatBin := l.in[0]
-	info, err := os.Stat(fatBin)
+	perm, err := perm(fatBin)
 	if err != nil {
 		return err
 	}
-	perm := info.Mode().Perm()
 
 	ff, err := lmacho.OpenFat(fatBin)
 	if err != nil {

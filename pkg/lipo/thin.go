@@ -18,12 +18,10 @@ func (l *Lipo) Thin(arch string) error {
 	}
 
 	fatBin := l.in[0]
-
-	info, err := os.Stat(l.in[0])
+	perm, err := perm(fatBin)
 	if err != nil {
 		return err
 	}
-	perm := info.Mode().Perm()
 
 	ff, err := lmacho.OpenFat(fatBin)
 	if err != nil {

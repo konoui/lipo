@@ -16,6 +16,11 @@ func (l *Lipo) Create() error {
 		return err
 	}
 
+	perm, err := perm(fatArches[len(fatArches)-1].Name)
+	if err != nil {
+		return err
+	}
+
 	if err := fatArches.updateAlignBit(l.segAligns); err != nil {
 		return err
 	}
@@ -26,7 +31,7 @@ func (l *Lipo) Create() error {
 		}
 	}
 
-	return fatArches.createFatBinary(l.out, 0731, &lmacho.FatFileConfig{
+	return fatArches.createFatBinary(l.out, perm, &lmacho.FatFileConfig{
 		HideArm64: l.hideArm64,
 		Fat64:     l.fat64,
 	})

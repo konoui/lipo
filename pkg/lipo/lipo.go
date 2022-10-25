@@ -4,6 +4,8 @@ import (
 	"debug/macho"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/util"
@@ -134,6 +136,17 @@ func validateInputArches(arches []string) error {
 		}
 	}
 	return nil
+}
+
+func perm(f string) (fs.FileMode, error) {
+	// apple lipo will uses a last file permission
+	// https://github.com/apple-oss-distributions/cctools/blob/cctools-973.0.1/misc/lipo.c#L1124
+	info, err := os.Stat(f)
+	if err != nil {
+		return 0, err
+	}
+	perm := info.Mode().Perm() & 07777
+	return perm, nil
 }
 
 func duplicates(l []string) string {
