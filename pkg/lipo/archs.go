@@ -2,13 +2,14 @@ package lipo
 
 import (
 	"debug/macho"
+	"errors"
 	"fmt"
 
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 func (l *Lipo) Archs() ([]string, error) {
-	if err := l.validateOneInput(); err != nil {
+	if err := validateOneInput(l.in); err != nil {
 		return nil, err
 	}
 
@@ -19,7 +20,7 @@ func (l *Lipo) Archs() ([]string, error) {
 func archs(bin string) ([]string, error) {
 	fat, err := lmacho.OpenFat(bin)
 	if err != nil {
-		if err != macho.ErrNotFat {
+		if !errors.Is(err, macho.ErrNotFat) {
 			return nil, err
 		}
 

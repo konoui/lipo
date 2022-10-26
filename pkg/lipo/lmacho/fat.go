@@ -220,7 +220,7 @@ func (f *FatFile) Create(out io.Writer) error {
 		return err
 	}
 
-	if err := ValidateFatArches(arches); err != nil {
+	if err := hasDuplicatesErr(arches); err != nil {
 		return err
 	}
 
@@ -394,14 +394,14 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 		nextHdrOffset += ff.fatArchHeaderSize()
 	}
 
-	if err := ValidateFatArches(ff.AllArches()); err != nil {
+	if err := hasDuplicatesErr(ff.AllArches()); err != nil {
 		return nil, err
 	}
 
 	return &ff, nil
 }
 
-func ValidateFatArches(arches []FatArch) error {
+func hasDuplicatesErr(arches []FatArch) error {
 	seenArches := make(map[uint64]bool, len(arches))
 	for _, fa := range arches {
 		seenArch := (uint64(fa.Cpu) << 32) | uint64(fa.SubCpu)

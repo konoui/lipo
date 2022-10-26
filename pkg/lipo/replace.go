@@ -13,7 +13,7 @@ type ReplaceInput struct {
 }
 
 func (l *Lipo) Replace(inputs []*ReplaceInput) error {
-	if err := l.validateOneInput(); err != nil {
+	if err := validateOneInput(l.in); err != nil {
 		return err
 	}
 

@@ -7,7 +7,7 @@ import (
 )
 
 func (l *Lipo) Remove(arches ...string) (err error) {
-	if err := l.validateOneInput(); err != nil {
+	if err := validateOneInput(l.in); err != nil {
 		return err
 	}
 
