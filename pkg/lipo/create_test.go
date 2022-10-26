@@ -101,7 +101,6 @@ func TestLipo_Create(t *testing.T) {
 			}
 
 			diffSha256(t, p.FatBin, got)
-			diffPerm(t, p.FatBin, got)
 		})
 	}
 }

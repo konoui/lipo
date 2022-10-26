@@ -64,16 +64,12 @@ func (f fatArches) remove(arches ...string) fatArches {
 }
 
 func (f fatArches) contains(in fatArches) bool {
-	arches := util.Map(in, func(v lmacho.FatArch) string {
-		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
-	})
+	arches := in.arches()
 	return len(f.extract(arches...)) == len(in)
 }
 
 func (f fatArches) replace(with fatArches) fatArches {
-	arches := util.Map(with, func(v lmacho.FatArch) string {
-		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
-	})
+	arches := with.arches()
 	new := f.remove(arches...)
 	return append(new, with...)
 }

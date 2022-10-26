@@ -9,7 +9,7 @@ import (
 )
 
 func (l *Lipo) Thin(arch string) error {
-	if err := l.validateOneInput(); err != nil {
+	if err := validateOneInput(l.in); err != nil {
 		return err
 	}
 

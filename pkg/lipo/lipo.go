@@ -111,11 +111,19 @@ func newFatArches(arches ...*ArchInput) (fatArches, error) {
 		}
 		fatArches[i] = *fa
 	}
-	return fatArches, lmacho.ValidateFatArches(fatArches)
+
+	dup := util.Duplicates(fatArches, func(v lmacho.FatArch) string {
+		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
+	})
+	if dup != nil {
+		return nil, fmt.Errorf("duplicate architecture %s", *dup)
+	}
+
+	return fatArches, nil
 }
 
-func (l *Lipo) validateOneInput() error {
-	num := len(l.in)
+func validateOneInput(inputs []string) error {
+	num := len(inputs)
 	if num == 0 {
 		return errNoInput
 	} else if num != 1 {
@@ -125,9 +133,7 @@ func (l *Lipo) validateOneInput() error {
 }
 
 func validateInputArches(arches []string) error {
-	dup := util.Duplicates(arches, func(v string) string {
-		return v
-	})
+	dup := util.Duplicates(arches, func(v string) string { return v })
 	if dup != nil {
 		return fmt.Errorf("architecture %s specified multiple times", *dup)
 	}
@@ -141,8 +147,6 @@ func validateInputArches(arches []string) error {
 }
 
 func perm(f string) (fs.FileMode, error) {
-	// apple lipo will uses a last file permission
-	// https://github.com/apple-oss-distributions/cctools/blob/cctools-973.0.1/misc/lipo.c#L1124
 	info, err := os.Stat(f)
 	if err != nil {
 		return 0, err

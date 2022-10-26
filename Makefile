@@ -7,6 +7,7 @@ BINARY := bin/$(BIN_NAME)
 GOLANGCI_LINT_VERSION := v1.49.0
 export GO111MODULE=on
 
+export GODEBUG=cgocheck=0
 ## Build binaries on your environment
 build:
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(SRC_DIR)
@@ -16,7 +17,6 @@ lint:
 	golangci-lint run ./...
 
 test:
-	GODEBUG=cgocheck=0 \
 	go test ./...
 
 test-large-file:

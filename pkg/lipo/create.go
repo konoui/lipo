@@ -16,6 +16,8 @@ func (l *Lipo) Create() error {
 		return err
 	}
 
+	// apple lipo will uses a last file permission
+	// https://github.com/apple-oss-distributions/cctools/blob/cctools-973.0.1/misc/lipo.c#L1124
 	perm, err := perm(fatArches[len(fatArches)-1].Name)
 	if err != nil {
 		return err
