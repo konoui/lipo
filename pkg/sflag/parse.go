@@ -17,8 +17,7 @@ func (f *FlagSet) Parse(args []string) error {
 			if len(f.args) == 0 {
 				break
 			}
-			newArgs = append(newArgs, f.args[0])
-			f.args = f.args[1:]
+			newArgs = append(newArgs, f.consumeArg())
 		}
 	}
 	f.args = newArgs
@@ -34,14 +33,15 @@ func (f *FlagSet) parse() (bool, error) {
 	if name == "" {
 		return false, nil
 	}
-	// update and skip flag name
-	f.args = f.args[1:]
 
 	flag, exist := f.flags[name]
 	if !exist {
 		return false, nil
 	}
 	defer func() { f.seen[name] = struct{}{} }()
+
+	// update and skip flag name
+	f.consumeArg()
 
 	_, seen := f.seen[name]
 	if seen && flag.denyDuplicate {

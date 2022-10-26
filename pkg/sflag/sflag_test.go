@@ -220,7 +220,7 @@ func TestFlagSet_Parse(t *testing.T) {
 	t.Run("flex string stop after flag(-output)", func(t *testing.T) {
 		args := []string{
 			"-verify_arch", "x86_64", "arm64",
-			"-output", "stop-archs",
+			"-output", "stop-archs", "-input1",
 		}
 
 		f := sflag.NewFlagSet("test")
@@ -233,6 +233,7 @@ func TestFlagSet_Parse(t *testing.T) {
 		}
 		equal(t, []string{"stop-archs"}, []string{out})
 		equal(t, []string{"x86_64", "arm64"}, arches)
+		equal(t, []string{"-input1"}, f.Args())
 	})
 }
 
