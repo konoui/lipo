@@ -68,6 +68,11 @@ func TestLipo_Create(t *testing.T) {
 			arches: []string{"armv7k", "arm64", "arm64e"},
 			fat64:  true,
 		},
+		{
+			name:   "-create -fat64 all",
+			arches: []string{"armv7k", "arm64", "arm64e"},
+			fat64:  true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

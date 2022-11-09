@@ -42,8 +42,8 @@ func TestLipo_ExtractFamily(t *testing.T) {
 		},
 		{
 			name:   "-extract_family -fat64",
-			inputs: []string{"armv7k", "arm64", "arm64e"},
-			arches: []string{"arm64"},
+			inputs: cpuNames(),
+			arches: []string{"arm"},
 			fat64:  true,
 		},
 	}

@@ -323,8 +323,18 @@ func DiffSha256(t *testing.T, wantBin, gotBin string) {
 			return
 		}
 		t.Logf("want:\n%s\n", b.DetailedInfo(t, wantBin))
+		printStat(t, wantBin)
 		t.Logf("got:\n%s\n", b.DetailedInfo(t, gotBin))
+		printStat(t, gotBin)
 	}
+}
+
+func printStat(t *testing.T, bin string) {
+	info, err := os.Stat(bin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("size: %d\n", info.Size())
 }
 
 func compile(t *testing.T, mainfile, binPath, arch string) {
