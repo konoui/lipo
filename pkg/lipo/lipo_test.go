@@ -67,17 +67,8 @@ var (
 		_, err = f.Seek(4*2, io.SeekStart)
 		fatalIf(t, err)
 
-		type fatArch64Header struct {
-			lmacho.FatArchHeader
-			Reserved uint32
-		}
-
 		for _, fa := range ff.AllArches() {
-			faHdr := fatArch64Header{
-				FatArchHeader: fa.FatArchHeader,
-				Reserved:      0,
-			}
-			off := binary.Size(faHdr) - 4
+			off := binary.Size(fa.FatArchHeader)
 			_, err = f.Seek(int64(off), io.SeekCurrent)
 			fatalIf(t, err)
 			reserved := uint32(0)
