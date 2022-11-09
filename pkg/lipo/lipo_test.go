@@ -1,12 +1,14 @@
 package lipo_test
 
 import (
-	"math/rand"
+	"debug/macho"
+	"encoding/binary"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/konoui/lipo/pkg/lipo"
 	"github.com/konoui/lipo/pkg/lipo/cgo_qsort"
@@ -29,8 +31,10 @@ func testSegAlignOpt(inputs []*lipo.SegAlignInput) testlipo.Opt {
 
 var (
 	diffSha256 = func(t *testing.T, wantBin, gotBin string) {
-		testlipo.DiffSha256(t, wantBin, gotBin)
+		t.Helper()
 		diffPerm(t, wantBin, gotBin)
+		patchFat64Reserved(t, wantBin)
+		testlipo.DiffSha256(t, wantBin, gotBin)
 	}
 	cpuNames = func() []string {
 		ret := []string{}
@@ -43,15 +47,54 @@ var (
 		}
 		return ret
 	}
+	patchFat64Reserved = func(t *testing.T, p string) {
+		ff, err := lmacho.OpenFat(p)
+		if err != nil {
+			if errors.Is(err, macho.ErrNotFat) {
+				return
+			}
+			t.Fatal(err)
+		}
+
+		if ff.Magic != lmacho.MagicFat64 {
+			return
+		}
+
+		f, err := os.OpenFile(p, os.O_RDWR, 0777)
+		fatalIf(t, err)
+
+		// seek fatHeader
+		_, err = f.Seek(4*2, io.SeekStart)
+		fatalIf(t, err)
+
+		type fatArch64Header struct {
+			lmacho.FatArchHeader
+			Reserved uint32
+		}
+
+		for _, fa := range ff.AllArches() {
+			faHdr := fatArch64Header{
+				FatArchHeader: fa.FatArchHeader,
+				Reserved:      0,
+			}
+			off := binary.Size(faHdr) - 4
+			_, err = f.Seek(int64(off), io.SeekCurrent)
+			fatalIf(t, err)
+			reserved := uint32(0)
+			err = binary.Write(f, binary.BigEndian, &reserved)
+			fatalIf(t, err)
+		}
+
+		err = f.Close()
+		fatalIf(t, err)
+	}
 	diffPerm = func(t *testing.T, wantBin, gotBin string) {
 		wantInfo, err := os.Stat(wantBin)
-		if err != nil {
-			t.Fatal(err)
-		}
+		fatalIf(t, err)
+
 		gotInfo, err := os.Stat(gotBin)
-		if err != nil {
-			t.Fatal(err)
-		}
+		fatalIf(t, err)
+
 		want, got := wantInfo.Mode().Perm(), gotInfo.Mode().Perm()
 		if want != got {
 			t.Errorf("want %s got %s", want, got)
@@ -84,6 +127,8 @@ func contain(tg string, l []string) bool {
 	return false
 }
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
+func fatalIf(t *testing.T, err error) {
+	if err != nil {
+		t.Fatal(err)
+	}
 }
