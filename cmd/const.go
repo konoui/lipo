@@ -15,7 +15,7 @@ e.g. lipo path/to/fat-binary -extract-family x86_64 -output path/to/new-fat-bina
 `
 	removeDescription = `
 Remove the specified architecture from a universal binary and create a new universal binary.
-e.g. lipo path/to/fat-binary -extract x86_64 -extract x86_64h -output path/to/new-fat-binary	
+e.g. lipo path/to/fat-binary -remove x86_64 -remove x86_64h -output path/to/new-fat-binary	
 `
 	replaceDescription = `
 Replace the specified architecture in a universal binary with the specified input binary.
