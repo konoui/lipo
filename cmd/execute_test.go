@@ -1,4 +1,4 @@
-package cmd
+package cmd_test
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/konoui/lipo/cmd"
 	"github.com/konoui/lipo/pkg/testlipo"
 )
 
@@ -142,7 +143,7 @@ func TestExecute(t *testing.T) {
 			p := testlipo.Setup(t, append(tt.addArches, "arm64", "x86_64"))
 			args := replace(t, p, tt.args)
 
-			gotExitCode := Execute(outBuf, errBuf, args)
+			gotExitCode := cmd.Execute(outBuf, errBuf, args)
 			gotErrMsg := errBuf.String()
 			if gotExitCode != tt.wantExitCode {
 				t.Errorf("want: %d, got: %d", tt.wantExitCode, gotExitCode)
