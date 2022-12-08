@@ -14,6 +14,7 @@ import (
 	"github.com/konoui/lipo/pkg/lipo/cgo_qsort"
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/testlipo"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 func init() {
@@ -37,15 +38,9 @@ var (
 		testlipo.DiffSha256(t, wantBin, gotBin)
 	}
 	cpuNames = func() []string {
-		ret := []string{}
-		for _, v := range lmacho.CpuNames() {
-			// apple lipo does not support them
-			if v == "armv8m" || v == "arm64_32" {
-				continue
-			}
-			ret = append(ret, v)
-		}
-		return ret
+		return util.Filter(lmacho.CpuNames(), func(v string) bool {
+			return v != "armv8m" && v != "arm64_32"
+		})
 	}
 	patchFat64Reserved = func(t *testing.T, p string) {
 		ff, err := lmacho.OpenFat(p)

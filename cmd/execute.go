@@ -188,11 +188,10 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		fmt.Fprintln(stdout, strings.Join(v, "\n"))
 		return
 	case "detailed_info":
-		v, err := l.DetailedInfo()
+		err := l.DetailedInfo(stdout)
 		if err != nil {
 			return fatal(stderr, group, err.Error())
 		}
-		fmt.Fprint(stdout, v)
 		return
 	case "verify_arch":
 		ok, err := l.VerifyArch(verifyArch...)

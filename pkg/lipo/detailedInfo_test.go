@@ -1,6 +1,7 @@
 package lipo_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
@@ -42,13 +43,15 @@ func TestLipo_DetailedInfo(t *testing.T) {
 			args := append([]string{}, fat1, fat2)
 			args = append(args, util.Map(tt.addThin, func(v string) string { return p.Bin(t, v) })...)
 			l := lipo.New(lipo.WithInputs(args...))
-			got, err := l.DetailedInfo()
+
+			got := &bytes.Buffer{}
+			err := l.DetailedInfo(got)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			want := p.DetailedInfo(t, args...)
-			if want != got {
+			if want != got.String() {
 				t.Errorf("want:\n%s\ngot:\n%s", want, got)
 			}
 		})

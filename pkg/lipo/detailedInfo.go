@@ -1,13 +1,16 @@
 package lipo
 
 import (
+	"bytes"
 	"debug/macho"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"text/template"
 
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"github.com/konoui/lipo/pkg/util"
 )
 
 const detailedInfoTpl = `Fat header in: {{ .FatBinary }}
@@ -26,18 +29,18 @@ architecture {{ .Arch }}
 
 var tpl = template.Must(template.New("detailed_info").Parse(detailedInfoTpl))
 
-func (l *Lipo) DetailedInfo() (string, error) {
+func (l *Lipo) DetailedInfo(w io.Writer) error {
 	if len(l.in) == 0 {
-		return "", errNoInput
+		return errNoInput
 	}
 
-	var out strings.Builder
+	var out bytes.Buffer
 
 	thin := []string{}
 	for _, bin := range l.in {
 		v, isFat, err := detailedInfo(bin)
 		if err != nil {
-			return "", err
+			return err
 		}
 		if isFat {
 			out.WriteString(v)
@@ -50,7 +53,9 @@ func (l *Lipo) DetailedInfo() (string, error) {
 	if len(thin) > 0 {
 		out.WriteString(strings.Join(thin, "\n") + "\n")
 	}
-	return out.String(), nil
+
+	_, err := w.Write(out.Bytes())
+	return err
 }
 
 type tplFatArch struct {
@@ -97,15 +102,13 @@ func detailedInfo(bin string) (string, bool, error) {
 		NFatArch:  nFatArch,
 		Arches:    make([]*tplFatArch, 0, len(ff.Arches)),
 	}
-	for _, a := range ff.Arches {
-		fb.Arches = append(fb.Arches, tplArch(a))
-	}
-	for _, a := range ff.HiddenArches {
-		ta := tplArch(a)
-		ta.Arch = fmt.Sprintf("%s (hidden)", ta.Arch)
-		fb.Arches = append(fb.Arches, ta)
-	}
-
+	fb.Arches = util.Map(ff.Arches, func(v lmacho.FatArch) *tplFatArch { return tplArch(v) })
+	fb.Arches = append(fb.Arches,
+		util.Map(ff.HiddenArches, func(v lmacho.FatArch) *tplFatArch {
+			ta := tplArch(v)
+			ta.Arch = fmt.Sprintf("%s (hidden)", ta.Arch)
+			return ta
+		})...)
 	if err := tpl.Execute(&out, *fb); err != nil {
 		return "", false, err
 	}
