@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
+	"github.com/konoui/lipo/pkg/lipo/cgo_qsort"
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/testlipo"
 )
@@ -92,6 +93,15 @@ func TestLipo_Create(t *testing.T) {
 			}
 			if tt.fat64 {
 				opts = append(opts, lipo.WithFat64())
+			}
+			// TODO remove this hot fix
+			if len(tt.arches) > 6 {
+				// using apple lipo sorter
+				defaultFunc := lmacho.SortFunc
+				lmacho.SortFunc = cgo_qsort.Slice
+				defer func() {
+					lmacho.SortFunc = defaultFunc
+				}()
 			}
 
 			if err := lipo.New(opts...).Create(); err != nil {

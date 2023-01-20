@@ -11,16 +11,10 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
-	"github.com/konoui/lipo/pkg/lipo/cgo_qsort"
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/testlipo"
 	"github.com/konoui/lipo/pkg/util"
 )
-
-func init() {
-	// using apple lipo sorter
-	lmacho.SortFunc = cgo_qsort.Slice
-}
 
 func testSegAlignOpt(inputs []*lipo.SegAlignInput) testlipo.Opt {
 	ain := []string{}
