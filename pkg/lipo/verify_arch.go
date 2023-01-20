@@ -8,8 +8,9 @@ func (l *Lipo) VerifyArch(arches ...string) (bool, error) {
 		return false, err
 	}
 
+	m := util.ExistMap(gotArches, func(a string) string { return a })
 	for _, a := range arches {
-		if !util.Contains(gotArches, a) {
+		if _, ok := m[a]; !ok {
 			return false, nil
 		}
 	}

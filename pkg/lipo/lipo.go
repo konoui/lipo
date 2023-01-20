@@ -157,8 +157,9 @@ func perm(f string) (fs.FileMode, error) {
 
 // remove return values `a` does not have
 func remove[T comparable](a []T, b []T) T {
+	m := util.ExistMap(a, func(t T) T { return t })
 	for _, v := range b {
-		if !util.Contains(a, v) {
+		if _, ok := m[v]; !ok {
 			return v
 		}
 	}
