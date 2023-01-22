@@ -6,70 +6,70 @@ import (
 	"github.com/konoui/lipo/pkg/sflag"
 )
 
-var (
-	output, thin                               string
-	remove, extract, extractFamily, verifyArch = []string{}, []string{}, []string{}, []string{}
-	replace, segAligns                         = [][2]string{}, [][2]string{}
-	create, archs                              = false, false
-)
+type flagRefs struct {
+	create        sflag.FlagRef[bool]
+	archs         sflag.FlagRef[bool]
+	output        sflag.FlagRef[string]
+	thin          sflag.FlagRef[string]
+	remove        sflag.FlagRef[[]string]
+	extract       sflag.FlagRef[[]string]
+	extractFamily sflag.FlagRef[[]string]
+	verifyArch    sflag.FlagRef[[]string]
+	replace       sflag.FlagRef[[][2]string]
+	segAligns     sflag.FlagRef[[][2]string]
+}
 
-func register() (*sflag.FlagSet, []*sflag.Group) {
+func register() (*sflag.FlagSet, []*sflag.Group, *flagRefs) {
 	f := sflag.NewFlagSet("lipo")
-	// init
-	output, thin = "", ""
-	remove, extract, extractFamily, verifyArch = []string{}, []string{}, []string{}, []string{}
-	replace, segAligns = [][2]string{}, [][2]string{}
-	create, archs = false, false
+	refs := new(flagRefs)
 
-	createGroup := f.NewGroup("create")
-	thinGroup := f.NewGroup("thin")
-	extractGroup := f.NewGroup("extract")
-	extractFamilyGroup := f.NewGroup("extract_family")
-	removeGroup := f.NewGroup("remove")
-	replaceGroup := f.NewGroup("replace")
-	archsGroup := f.NewGroup("archs")
-	verifyArchGroup := f.NewGroup("verify_arch")
-	f.String(&output, "output", "-output <file>",
-		sflag.WithGroup(createGroup, sflag.TypeRequired),
-		sflag.WithGroup(thinGroup, sflag.TypeRequired),
-		sflag.WithGroup(extractGroup, sflag.TypeRequired),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired),
-		sflag.WithGroup(removeGroup, sflag.TypeRequired),
-		sflag.WithGroup(replaceGroup, sflag.TypeRequired))
-	f.FixedStringFlags(&segAligns, "segalign", "<arch_type> <alignment>",
-		sflag.WithGroup(createGroup, sflag.TypeOption),
-		sflag.WithGroup(thinGroup, sflag.TypeOption),
-		sflag.WithGroup(extractGroup, sflag.TypeOption),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption),
-		sflag.WithGroup(removeGroup, sflag.TypeOption),
-		sflag.WithGroup(replaceGroup, sflag.TypeOption),
-	)
-	f.Bool(&create, "create", "-create",
-		sflag.WithGroup(createGroup, sflag.TypeRequired))
-	f.String(&thin, "thin", "thin <arch>",
-		sflag.WithGroup(thinGroup, sflag.TypeRequired))
-	f.FixedStringFlags(&replace, "replace", "-replace <arch> <file>",
-		sflag.WithGroup(replaceGroup, sflag.TypeRequired))
-	f.StringFlags(&extract, "extract", "-extract <arch>",
-		sflag.WithGroup(extractGroup, sflag.TypeRequired),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption)) // if specified, apple lipo regard values as family
-	f.StringFlags(&extractFamily, "extract_family",
-		"-extract_family <arch>",
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired))
-	f.StringFlags(&remove, "remove", "-remove <arch>",
-		sflag.WithGroup(removeGroup, sflag.TypeRequired))
-	f.Bool(&archs, "archs", "-archs <arch> ...",
-		sflag.WithGroup(archsGroup, sflag.TypeRequired))
-	f.Strings(&verifyArch, "verify_arch", "verify_arch <arch>",
-		sflag.WithGroup(verifyArchGroup, sflag.TypeRequired))
+	refs.output = f.String("output", "-output <file>")
+	refs.segAligns = f.FixedStringFlags("segalign", "<arch_type> <alignment>")
+	refs.create = f.Bool("create", "-create")
+	refs.thin = f.String("thin", "thin <arch>")
+	refs.replace = f.FixedStringFlags("replace", "-replace <arch> <file>")
+	refs.extract = f.StringFlags("extract", "-extract <arch>")
+	refs.extractFamily = f.StringFlags("extract_family", "-extract_family <arch>")
+	refs.remove = f.StringFlags("remove", "-remove <arch>")
+	refs.archs = f.Bool("archs", "-archs <arch> ...")
+	refs.verifyArch = f.Strings("verify_arch", "verify_arch <arch>")
+
+	createGroup := f.NewGroup("create").
+		AddRequired(refs.create.Flag()).
+		AddRequired(refs.output.Flag()).
+		AddOptional(refs.segAligns.Flag())
+	thinGroup := f.NewGroup("thin").
+		AddRequired(refs.thin.Flag()).
+		AddRequired(refs.output.Flag())
+	extractGroup := f.NewGroup("extract").
+		AddRequired(refs.extract.Flag()).
+		AddRequired(refs.output.Flag()).
+		AddOptional(refs.segAligns.Flag())
+	extractFamilyGroup := f.NewGroup("extract_family").
+		AddRequired(refs.extractFamily.Flag()).
+		AddRequired(refs.output.Flag()).
+		AddOptional(refs.extract.Flag()). // if specified, apple lipo regard values as family
+		AddOptional(refs.segAligns.Flag())
+	removeGroup := f.NewGroup("remove").
+		AddRequired(refs.remove.Flag()).
+		AddRequired(refs.output.Flag()).
+		AddOptional(refs.segAligns.Flag())
+	replaceGroup := f.NewGroup("replace").
+		AddRequired(refs.replace.Flag()).
+		AddRequired(refs.output.Flag()).
+		AddOptional(refs.segAligns.Flag())
+	archsGroup := f.NewGroup("archs").
+		AddRequired(refs.archs.Flag())
+	verifyArchGroup := f.NewGroup("verify_arch").
+		AddRequired(refs.verifyArch.Flag())
 	return f, []*sflag.Group{
 		createGroup, thinGroup, extractGroup, extractFamilyGroup,
 		removeGroup, replaceGroup, archsGroup,
-		verifyArchGroup}
+		verifyArchGroup}, refs
 }
 
-func fset(t *testing.T, in []string) (*sflag.FlagSet, *sflag.Group) {
-	f, groups := register()
+func fset(t *testing.T, in []string) (*sflag.FlagSet, *sflag.Group, *flagRefs) {
+	f, groups, refs := register()
 	if err := f.Parse(in); err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func fset(t *testing.T, in []string) (*sflag.FlagSet, *sflag.Group) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return f, group
+	return f, group, refs
 }
 
 func TestFlagSet_Parse(t *testing.T) {
@@ -93,11 +93,11 @@ func TestFlagSet_Parse(t *testing.T) {
 		}
 		gotInput := []string{"path/to/in1", "path/to/in2", "path/to/in3", "path/to/in4"}
 		for _, in := range shuffle(dataSet) {
-			f, g := fset(t, in)
+			f, g, refs := fset(t, in)
 			eq(t, g.Name, "create")
 			equal(t, gotInput, f.Args())
-			equal(t, []string{"path/to/out"}, []string{output})
-			if !create {
+			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			if !refs.create.Value() {
 				t.Errorf("create is not true")
 			}
 		}
@@ -110,18 +110,19 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-replace", "arm64", "path/to/target2"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f, g := fset(t, in)
+			f, g, refs := fset(t, in)
 			eq(t, g.Name, "replace")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{output})
-			got1 := replace[0]
-			got2 := replace[1]
+			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			replaces := refs.replace.Value()
+			got1 := replaces[0]
+			got2 := replaces[1]
 
-			if len(replace) != 2 {
-				t.Fatalf("len() is not equal. want: %v, got: %v", dataSet[2:], replace)
+			if replaces := refs.replace.Value(); len(replaces) != 2 {
+				t.Fatalf("len() is not equal. want: %v, got: %v", dataSet[2:], replaces)
 			}
 
-			if replace[0][0] == "arm64" {
+			if replaces[0][0] == "arm64" {
 				got1, got2 = got2, got1
 			}
 			equal(t, []string{"x86_64", "path/to/target1"}, got1[:])
@@ -136,11 +137,11 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-extract", "arm64e"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f, g := fset(t, in)
+			f, g, refs := fset(t, in)
 			eq(t, g.Name, "extract")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{output})
-			equal(t, []string{"arm64", "arm64e"}, extract)
+			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			equal(t, []string{"arm64", "arm64e"}, refs.extract.Value())
 		}
 	})
 	t.Run("extract_family", func(t *testing.T) {
@@ -151,12 +152,12 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-extract", "x86_64"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f, g := fset(t, in)
+			f, g, refs := fset(t, in)
 			eq(t, g.Name, "extract_family")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{output})
-			equal(t, []string{"arm64e"}, extractFamily)
-			equal(t, []string{"x86_64"}, extract)
+			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			equal(t, []string{"arm64e"}, refs.extractFamily.Value())
+			equal(t, []string{"x86_64"}, refs.extract.Value())
 		}
 	})
 	t.Run("remove", func(t *testing.T) {
@@ -167,11 +168,11 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-remove", "x86_64h"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f, g := fset(t, in)
+			f, g, refs := fset(t, in)
 			eq(t, g.Name, "remove")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{output})
-			equal(t, []string{"x86_64h", "x86_64"}, remove)
+			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			equal(t, []string{"x86_64h", "x86_64"}, refs.remove.Value())
 		}
 	})
 	t.Run("thin", func(t *testing.T) {
@@ -181,11 +182,11 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-thin", "x86_64"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f, g := fset(t, in)
+			f, g, refs := fset(t, in)
 			eq(t, g.Name, "thin")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{output})
-			equal(t, []string{"x86_64"}, []string{thin})
+			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			equal(t, []string{"x86_64"}, []string{refs.thin.Value()})
 		}
 	})
 	t.Run("archs", func(t *testing.T) {
@@ -194,20 +195,20 @@ func TestFlagSet_Parse(t *testing.T) {
 			{"-archs"},
 		}
 		for _, in := range shuffle(dataSet) {
-			f, g := fset(t, in)
+			f, g, refs := fset(t, in)
 			eq(t, g.Name, "archs")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			if !archs {
+			if !refs.archs.Value() {
 				t.Errorf("archs is false")
 			}
 		}
 	})
 	t.Run("verify_arch", func(t *testing.T) {
 		in := []string{"path/to/in1", "-verify_arch", "x86_64", "arm64", "arm64e", "x86_64h", "arm"}
-		f, g := fset(t, in)
+		f, g, refs := fset(t, in)
 		eq(t, g.Name, "verify_arch")
 		equal(t, []string{"path/to/in1"}, f.Args())
-		equal(t, []string{"x86_64", "arm64", "arm64e", "x86_64h", "arm"}, verifyArch)
+		equal(t, []string{"x86_64", "arm64", "arm64e", "x86_64h", "arm"}, refs.verifyArch.Value())
 	})
 
 	// TODO
@@ -224,15 +225,13 @@ func TestFlagSet_Parse(t *testing.T) {
 		}
 
 		f := sflag.NewFlagSet("test")
-		out := ""
-		arches := []string{}
-		f.String(&out, "output", "-output <file>")
-		f.Strings(&arches, "verify_arch", "verify_arch <arch>")
+		out := f.String("output", "-output <file>")
+		archs := f.Strings("verify_arch", "verify_arch <arch>")
 		if err := f.Parse(args); err != nil {
 			t.Fatal(err)
 		}
-		equal(t, []string{"stop-archs"}, []string{out})
-		equal(t, []string{"x86_64", "arm64"}, arches)
+		equal(t, []string{"stop-archs"}, []string{out.Value()})
+		equal(t, []string{"x86_64", "arm64"}, archs.Value())
 		equal(t, []string{"-input1"}, f.Args())
 	})
 }
@@ -300,7 +299,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f, groups := register()
+			f, groups, _ := register()
 			err := f.Parse(tt.args)
 			if err != nil {
 				if err.Error() != tt.errMsg {

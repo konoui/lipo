@@ -15,17 +15,8 @@ func fatal(w io.Writer, g *sflag.Group, msg string) (exitCode int) {
 	return 1
 }
 
-type fset struct {
-	*sflag.FlagSet
-}
-
 func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
-	var out, thin string
-	remove, extract, extractFamily, verifyArch := []string{}, []string{}, []string{}, []string{}
-	replace, segAligns, arch := [][2]string{}, [][2]string{}, [][2]string{}
-	create, archs, info, detailedInfo, hideArm64, fat64 := false, false, false, false, false, false
-
-	fset := &fset{sflag.NewFlagSet("lipo")}
+	fset := sflag.NewFlagSet("lipo")
 	createGroup := fset.NewGroup("create").AddDescription(createDescription)
 	thinGroup := fset.NewGroup("thin").AddDescription(thinDescription)
 	extractGroup := fset.NewGroup("extract").AddDescription(extractDescription)
@@ -42,70 +33,68 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		detailedInfoGroup,
 	}
 	fset.Usage = sflag.UsageFunc(groups...)
-	fset.String(&out, "output",
-		"-output <output_file>",
-		sflag.WithGroup(createGroup, sflag.TypeRequired),
-		sflag.WithGroup(thinGroup, sflag.TypeRequired),
-		sflag.WithGroup(extractGroup, sflag.TypeRequired),
-		sflag.WithGroup(removeGroup, sflag.TypeRequired),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired),
-		sflag.WithGroup(replaceGroup, sflag.TypeRequired),
-	)
-	fset.FixedStringFlags(&segAligns, "segalign", "-segalign <arch_type> <alignment>",
-		sflag.WithGroup(createGroup, sflag.TypeOption),
+	out := fset.String("output", "-output <output_file>")
+	segAligns := fset.FixedStringFlags("segalign", "-segalign <arch_type> <alignment>")
+	arch := fset.FixedStringFlags("arch", "-arch <arch_type> <input_file>")
+	create := fset.Bool("create", "-create")
+	thin := fset.String("thin", "-thin <arch_type>")
+	extract := fset.StringFlags("extract", "-extract <arch_type> [-extract <arch_type> ...]")
+	extractFamily := fset.StringFlags("extract_family", "-extract_family <arch_type> [-extract_family <arch_type> ...]")
+	remove := fset.StringFlags("remove", "-remove <arch_type> [-remove <arch_type> ...]")
+	replace := fset.FixedStringFlags("replace", "-replace <arch_type> <file_name> [-replace <arch_type> <file_name> ...]")
+	archs := fset.Bool("archs", "-archs")
+	verifyArch := fset.Strings("verify_arch", "-verify_arch <arch_type> ...")
+	info := fset.Bool("info", "-info")
+	detailedInfo := fset.Bool("detailed_info", "-detailed_info")
+	hideArm64 := fset.Bool("hideARM64", "-hideARM64")
+	fat64 := fset.Bool("fat64", "-fat64")
+
+	createGroup.
+		AddRequired(create.Flag()).
+		AddRequired(out.Flag()).
+		AddOptional(segAligns.Flag()).
+		AddOptional(arch.Flag()).
+		AddOptional(hideArm64.Flag()).
+		AddOptional(fat64.Flag())
+	thinGroup.
 		// apple lipo does not raise error if -thin with -segalign but this this lipo will raise an error
-		sflag.WithGroup(extractGroup, sflag.TypeOption),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption),
-		sflag.WithGroup(removeGroup, sflag.TypeOption),
-		sflag.WithGroup(replaceGroup, sflag.TypeOption),
-	)
-	fset.FixedStringFlags(&arch, "arch", "-arch <arch_type> <input_file>",
-		sflag.WithGroup(createGroup, sflag.TypeOption),
-		sflag.WithGroup(replaceGroup, sflag.TypeOption),
-	)
-	fset.Bool(&create, "create",
-		"-create",
-		sflag.WithGroup(createGroup, sflag.TypeRequired))
-	fset.String(&thin, "thin",
-		"-thin <arch_type>",
-		sflag.WithGroup(thinGroup, sflag.TypeRequired))
-	fset.StringFlags(&extract, "extract",
-		"-extract <arch_type> [-extract <arch_type> ...]",
-		sflag.WithGroup(extractGroup, sflag.TypeRequired),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption)) // if specified, apple lipo regard values as family
-	fset.StringFlags(&extractFamily, "extract_family",
-		"-extract_family <arch_type> [-extract_family <arch_type> ...]",
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired))
-	fset.StringFlags(&remove, "remove",
-		"-remove <arch_type> [-remove <arch_type> ...]",
-		sflag.WithGroup(removeGroup, sflag.TypeRequired))
-	fset.FixedStringFlags(&replace, "replace",
-		"-replace <arch_type> <file_name> [-replace <arch_type> <file_name> ...]",
-		sflag.WithGroup(replaceGroup, sflag.TypeRequired))
-	fset.Bool(&archs, "archs",
-		"-archs",
-		sflag.WithGroup(archsGroup, sflag.TypeRequired))
-	fset.Strings(&verifyArch, "verify_arch",
-		"-verify_arch <arch_type> ...",
-		sflag.WithGroup(verifyArchGroup, sflag.TypeRequired))
-	fset.Bool(&info, "info",
-		"-info",
-		sflag.WithGroup(infoGroup, sflag.TypeRequired))
-	fset.Bool(&detailedInfo, "detailed_info",
-		"-detailed_info",
-		sflag.WithGroup(detailedInfoGroup, sflag.TypeRequired))
-	fset.Bool(&hideArm64, "hideARM64", "-hideARM64",
-		sflag.WithGroup(createGroup, sflag.TypeOption),
-		sflag.WithGroup(removeGroup, sflag.TypeOption),
-		sflag.WithGroup(replaceGroup, sflag.TypeOption),
-	)
-	fset.Bool(&fat64, "fat64", "-fat64",
-		sflag.WithGroup(createGroup, sflag.TypeOption),
-		sflag.WithGroup(removeGroup, sflag.TypeOption),
-		sflag.WithGroup(replaceGroup, sflag.TypeOption),
-		sflag.WithGroup(extractGroup, sflag.TypeOption),
-		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption),
-	)
+		AddRequired(thin.Flag()).
+		AddRequired(out.Flag())
+	extractGroup.
+		AddRequired(extract.Flag()).
+		AddRequired(out.Flag()).
+		AddOptional(segAligns.Flag()).
+		AddOptional(fat64.Flag())
+	extractFamilyGroup.
+		AddRequired(extractFamily.Flag()).
+		AddRequired(out.Flag()).
+		// if extract is specified, apple lipo regard values as family
+		AddOptional(extract.Flag()).
+		AddOptional(segAligns.Flag()).
+		AddOptional(arch.Flag()).
+		AddOptional(fat64.Flag())
+	removeGroup.
+		AddRequired(remove.Flag()).
+		AddRequired(out.Flag()).
+		AddOptional(segAligns.Flag()).
+		AddOptional(hideArm64.Flag()).
+		AddOptional(fat64.Flag())
+	replaceGroup.
+		AddRequired(replace.Flag()).
+		AddRequired(out.Flag()).
+		AddOptional(segAligns.Flag()).
+		AddOptional(arch.Flag()).
+		AddOptional(hideArm64.Flag()).
+		AddOptional(fat64.Flag())
+	archsGroup.
+		AddRequired(archs.Flag())
+	verifyArchGroup.
+		AddRequired(verifyArch.Flag())
+	infoGroup.
+		AddRequired(info.Flag())
+	detailedInfoGroup.
+		AddRequired(detailedInfo.Flag())
+
 	if err := fset.Parse(args); err != nil {
 		fmt.Fprint(stderr, fset.Usage())
 		return 1
@@ -129,15 +118,15 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 
 	in := fset.Args()
 	opts := []lipo.Option{
-		lipo.WithOutput(out),
+		lipo.WithOutput(out.Value()),
 		lipo.WithInputs(in...),
-		lipo.WithArch(conv(arch, newArch)),
-		lipo.WithSegAlign(conv(segAligns, newSegAlign)),
+		lipo.WithArch(conv(arch.Value(), newArch)),
+		lipo.WithSegAlign(conv(segAligns.Value(), newSegAlign)),
 	}
-	if hideArm64 {
+	if hideArm64.Value() {
 		opts = append(opts, lipo.WithHideArm64())
 	}
-	if fat64 {
+	if fat64.Value() {
 		opts = append(opts, lipo.WithFat64())
 	}
 	l := lipo.New(opts...)
@@ -148,28 +137,29 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		}
 		return
 	case "thin":
-		if err := l.Thin(thin); err != nil {
+		if err := l.Thin(thin.Value()); err != nil {
 			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "remove":
-		if err := l.Remove(remove...); err != nil {
+		if err := l.Remove(remove.Value()...); err != nil {
 			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "extract":
-		if err := l.Extract(extract...); err != nil {
+		if err := l.Extract(extract.Value()...); err != nil {
 			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "extract_family":
-		extractFamily = append(extractFamily, extract...)
+		extractFamily := extractFamily.Value()
+		extractFamily = append(extractFamily, extract.Value()...)
 		if err := l.ExtractFamily(extractFamily...); err != nil {
 			return fatal(stderr, group, err.Error())
 		}
 		return
 	case "replace":
-		if err := l.Replace(conv(replace, newReplace)); err != nil {
+		if err := l.Replace(conv(replace.Value(), newReplace)); err != nil {
 			return fatal(stderr, group, err.Error())
 		}
 		return
@@ -194,7 +184,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		}
 		return
 	case "verify_arch":
-		ok, err := l.VerifyArch(verifyArch...)
+		ok, err := l.VerifyArch(verifyArch.Value()...)
 		if err != nil {
 			return fatal(stderr, group, err.Error())
 		}

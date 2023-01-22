@@ -12,8 +12,8 @@ func (t FlagType) String() string {
 	switch t {
 	case TypeRequired:
 		return "required"
-	case TypeOption:
-		return "option"
+	case TypeOptional:
+		return "optional"
 	case typeNotDefined:
 		return "not-defined"
 	}
@@ -22,7 +22,7 @@ func (t FlagType) String() string {
 
 const (
 	TypeRequired FlagType = iota + 1
-	TypeOption
+	TypeOptional
 	typeNotDefined
 )
 
@@ -33,10 +33,19 @@ type Group struct {
 	description string
 }
 
-func (g *Group) Add(flag *Flag, typ FlagType) *Group {
+func (g *Group) AddRequired(flag *Flag) *Group {
+	return g.add(flag, TypeRequired)
+}
+
+func (g *Group) AddOptional(flag *Flag) *Group {
+	return g.add(flag, TypeOptional)
+}
+
+func (g *Group) add(flag *Flag, typ FlagType) *Group {
 	if g.types == nil {
 		g.types = make(map[string]FlagType)
 	}
+
 	g.types[flag.Name] = typ
 	return g
 }

@@ -8,12 +8,6 @@ func WithDenyDuplicate() FlagOption {
 	}
 }
 
-func WithGroup(g *Group, typ FlagType) FlagOption {
-	return func(flag *Flag) {
-		g.Add(flag, typ)
-	}
-}
-
 func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) *Flag {
 	if name == "" {
 		panic("empty flag name is registered")
@@ -44,35 +38,62 @@ func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) *Flag {
 }
 
 type FlagRef[T any] struct {
-	P *T
-	*Flag
+	Value func() T
+	Flag  func() *Flag
 }
 
 // Bool presents `-flag“ NOT `-flag true/false`
-func (f *FlagSet) Bool(p *bool, name, usage string, opts ...FlagOption) *Flag {
-	opts = append(opts, WithDenyDuplicate())
-	return f.Var(Bool(p), name, usage, opts...)
+func (f *FlagSet) Bool(name, usage string) FlagRef[bool] {
+	p := new(bool)
+	flag := f.Var(Bool(p), name, usage, WithDenyDuplicate())
+	ref := FlagRef[bool]{
+		Flag:  func() *Flag { return flag },
+		Value: func() bool { return flag.Value.Get().(bool) },
+	}
+	return ref
 }
 
 // String presents `-flag <value>`
-func (f *FlagSet) String(p *string, name, usage string, opts ...FlagOption) *Flag {
-	opts = append(opts, WithDenyDuplicate())
-	return f.Var(String(p), name, usage, opts...)
+func (f *FlagSet) String(name, usage string) FlagRef[string] {
+	p := new(string)
+	flag := f.Var(String(p), name, usage, WithDenyDuplicate())
+	ref := FlagRef[string]{
+		Flag:  func() *Flag { return flag },
+		Value: func() string { return flag.Value.Get().(string) },
+	}
+	return ref
 }
 
 // StringFlags presents `-flag <value1> -flag <value2> -flag <value3> -flag ...`
-func (f *FlagSet) StringFlags(p *[]string, name, usage string, opts ...FlagOption) *Flag {
-	return f.Var(StringFlags(p), name, usage, opts...)
+func (f *FlagSet) StringFlags(name, usage string) FlagRef[[]string] {
+	p := new([]string)
+	flag := f.Var(StringFlags(p), name, usage)
+	ref := FlagRef[[]string]{
+		Flag:  func() *Flag { return flag },
+		Value: func() []string { return flag.Value.Get().([]string) },
+	}
+	return ref
 }
 
 // Strings presents `-flag <value1> <value2> <value3> ...`
-func (f *FlagSet) Strings(p *[]string, name, usage string, opts ...FlagOption) *Flag {
-	opts = append(opts, WithDenyDuplicate())
-	return f.Var(Strings(p), name, usage, opts...)
+func (f *FlagSet) Strings(name, usage string) FlagRef[[]string] {
+	p := new([]string)
+	flag := f.Var(Strings(p), name, usage, WithDenyDuplicate())
+	ref := FlagRef[[]string]{
+		Flag:  func() *Flag { return flag },
+		Value: func() []string { return flag.Value.Get().([]string) },
+	}
+	return ref
 }
 
 // FixedStringFlags presents `-flag <value1> <value2> -flag <value3> <value4> -flag ...`
 // This is a reference implementation
-func (f *FlagSet) FixedStringFlags(p *[][2]string, name, usage string, opts ...FlagOption) *Flag {
-	return f.Var(FixedStringFlags(p), name, usage, opts...)
+func (f *FlagSet) FixedStringFlags(name, usage string) FlagRef[[][2]string] {
+	p := new([][2]string)
+	flag := f.Var(FixedStringFlags(p), name, usage)
+	ref := FlagRef[[][2]string]{
+		Flag:  func() *Flag { return flag },
+		Value: func() [][2]string { return flag.Value.Get().([][2]string) },
+	}
+	return ref
 }
