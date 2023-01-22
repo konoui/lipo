@@ -14,7 +14,7 @@ func WithGroup(g *Group, typ FlagType) FlagOption {
 	}
 }
 
-func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) {
+func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) *Flag {
 	if name == "" {
 		panic("empty flag name is registered")
 	}
@@ -40,41 +40,39 @@ func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) {
 			opt(flag)
 		}
 	}
+	return flag
 }
 
-// Bool presents -flag NOT -flag true/false
-func (f *FlagSet) Bool(p *bool, name, usage string, opts ...FlagOption) {
+type FlagRef[T any] struct {
+	P *T
+	*Flag
+}
+
+// Bool presents `-flag“ NOT `-flag true/false`
+func (f *FlagSet) Bool(p *bool, name, usage string, opts ...FlagOption) *Flag {
 	opts = append(opts, WithDenyDuplicate())
-	f.Var(Bool(p), name, usage, opts...)
+	return f.Var(Bool(p), name, usage, opts...)
 }
 
-// String presents -flag <value>
-func (f *FlagSet) String(p *string, name, usage string, opts ...FlagOption) {
+// String presents `-flag <value>`
+func (f *FlagSet) String(p *string, name, usage string, opts ...FlagOption) *Flag {
 	opts = append(opts, WithDenyDuplicate())
-	f.Var(String(p), name, usage, opts...)
+	return f.Var(String(p), name, usage, opts...)
 }
 
-// MultipleFlagString presents `-flag <value1> -flag <value2> -flag <value3>`
-func (f *FlagSet) MultipleFlagString(p *[]string, name, usage string, opts ...FlagOption) {
-	f.Var(MultipleFlagString(p), name, usage, opts...)
+// StringFlags presents `-flag <value1> -flag <value2> -flag <value3> -flag ...`
+func (f *FlagSet) StringFlags(p *[]string, name, usage string, opts ...FlagOption) *Flag {
+	return f.Var(StringFlags(p), name, usage, opts...)
 }
 
-// FlexStrings presents `-flag <value1> <value2> <value3> ...`
-func (f *FlagSet) FlexStrings(p *[]string, name, usage string, opts ...FlagOption) {
+// Strings presents `-flag <value1> <value2> <value3> ...`
+func (f *FlagSet) Strings(p *[]string, name, usage string, opts ...FlagOption) *Flag {
 	opts = append(opts, WithDenyDuplicate())
-	f.Var(FlexStrings(p), name, usage, opts...)
+	return f.Var(Strings(p), name, usage, opts...)
 }
 
-// FixedStrings presents `-flag <value1> <value2>` number of values are specified by initialize of a variable
-// e.g. s := []string{make([]string, 2)}
+// FixedStringFlags presents `-flag <value1> <value2> -flag <value3> <value4> -flag ...`
 // This is a reference implementation
-func (f *FlagSet) FixedStrings(p *[]string, name, usage string, opts ...FlagOption) {
-	opts = append(opts, WithDenyDuplicate())
-	f.Var(FixedStrings(p), name, usage, opts...)
-}
-
-// MultipleFlagFixedStrings presents `-flag <value1> <value2> -flag <value3> <value4> -flag ...`
-// This is a reference implementation
-func (f *FlagSet) MultipleFlagFixedStrings(p *[][2]string, name, usage string, opts ...FlagOption) {
-	f.Var(MultipleFlagFixedStrings(p), name, usage, opts...)
+func (f *FlagSet) FixedStringFlags(p *[][2]string, name, usage string, opts ...FlagOption) *Flag {
+	return f.Var(FixedStringFlags(p), name, usage, opts...)
 }

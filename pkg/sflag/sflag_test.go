@@ -36,7 +36,7 @@ func register() (*sflag.FlagSet, []*sflag.Group) {
 		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired),
 		sflag.WithGroup(removeGroup, sflag.TypeRequired),
 		sflag.WithGroup(replaceGroup, sflag.TypeRequired))
-	f.MultipleFlagFixedStrings(&segAligns, "segalign", "<arch_type> <alignment>",
+	f.FixedStringFlags(&segAligns, "segalign", "<arch_type> <alignment>",
 		sflag.WithGroup(createGroup, sflag.TypeOption),
 		sflag.WithGroup(thinGroup, sflag.TypeOption),
 		sflag.WithGroup(extractGroup, sflag.TypeOption),
@@ -48,19 +48,19 @@ func register() (*sflag.FlagSet, []*sflag.Group) {
 		sflag.WithGroup(createGroup, sflag.TypeRequired))
 	f.String(&thin, "thin", "thin <arch>",
 		sflag.WithGroup(thinGroup, sflag.TypeRequired))
-	f.MultipleFlagFixedStrings(&replace, "replace", "-replace <arch> <file>",
+	f.FixedStringFlags(&replace, "replace", "-replace <arch> <file>",
 		sflag.WithGroup(replaceGroup, sflag.TypeRequired))
-	f.MultipleFlagString(&extract, "extract", "-extract <arch>",
+	f.StringFlags(&extract, "extract", "-extract <arch>",
 		sflag.WithGroup(extractGroup, sflag.TypeRequired),
 		sflag.WithGroup(extractFamilyGroup, sflag.TypeOption)) // if specified, apple lipo regard values as family
-	f.MultipleFlagString(&extractFamily, "extract_family",
+	f.StringFlags(&extractFamily, "extract_family",
 		"-extract_family <arch>",
 		sflag.WithGroup(extractFamilyGroup, sflag.TypeRequired))
-	f.MultipleFlagString(&remove, "remove", "-remove <arch>",
+	f.StringFlags(&remove, "remove", "-remove <arch>",
 		sflag.WithGroup(removeGroup, sflag.TypeRequired))
 	f.Bool(&archs, "archs", "-archs <arch> ...",
 		sflag.WithGroup(archsGroup, sflag.TypeRequired))
-	f.FlexStrings(&verifyArch, "verify_arch", "verify_arch <arch>",
+	f.Strings(&verifyArch, "verify_arch", "verify_arch <arch>",
 		sflag.WithGroup(verifyArchGroup, sflag.TypeRequired))
 	return f, []*sflag.Group{
 		createGroup, thinGroup, extractGroup, extractFamilyGroup,
@@ -227,7 +227,7 @@ func TestFlagSet_Parse(t *testing.T) {
 		out := ""
 		arches := []string{}
 		f.String(&out, "output", "-output <file>")
-		f.FlexStrings(&arches, "verify_arch", "verify_arch <arch>")
+		f.Strings(&arches, "verify_arch", "verify_arch <arch>")
 		if err := f.Parse(args); err != nil {
 			t.Fatal(err)
 		}
@@ -277,7 +277,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-output", "out1",
 				"-output", "out2",
 			},
-			errMsg: "more than one -output option specified",
+			errMsg: "duplication: more than one -output option specified",
 		},
 		{
 			name: "multiple flag group",

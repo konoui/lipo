@@ -40,13 +40,13 @@ func (f *FlagSet) parse() (bool, error) {
 	}
 	defer func() { f.seen[name] = struct{}{} }()
 
-	// update and skip flag name
-	f.consumeArg()
-
 	_, seen := f.seen[name]
 	if seen && flag.denyDuplicate {
-		return false, fmt.Errorf("more than one -%s option specified", name)
+		return false, fmt.Errorf("duplication: more than one -%s option specified", name)
 	}
+
+	// update and skip flag name
+	f.consumeArg()
 
 	value := flag.Value
 	// special case, value is not required

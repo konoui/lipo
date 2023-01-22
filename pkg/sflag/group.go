@@ -33,11 +33,12 @@ type Group struct {
 	description string
 }
 
-func (g *Group) Add(flag *Flag, typ FlagType) {
+func (g *Group) Add(flag *Flag, typ FlagType) *Group {
 	if g.types == nil {
 		g.types = make(map[string]FlagType)
 	}
 	g.types[flag.Name] = typ
+	return g
 }
 
 func (g *Group) AddDescription(s string) *Group {
@@ -88,8 +89,8 @@ func LookupGroup(groups ...*Group) (*Group, error) {
 	return found[0], nil
 }
 
-// Diff returns non group flag with specified
-func (g *Group) Diff() []string {
+// NonGroupFlagNames returns non group flag with specified
+func (g *Group) NonGroupFlagNames() []string {
 	diff := []string{}
 	for name := range g.flagSet.seen {
 		_, exist := g.types[name]
@@ -97,7 +98,6 @@ func (g *Group) Diff() []string {
 			diff = append(diff, name)
 		}
 	}
-
 	return diff
 }
 
@@ -109,7 +109,7 @@ func (g *Group) validate() error {
 		}
 	}
 
-	diff := g.Diff()
+	diff := g.NonGroupFlagNames()
 	if len(diff) > 0 {
 		return fmt.Errorf("non group flag is specified: %v", diff)
 	}

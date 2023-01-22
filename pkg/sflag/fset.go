@@ -6,27 +6,6 @@ import (
 	"strings"
 )
 
-type Flag struct {
-	Name          string
-	Usage         string
-	Value         Value
-	denyDuplicate bool
-}
-
-type Value interface {
-	Set(string) error
-	Get() any
-}
-
-type Values interface {
-	Value
-	Cap() int
-}
-
-const (
-	CapNoLimit = -1
-)
-
 type FlagSet struct {
 	name  string
 	flags map[string]*Flag

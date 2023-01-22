@@ -6,18 +6,26 @@ import (
 	"strconv"
 )
 
-func FlagValue[T any](p *T, from func(v string) (T, error)) Value {
-	f := flagValue[T]{p: p, from: from}
-	return &f
+type Flag struct {
+	Name          string
+	Usage         string
+	Value         Value
+	denyDuplicate bool
 }
 
-func FlagValues[T any](p *T, from func(v string) (T, error), cap func() int) Value {
-	fvs := flagValues[T]{
-		flagValue: flagValue[T]{p: p, from: from},
-		cap:       cap,
-	}
-	return &fvs
+type Value interface {
+	Set(string) error
+	Get() any
 }
+
+type Values interface {
+	Value
+	Cap() int
+}
+
+const (
+	CapNoLimit = -1
+)
 
 type flagValue[T any] struct {
 	p    *T
@@ -27,6 +35,19 @@ type flagValue[T any] struct {
 type flagValues[T any] struct {
 	flagValue[T]
 	cap func() int
+}
+
+func FlagValue[T any](p *T, from func(v string) (T, error)) Value {
+	f := flagValue[T]{p: p, from: from}
+	return &f
+}
+
+func FlagValues[T any](p *T, from func(v string) (T, error), cap func() int) Values {
+	fvs := flagValues[T]{
+		flagValue: flagValue[T]{p: p, from: from},
+		cap:       cap,
+	}
+	return &fvs
 }
 
 func (fv *flagValue[T]) Set(v string) error {
@@ -43,8 +64,9 @@ func (fv *flagValue[T]) Set(v string) error {
 	return nil
 }
 
+// Get returns a flag value NOT a pointer of value
 func (fv *flagValue[T]) Get() any {
-	return fv.p
+	return *fv.p
 }
 
 func (fv *flagValues[T]) Cap() int {
@@ -61,7 +83,7 @@ func Bool(p *bool) Value {
 	return FlagValue(p, func(v string) (bool, error) { return strconv.ParseBool(v) })
 }
 
-func MultipleFlagString(p *[]string) Value {
+func StringFlags(p *[]string) Value {
 	cur := 0
 	from := func(v string) ([]string, error) {
 		if cur < len(*p) {
@@ -75,8 +97,8 @@ func MultipleFlagString(p *[]string) Value {
 	return FlagValue(p, from)
 }
 
-func FlexStrings(p *[]string) Value {
-	fv := MultipleFlagString(p).(*flagValue[[]string])
+func Strings(p *[]string) Value {
+	fv := StringFlags(p).(*flagValue[[]string])
 	cap := func() int {
 		if len(*p) == 0 {
 			return 1
@@ -86,21 +108,7 @@ func FlexStrings(p *[]string) Value {
 	return FlagValues(p, fv.from, cap)
 }
 
-func FixedStrings(p *[]string) Value {
-	var cur int
-	maxLen := len((*p)[0])
-	from := func(v string) ([]string, error) {
-		if cur >= maxLen {
-			return nil, fmt.Errorf("fill error. cur %d, len %d", cur, maxLen)
-		}
-		(*p)[cur] = v
-		cur++
-		return *p, nil
-	}
-	return FlagValues(p, from, func() int { return maxLen - cur })
-}
-
-func MultipleFlagFixedStrings(p *[][2]string) Value {
+func FixedStringFlags(p *[][2]string) Value {
 	var idx, cur int
 	maxLen := 2
 	from := func(v string) ([][2]string, error) {
