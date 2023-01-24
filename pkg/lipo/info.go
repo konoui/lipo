@@ -33,6 +33,7 @@ func info(bin string) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
+
 	v := strings.Join(arches, " ")
 	fatFmt := "Architectures in the fat file: %s are: %s"
 	if len(arches) > 1 {

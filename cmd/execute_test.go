@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"bytes"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,21 +19,27 @@ const (
 	phX86_64Thin = "<input_x86_64_thin_file>"
 )
 
-func replace(t *testing.T, p *testlipo.TestLipo, args []string) []string {
-	ret := []string{}
-	for _, arg := range args {
+func replace(t *testing.T, p *testlipo.TestLipo, rawArgs []string, mylipo bool) (args []string, outBin string) {
+	args = []string{}
+	for _, arg := range rawArgs {
 		in := arg
-		in = strings.ReplaceAll(in, phOutput, filepath.Join(p.Dir, "output-"+filepath.Base(t.Name())))
+		if arg == phOutput {
+			outBin = filepath.Join(p.Dir, "output-"+filepath.Base(t.Name()))
+			if mylipo {
+				outBin += "-mylipo"
+			}
+			in = strings.ReplaceAll(in, phOutput, outBin)
+		}
 		in = strings.ReplaceAll(in, phInputFat, p.FatBin)
 		in = strings.ReplaceAll(in, phArm64Thin, p.Bin(t, "arm64"))
 		in = strings.ReplaceAll(in, phX86_64Thin, p.Bin(t, "x86_64"))
 		if in == phInputThins {
-			ret = append(ret, p.Bins()...)
+			args = append(args, p.Bins()...)
 			continue
 		}
-		ret = append(ret, in)
+		args = append(args, in)
 	}
-	return ret
+	return args, outBin
 }
 
 func TestExecute(t *testing.T) {
@@ -71,7 +78,7 @@ func TestExecute(t *testing.T) {
 			args:         []string{"-extract", "x86_64", "-extract", "arm64", "-output", phOutput, phInputFat},
 		},
 		{
-			name:         "extract",
+			name:         "extract_family with extract",
 			wantExitCode: 0,
 			args:         []string{"-extract", "x86_64", "-extract_family", "arm64", "-output", phOutput, phInputFat},
 		},
@@ -141,7 +148,7 @@ func TestExecute(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			outBuf, errBuf := &bytes.Buffer{}, &bytes.Buffer{}
 			p := testlipo.Setup(t, append(tt.addArches, "arm64", "x86_64"))
-			args := replace(t, p, tt.args)
+			args, gotBin := replace(t, p, tt.args, true)
 
 			gotExitCode := cmd.Execute(outBuf, errBuf, args)
 			gotErrMsg := errBuf.String()
@@ -152,6 +159,45 @@ func TestExecute(t *testing.T) {
 			if !strings.Contains(gotErrMsg, tt.wantErrMsg) {
 				t.Errorf("want: %s, got: %s", tt.wantErrMsg, gotErrMsg)
 			}
+
+			if tt.wantExitCode == 0 {
+				if gotBin != "" {
+					testArgs, wantBin := replace(t, p, tt.args, false)
+					lipoExecute(t, p, testArgs)
+					testlipo.DiffSha256(t, wantBin, gotBin)
+
+				} else {
+					gotResp := outBuf.String()
+					wantResp := lipoExecute(t, p, args)
+					diffByLine(t, wantResp, gotResp)
+				}
+			}
 		})
+	}
+}
+
+func lipoExecute(t *testing.T, p *testlipo.TestLipo, args []string) string {
+	cmd := exec.Command(p.LipoBin.Bin, args...)
+	resp, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("lipoExecute failed: %v\n%s", err, string(resp))
+	}
+	return string(resp)
+}
+
+func diffByLine(t *testing.T, want string, got string) {
+	w := strings.Split(want, "\n")
+	g := strings.Split(got, "\n")
+	if len(w) != len(g) {
+		t.Errorf("len(want) = %d len(got) = %d\n", len(w), len(g))
+		return
+	}
+	for i := 0; i < len(w); i++ {
+		// TODO FIXME
+		if w[i] != g[i] {
+			if w[i] != g[i]+" " {
+				t.Errorf("want: %s\ngot: %s\n", w[i], g[i])
+			}
+		}
 	}
 }
