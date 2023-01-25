@@ -77,6 +77,20 @@ func TestLipo_Extract(t *testing.T) {
 	}
 }
 
+func TestLipo_ExtractWithOverwriteInput(t *testing.T) {
+	t.Run("overwrite-input", func(t *testing.T) {
+		p := testlipo.Setup(t, []string{"x86_64", "arm64"})
+		// input and output are same path
+		got := p.FatBin
+		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+		err := l.Extract("x86_64")
+		if err != nil {
+			t.Fatal(err)
+		}
+		verifyArches(t, got, "x86_64")
+	})
+}
+
 func TestLipo_ExtractError(t *testing.T) {
 	p := testlipo.Setup(t, []string{"arm64", "x86_64"})
 	got := filepath.Join(p.Dir, gotName(t))

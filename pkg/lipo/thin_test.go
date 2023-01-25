@@ -53,6 +53,20 @@ func TestLipo_Thin(t *testing.T) {
 	}
 }
 
+func TestLipo_ThinWithOverwriteInput(t *testing.T) {
+	t.Run("overwrite-input", func(t *testing.T) {
+		p := testlipo.Setup(t, []string{"x86_64", "arm64"})
+		// input and output are same path
+		got := p.FatBin
+		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+		err := l.Thin("x86_64")
+		if err != nil {
+			t.Fatal(err)
+		}
+		verifyArches(t, got, "x86_64")
+	})
+}
+
 func TestLipo_ThinError(t *testing.T) {
 	t.Run("not-match-arch", func(t *testing.T) {
 		p := testlipo.Setup(t, []string{"arm64", "x86_64"})

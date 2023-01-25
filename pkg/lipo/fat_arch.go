@@ -14,26 +14,33 @@ import (
 
 type fatArches []lmacho.FatArch
 
-func (f fatArches) createFatBinary(p string, perm os.FileMode, cfg *lmacho.FatFileConfig) (err error) {
+func (f fatArches) createFatBinary(path string, perm os.FileMode, cfg *lmacho.FatFileConfig) error {
 	if len(f) == 0 {
-		return errors.New("error empty fat file due to no inputs")
+		return errors.New("empty fat file due to no inputs")
 	}
-	out, err := os.Create(p)
+
+	out, err := os.CreateTemp("", "tmp-output-binary")
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if cerr := out.Chmod(perm); cerr != nil && err == nil {
-			err = cerr
-			return
-		}
-		if ferr := out.Close(); ferr != nil && err == nil {
-			err = ferr
-			return
-		}
-	}()
+	// for an error in the middle of other operations
+	defer out.Close()
 
-	return lmacho.NewFatFileFromArches(f, cfg).Create(out)
+	err = lmacho.NewFatFileFromArches(f, cfg).Create(out)
+	if err != nil {
+		return err
+	}
+
+	if err := out.Chmod(perm); err != nil {
+		return err
+	}
+
+	if err := out.Close(); err != nil {
+		return err
+	}
+
+	// atomic operation
+	return os.Rename(out.Name(), path)
 }
 
 func (f fatArches) extract(arches ...string) fatArches {
