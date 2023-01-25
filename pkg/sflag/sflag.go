@@ -80,7 +80,7 @@ func String(p *string) Value {
 }
 
 func Bool(p *bool) Value {
-	return FlagValue(p, func(v string) (bool, error) { return strconv.ParseBool(v) })
+	return FlagValue(p, strconv.ParseBool)
 }
 
 func StringFlags(p *[]string) Value {

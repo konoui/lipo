@@ -57,7 +57,7 @@ func init() {
 }
 
 func id(t, s uint32) uint64 {
-	s = s & ^MaskSubCpuType
+	s &= ^MaskSubCpuType
 	return (uint64(t) << 32) | uint64(s)
 }
 

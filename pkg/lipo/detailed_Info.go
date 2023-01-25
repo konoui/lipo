@@ -102,7 +102,7 @@ func detailedInfo(bin string) (string, bool, error) {
 		NFatArch:  nFatArch,
 		Arches:    make([]*tplFatArch, 0, len(ff.Arches)),
 	}
-	fb.Arches = util.Map(ff.Arches, func(v lmacho.FatArch) *tplFatArch { return tplArch(v) })
+	fb.Arches = util.Map(ff.Arches, tplArch)
 	fb.Arches = append(fb.Arches,
 		util.Map(ff.HiddenArches, func(v lmacho.FatArch) *tplFatArch {
 			ta := tplArch(v)

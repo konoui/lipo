@@ -35,7 +35,7 @@ func GuessAlignBit(addr uint64, min, max uint32) uint32 {
 		return max
 	}
 	for {
-		segAlign = segAlign << 1
+		segAlign <<= 1
 		align++
 		if (segAlign & addr) != 0 {
 			break
@@ -51,7 +51,7 @@ func GuessAlignBit(addr uint64, min, max uint32) uint32 {
 	return align
 }
 
-// Note mock using qsort
+// SortFunc is a variable for mock using qsort
 var SortFunc = sort.Slice
 
 // https://github.com/apple-oss-distributions/cctools/blob/cctools-973.0.1/misc/lipo.c#L2677

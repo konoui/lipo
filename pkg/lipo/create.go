@@ -6,7 +6,8 @@ import (
 )
 
 func (l *Lipo) Create() error {
-	archInputs := append(l.arches, util.Map(l.in, func(v string) *ArchInput { return &ArchInput{Bin: v} })...)
+	l.arches = append(l.arches, util.Map(l.in, func(v string) *ArchInput { return &ArchInput{Bin: v} })...)
+	archInputs := l.arches
 	if len(archInputs) == 0 {
 		return errNoInput
 	}
