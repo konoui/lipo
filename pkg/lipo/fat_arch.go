@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
@@ -19,7 +20,7 @@ func (f fatArches) createFatBinary(path string, perm os.FileMode, cfg *lmacho.Fa
 		return errors.New("empty fat file due to no inputs")
 	}
 
-	out, err := os.CreateTemp("", "tmp-output-binary")
+	out, err := createTemp(path)
 	if err != nil {
 		return err
 	}
@@ -41,6 +42,15 @@ func (f fatArches) createFatBinary(path string, perm os.FileMode, cfg *lmacho.Fa
 
 	// atomic operation
 	return os.Rename(out.Name(), path)
+}
+
+// createTemp creates a temporary file from file path
+func createTemp(path string) (*os.File, error) {
+	f, err := os.CreateTemp(filepath.Dir(path), "tmp-lipo-out")
+	if err != nil {
+		return nil, fmt.Errorf("can't create temporary output file: %w", err)
+	}
+	return f, nil
 }
 
 func (f fatArches) extract(arches ...string) fatArches {

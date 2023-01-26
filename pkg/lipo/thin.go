@@ -39,7 +39,7 @@ func (l *Lipo) Thin(arch string) error {
 }
 
 func (l *Lipo) thin(perm os.FileMode, fatArch lmacho.FatArch) error {
-	out, err := os.CreateTemp("", "tmp-output-binary")
+	out, err := createTemp(l.out)
 	if err != nil {
 		return err
 	}
