@@ -11,7 +11,6 @@ import (
 
 func fatal(w io.Writer, g *sflag.Group, msg string) (exitCode int) {
 	fmt.Fprintf(w, "Error %s\n", msg)
-	fmt.Fprint(w, g.Usage())
 	return 1
 }
 
