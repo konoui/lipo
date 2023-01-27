@@ -5,7 +5,7 @@ on:
 
 jobs:
   test:
-    runs-on: macos-11
+    runs-on: macos-latest
     steps:
     - name: checkout
       uses: actions/checkout@v3
@@ -22,7 +22,7 @@ jobs:
         make test
         make test-large-file
   release:
-    runs-on: macos-11
+    runs-on: macos-latest
     name: goreleaser
     needs: [test]
     if: startsWith(github.ref, 'refs/tags/v')
