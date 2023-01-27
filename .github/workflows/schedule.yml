@@ -1,0 +1,24 @@
+name: schedule test
+
+on:
+  schedule:
+  - cron:  '0 8 */20 * *'
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [macos-latest, macos-12, macos-11, macos-10.15]  
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3
+    - name: set up go
+      uses: actions/setup-go@v3
+      with:
+        go-version-file: "go.mod"
+    - name: test
+      run: |
+        sw_vers
+        make test
+        make test-large-file
