@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/konoui/go-qsort"
 )
 
 // FatHeader is a header for a Macho-0 32 bit or 64 bit
@@ -193,9 +195,7 @@ func (f *FatFile) AllArches() []FatArch {
 
 func (f *FatFile) sortedArches() ([]FatArch, error) {
 	arches := f.AllArches()
-	SortFunc(arches, func(i, j int) bool {
-		return compare(arches[i], arches[j])
-	})
+	qsort.Slice(arches, CmpArchFunc)
 
 	// update offset
 	offset := f.offset()
