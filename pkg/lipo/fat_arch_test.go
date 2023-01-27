@@ -16,6 +16,7 @@ func Test_createTemp(t *testing.T) {
 	}{
 		{name: "abs", dir: os.TempDir(), filename: "output"},
 		{name: "rela", dir: "./", filename: "output"},
+		{name: "rela", dir: "", filename: "output"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
