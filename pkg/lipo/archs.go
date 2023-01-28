@@ -36,7 +36,7 @@ func archs(bin string) ([]string, error) {
 
 	cpus := make([]string, 0, len(fat.Arches))
 	for _, hdr := range fat.AllArches() {
-		cpus = append(cpus, lmacho.ToCpuString(hdr.Cpu, hdr.SubCpu))
+		cpus = append(cpus, hdr.String())
 	}
 	return cpus, nil
 }

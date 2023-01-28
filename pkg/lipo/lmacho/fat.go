@@ -42,6 +42,11 @@ type FatFile struct {
 	HiddenArches []FatArch
 }
 
+// Strings returns an architecture name
+func (f *FatArchHeader) String() string {
+	return ToCpuString(f.Cpu, f.SubCpu)
+}
+
 func (f *FatFile) offset() uint64 {
 	return f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(f.Arches)+len(f.HiddenArches))
 }

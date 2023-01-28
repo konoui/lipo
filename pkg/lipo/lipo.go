@@ -105,7 +105,7 @@ func newFatArches(arches ...*ArchInput) (fatArches, error) {
 			return nil, err
 		}
 		if arch.Arch != "" {
-			if cpu := lmacho.ToCpuString(fa.Cpu, fa.SubCpu); cpu != arch.Arch {
+			if cpu := fa.String(); cpu != arch.Arch {
 				return nil, fmt.Errorf("specified architecture: %s for input file: %s does not match the file's architecture", arch.Arch, arch.Bin)
 			}
 		}
@@ -113,7 +113,7 @@ func newFatArches(arches ...*ArchInput) (fatArches, error) {
 	}
 
 	dup := util.Duplicates(fatArches, func(v lmacho.FatArch) string {
-		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
+		return v.String()
 	})
 	if dup != nil {
 		return nil, fmt.Errorf("duplicate architecture %s", *dup)

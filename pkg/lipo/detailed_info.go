@@ -117,7 +117,7 @@ func detailedInfo(bin string) (string, bool, error) {
 
 func tplArch(a lmacho.FatArch) *tplFatArch {
 	c, s := lmacho.ToCpuValues(a.Cpu, a.SubCpu)
-	arch := lmacho.ToCpuString(a.Cpu, a.SubCpu)
+	arch := a.String()
 	return &tplFatArch{
 		Arch:         arch,
 		CpuType:      c,

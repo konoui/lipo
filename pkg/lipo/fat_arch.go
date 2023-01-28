@@ -56,7 +56,7 @@ func createTemp(path string) (*os.File, error) {
 func (f fatArches) extract(arches ...string) fatArches {
 	exist := util.ExistMap(arches, func(v string) string { return v })
 	return util.Filter(f, func(v lmacho.FatArch) bool {
-		_, ok := exist[lmacho.ToCpuString(v.Cpu, v.SubCpu)]
+		_, ok := exist[v.String()]
 		return ok
 	})
 }
@@ -75,7 +75,7 @@ func (f fatArches) extractFamily(arches ...string) fatArches {
 func (f fatArches) remove(arches ...string) fatArches {
 	exist := util.ExistMap(arches, func(v string) string { return v })
 	return util.Filter(f, func(v lmacho.FatArch) bool {
-		_, ok := exist[lmacho.ToCpuString(v.Cpu, v.SubCpu)]
+		_, ok := exist[v.String()]
 		return !ok
 	})
 }
@@ -93,7 +93,7 @@ func (f fatArches) replace(with fatArches) fatArches {
 
 func (f fatArches) arches() []string {
 	return util.Map(f, func(v lmacho.FatArch) string {
-		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
+		return v.String()
 	})
 }
 
@@ -120,7 +120,7 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 		alignBit := uint32(math.Log2(float64(align)))
 		found := false
 		for idx := range f {
-			if lmacho.ToCpuString(f[idx].Cpu, f[idx].SubCpu) == a.Arch {
+			if f[idx].String() == a.Arch {
 				f[idx].Align = alignBit
 				found = true
 				break
