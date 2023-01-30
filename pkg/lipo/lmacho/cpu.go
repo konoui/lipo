@@ -82,7 +82,7 @@ var cpuNames = []cpuName{
 	{t: uint32(CpuTypeArm64), s: SubCpuTypeArm64E, v: "arm64e"},
 	{t: uint32(CpuTypeArm64), s: SubCpuTypeArm64V8, v: "arm64v8"},
 	// arm64_32
-	{t: uint32(CpuTypeArm64_32), s: SubCpuTypeArm64_32All, v: "arm64_32"},
+	{t: uint32(CpuTypeArm64_32), s: SubCpuTypeArm64_32V8, v: "arm64_32"},
 }
 
 // /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach/machine.h
@@ -129,7 +129,7 @@ const (
 )
 
 const (
-	SubCpuTypeArm64_32All uint32 = 0
+	SubCpuTypeArm64_32V8 uint32 = 1
 )
 
 const (
@@ -138,12 +138,13 @@ const (
 	SubCpuTypeArm64E   uint32 = 2
 )
 
-func ToCpuValues(c macho.Cpu, s uint32) (string, string) {
+func ToCpuValues(c macho.Cpu, s uint32) (cpu string, sub string) {
+	var v string
 	switch c {
 	case CpuTypeI386:
 		return "CPU_TYPE_I386", "CPU_SUBTYPE_I386_ALL"
 	case CpuTypeX86_64:
-		v := "CPU_TYPE_X86_64"
+		v = "CPU_TYPE_X86_64"
 		switch s & ^MaskSubCpuType {
 		case SubCpuTypeX86All:
 			return v, "CPU_SUBTYPE_X86_64_ALL"
@@ -151,7 +152,7 @@ func ToCpuValues(c macho.Cpu, s uint32) (string, string) {
 			return v, "CPU_SUBTYPE_X86_64_H"
 		}
 	case CpuTypeArm:
-		v := "CPU_TYPE_ARM"
+		v = "CPU_TYPE_ARM"
 		switch s {
 		case SubCpuTypeArmV4T:
 			return v, "CPU_SUBTYPE_ARM_V4T"
@@ -177,7 +178,7 @@ func ToCpuValues(c macho.Cpu, s uint32) (string, string) {
 			return v, "CPU_SUBTYPE_ARM_ALL"
 		}
 	case CpuTypeArm64:
-		v := "CPU_TYPE_ARM64"
+		v = "CPU_TYPE_ARM64"
 		switch s & ^MaskSubCpuType {
 		case SubCpuTypeArm64All:
 			return v, "CPU_SUBTYPE_ARM64_ALL"
@@ -186,7 +187,16 @@ func ToCpuValues(c macho.Cpu, s uint32) (string, string) {
 		case SubCpuTypeArm64E:
 			return v, "CPU_SUBTYPE_ARM64E"
 		}
+	case CpuTypeArm64_32:
+		v = "CPU_TYPE_ARM64_32"
+		switch s & ^MaskSubCpuType {
+		case SubCpuTypeArm64_32V8:
+			return v, "CPU_SUBTYPE_ARM64_32_V8"
+		}
 	}
 
-	return fmt.Sprintf("%d", c), fmt.Sprintf("%d", s & ^MaskSubCpuType)
+	if v == "" {
+		v = fmt.Sprintf("%d", c)
+	}
+	return v, fmt.Sprintf("%d", s & ^MaskSubCpuType)
 }
