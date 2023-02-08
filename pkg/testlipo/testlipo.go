@@ -69,16 +69,13 @@ func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
 	t.Helper()
 
 	tempDir := filepath.Join(os.TempDir(), "testlipo-output")
-	if err := os.MkdirAll(tempDir, 0740); err != nil {
-		t.Fatal(err)
-	}
+	err := os.MkdirAll(tempDir, 0740)
+	fatalIf(t, err)
 	dir := tempDir
 
 	mainfile := filepath.Join(dir, "main.go")
-	err := os.WriteFile(mainfile, []byte(godata), os.ModePerm)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = os.WriteFile(mainfile, []byte(godata), os.ModePerm)
+	fatalIf(t, err)
 
 	// base binaries
 	amd64Bin := filepath.Join(dir, "x86_64")
@@ -162,15 +159,15 @@ func NewLipoBin(t *testing.T, opts ...Opt) LipoBin {
 		return LipoBin{exist: false}
 	}
 
+	if err != nil {
+		t.Fatalf("could not find lipo command %v\n", err)
+	}
+
 	l := LipoBin{exist: true, Bin: bin, segAligns: []string{}}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(&l)
 		}
-	}
-
-	if err != nil {
-		t.Fatalf("could not find lipo command %v\n", err)
 	}
 	return l
 }
@@ -310,6 +307,52 @@ func appendCmd(cmd string, args []string) []string {
 	return ret
 }
 
+func PatchFat64Reserved(t *testing.T, p string) {
+	ff, err := lmacho.OpenFat(p)
+	if err != nil {
+		if errors.Is(err, macho.ErrNotFat) {
+			return
+		}
+		fatalIf(t, err)
+	}
+
+	if ff.Magic != lmacho.MagicFat64 {
+		return
+	}
+
+	f, err := os.OpenFile(p, os.O_RDWR, 0777)
+	fatalIf(t, err)
+
+	// seek fatHeader
+	_, err = f.Seek(4*2, io.SeekStart)
+	fatalIf(t, err)
+
+	for _, fa := range ff.AllArches() {
+		off := binary.Size(fa.FatArchHeader)
+		_, err = f.Seek(int64(off), io.SeekCurrent)
+		fatalIf(t, err)
+		reserved := uint32(0)
+		err = binary.Write(f, binary.BigEndian, &reserved)
+		fatalIf(t, err)
+	}
+
+	err = f.Close()
+	fatalIf(t, err)
+}
+
+func DiffPerm(t *testing.T, wantBin, gotBin string) {
+	wantInfo, err := os.Stat(wantBin)
+	fatalIf(t, err)
+
+	gotInfo, err := os.Stat(gotBin)
+	fatalIf(t, err)
+
+	want, got := wantInfo.Mode().Perm(), gotInfo.Mode().Perm()
+	if want != got {
+		t.Errorf("want %s got %s", want, got)
+	}
+}
+
 func DiffSha256(t *testing.T, wantBin, gotBin string) {
 	t.Helper()
 
@@ -331,9 +374,7 @@ func DiffSha256(t *testing.T, wantBin, gotBin string) {
 
 func printStat(t *testing.T, bin string) {
 	info, err := os.Stat(bin)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIf(t, err)
 	t.Logf("size: %d\n", info.Size())
 }
 
@@ -344,23 +385,19 @@ func compile(t *testing.T, mainfile, binPath, arch string) {
 	args = append(args, binPath, mainfile)
 	cmd := exec.Command("go", args...)
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=darwin", "GOARCH="+arch)
-	if err := cmd.Run(); err != nil {
-		t.Fatal(err)
-	}
+	err := cmd.Run()
+	fatalIf(t, err)
 }
 
 func calcSha256(t *testing.T, p string) string {
 	t.Helper()
 	f, err := os.Open(p)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIf(t, err)
 	defer f.Close()
 
 	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		t.Fatal(err)
-	}
+	_, err = io.Copy(h, f)
+	fatalIf(t, err)
 
 	return hex.EncodeToString(h.Sum(nil))
 }
@@ -373,21 +410,15 @@ func copyAndManipulate(t *testing.T, src, dst string, arch string, typ macho.Typ
 	}
 
 	f, err := os.Open(src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIf(t, err)
 	defer f.Close()
 
 	info, err := f.Stat()
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIf(t, err)
 	totalSize := info.Size()
 
 	mo, err := macho.Open(src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIf(t, err)
 	defer f.Close()
 
 	hdr := mo.FileHeader
@@ -401,29 +432,27 @@ func copyAndManipulate(t *testing.T, src, dst string, arch string, typ macho.Typ
 		t.Fatalf("unexpected header size want: %d, got: %d\n", wantHdrSize, hdrSize)
 	}
 
-	if _, err := f.Seek(int64(hdrSize), io.SeekCurrent); err != nil {
-		t.Fatal(err)
-	}
+	_, err = f.Seek(int64(hdrSize), io.SeekCurrent)
+	fatalIf(t, err)
 
 	out, err := os.Create(dst)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIf(t, err)
 
-	if err := binary.Write(out, binary.LittleEndian, hdr); err != nil {
-		t.Fatal(err)
-	}
+	err = binary.Write(out, binary.LittleEndian, hdr)
+	fatalIf(t, err)
 
 	n, err := io.Copy(out, f)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIf(t, err)
 
-	if err := out.Close(); err != nil {
-		t.Fatal(err)
-	}
+	fatalIf(t, out.Close())
 
 	if wantN := totalSize - int64(hdrSize); n != wantN {
 		t.Fatalf("wrote body size. want: %d, got: %d\n", n, wantN)
+	}
+}
+
+func fatalIf(t *testing.T, err error) {
+	if err != nil {
+		t.Fatal(err)
 	}
 }

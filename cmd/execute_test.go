@@ -164,8 +164,7 @@ func TestExecute(t *testing.T) {
 				if gotBin != "" {
 					testArgs, wantBin := replace(t, p, tt.args, false)
 					lipoExecute(t, p, testArgs)
-					testlipo.DiffSha256(t, wantBin, gotBin)
-
+					diffSha256(t, wantBin, gotBin)
 				} else {
 					gotResp := outBuf.String()
 					wantResp := lipoExecute(t, p, args)
@@ -200,4 +199,11 @@ func diffByLine(t *testing.T, want string, got string) {
 			}
 		}
 	}
+}
+
+func diffSha256(t *testing.T, wantBin, gotBin string) {
+	t.Helper()
+	testlipo.DiffPerm(t, wantBin, gotBin)
+	testlipo.PatchFat64Reserved(t, wantBin)
+	testlipo.DiffSha256(t, wantBin, gotBin)
 }
