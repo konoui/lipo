@@ -1,12 +1,11 @@
 ## LIPO
 
-This `lipo` aims to be compatible with macOS `lipo`.  
-macOS lipo is known as an utility for Universal Binary a.k.a Fat Binary.
+This `lipo` is designed to be compatible with macOS `lipo`, which is a utility for creating Universal Binary as known as Fat Binary.
 
-This is useful for following use-cases.
+This can be useful in the following scenarios:
 
-- On CI/CD (e.g. GitLab) not providing macOS or [macOS `lipo`](https://ss64.com/osx/lipo.html).
-- On GitHub Actions not using macOS for [cost-effective](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions)
+- When using a CI/CD platform (such as GitLab) that does not provide access to macOS or [macOS `lipo`](https://ss64.com/osx/lipo.html).
+- When using GitHub Actions and looking for a [cost-effective](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions) solution that doesn't involve using macOS.
 
 ### INSTALL
 
