@@ -39,10 +39,6 @@ func TestLipo_Create(t *testing.T) {
 			arches: []string{"obj_" + currentArch(), "arm64e", "x86_64h"},
 		},
 		{
-			name:   "-create -arch arm64 file.arm64",
-			arches: []string{"obj_" + currentArch(), "arm64e", "x86_64h"},
-		},
-		{
 			name:      "-create -segalign x86_64 10 (2^4)",
 			arches:    []string{"x86_64", "arm64"},
 			segAligns: []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "10"}, {Arch: "arm64", AlignHex: "1"}},

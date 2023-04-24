@@ -113,6 +113,11 @@ func TestExecute(t *testing.T) {
 			args:         []string{"-create", "-output", phOutput, phInputThins, "-segalign", "x86_64", "2"},
 		},
 		{
+			name:         "create with arch",
+			wantExitCode: 0,
+			args:         []string{"-create", "-output", phOutput, phArm64Thin, "-arch", "x86_64", phX86_64Thin},
+		},
+		{
 			name:         "create with segalign and hideARM64",
 			wantExitCode: 0,
 			args:         []string{"-create", "-output", phOutput, phInputThins, "-segalign", "arm64", "1", "-hideARM64"},

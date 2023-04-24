@@ -4,7 +4,7 @@ SRC_DIR := ./
 BIN_NAME := lipo
 BINARY := bin/$(BIN_NAME)
 
-GOLANGCI_LINT_VERSION := v1.49.0
+GOLANGCI_LINT_VERSION := v1.52.2
 export GO111MODULE=on
 
 ## Build binaries on your environment
@@ -22,7 +22,7 @@ test-large-file:
 	./test-large-file.sh
 
 cover:
-	go test -coverprofile=cover.out ./...
+	go test -coverpkg=./... -coverprofile=cover.out ./...
 	go tool cover -html=cover.out -o cover.html
 
 clean:

@@ -116,7 +116,7 @@ func newFatArches(arches ...*ArchInput) (fatArches, error) {
 		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
 	})
 	if dup != nil {
-		return nil, fmt.Errorf("duplicate architecture %s", *dup)
+		return nil, fmt.Errorf("duplicate architecture: %s", *dup)
 	}
 
 	return fatArches, nil
@@ -140,7 +140,7 @@ func validateInputArches(arches []string) error {
 
 	for _, arch := range arches {
 		if !lmacho.IsSupportedCpu(arch) {
-			return fmt.Errorf("unsupported architecture %s", arch)
+			return fmt.Errorf(unsupportedArchFmt, arch)
 		}
 	}
 	return nil

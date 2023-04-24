@@ -122,7 +122,7 @@ func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
 	}
 }
 
-func (l *TestLipo) Bin(t *testing.T, arch string) string {
+func (l *TestLipo) Bin(t *testing.T, arch string) (path string) {
 	bin, ok := l.archBins[arch]
 	if !ok {
 		t.Fatalf("found no arch %s\n", arch)
@@ -130,10 +130,10 @@ func (l *TestLipo) Bin(t *testing.T, arch string) string {
 	return bin
 }
 
-func (l *TestLipo) Bins() []string {
-	bins := make([]string, 0, len(l.archBins))
-	for _, a := range l.arches {
-		bins = append(bins, l.archBins[a])
+func (l *TestLipo) Bins() (paths []string) {
+	bins := make([]string, len(l.archBins))
+	for i, a := range l.arches {
+		bins[i] = l.archBins[a]
 	}
 	return bins
 }
@@ -187,9 +187,10 @@ func (l *LipoBin) Info(t *testing.T, bins ...string) string {
 	t.Helper()
 	args := append([]string{"-info"}, bins...)
 	cmd := exec.Command(l.Bin, args...)
-	// if no fat case, suffix has /n
-	// if fat case, suffix has space and /n
 	v := execute(t, cmd, true)
+	// Note arrange the output
+	// if no fat case, suffix has `/n`
+	// if fat case, suffix has `a space` and `/n`
 	vs := strings.SplitN(v, "\n", len(bins))
 	vvs := util.Map(vs, func(s string) string {
 		return strings.TrimSuffix(strings.TrimSuffix(s, "\n"), " ")
@@ -277,6 +278,7 @@ func (l *LipoBin) Archs(t *testing.T, in string) string {
 	t.Helper()
 	cmd := exec.Command(l.Bin, in, "-archs")
 	v := execute(t, cmd, false)
+	// Note arrange the output
 	v = strings.TrimSuffix(v, "\n")
 	return v
 }
@@ -319,6 +321,8 @@ func PatchFat64Reserved(t *testing.T, p string) {
 	if ff.Magic != lmacho.MagicFat64 {
 		return
 	}
+
+	t.Log("patching fat64 reserved filed with zero")
 
 	f, err := os.OpenFile(p, os.O_RDWR, 0777)
 	fatalIf(t, err)

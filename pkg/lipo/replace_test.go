@@ -114,7 +114,7 @@ func TestLipo_ReplaceError(t *testing.T) {
 		to := p.Bin(t, "arm64")
 		ri := []*lipo.ReplaceInput{{Arch: "arm64", Bin: to}, {Arch: "arm64", Bin: to}}
 		err := l.Replace(ri)
-		wantErrMsg := "duplicate architecture arm64"
+		wantErrMsg := "duplicate architecture: arm64"
 		if err.Error() != wantErrMsg {
 			t.Errorf("want: %s, got: %s", wantErrMsg, err.Error())
 		}

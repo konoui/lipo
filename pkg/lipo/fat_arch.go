@@ -17,7 +17,7 @@ type fatArches []lmacho.FatArch
 
 func (f fatArches) createFatBinary(path string, perm os.FileMode, cfg *lmacho.FatFileConfig) error {
 	if len(f) == 0 {
-		return errors.New("empty fat file due to no inputs")
+		return errors.New("no inputs to create a fat file")
 	}
 
 	out, err := createTemp(path)

@@ -1,6 +1,7 @@
 package lipo_test
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -77,4 +78,22 @@ func TestLipo_ExtractFamily(t *testing.T) {
 			diffSha256(t, want, got)
 		})
 	}
+}
+
+func TestLipo_ExtracFamilyError(t *testing.T) {
+	p := testlipo.Setup(t, []string{"x86_64"})
+	got := filepath.Join(p.Dir, gotName(t))
+	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+
+	t.Run("not-match-arch", func(t *testing.T) {
+		err := l.ExtractFamily("arm64e")
+		if err == nil {
+			t.Errorf("error does not occur")
+		}
+
+		want := fmt.Sprintf("%s specified but fat file: %s does not contain that architecture", "arm64e", p.FatBin)
+		if got := err.Error(); got != want {
+			t.Errorf("want: %s, got: %s", want, got)
+		}
+	})
 }

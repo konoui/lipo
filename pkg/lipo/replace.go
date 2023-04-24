@@ -29,13 +29,14 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	}
 	all := fatArches(ff.AllArches())
 
-	// check1 replace input arch equals to replace input bin
 	archInputs := util.Map(inputs, func(i *ReplaceInput) *ArchInput {
 		return &ArchInput{
 			Arch: i.Arch,
 			Bin:  i.Bin,
 		}
 	})
+	// check an ReplaceInput.Arch is equal to an arch in ReplaceInput.Bin
+	// check no duplication arches
 	fatInputs, err := newFatArches(archInputs...)
 	if err != nil {
 		return err
@@ -47,7 +48,7 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 		}
 	}
 
-	// check2 fat bin contains all replace inputs
+	// check fat bin contains all arches in replace inputs
 	if !all.contains(fatInputs) {
 		diffArch := remove(all.arches(), fatInputs.arches())
 		return fmt.Errorf(noMatchFmt, diffArch, fatBin)

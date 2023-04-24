@@ -11,14 +11,14 @@ import (
 	"github.com/konoui/go-qsort"
 )
 
-// FatHeader is a header for a Macho-0 32 bit or 64 bit
+// FatHeader presets a header for a fat 32 bit and fat 64 bit
 // see /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach-o/fat.h
 type FatHeader struct {
 	Magic uint32
 	NArch uint32
 }
 
-// FatArchHeader is a header for a Macho-0 32 bit or 64 bit
+// FatArchHeader presets an architecture header for a Macho-0 32 bit and 64 bit
 type FatArchHeader struct {
 	Cpu    macho.Cpu
 	SubCpu uint32
@@ -27,7 +27,7 @@ type FatArchHeader struct {
 	Align  uint32
 }
 
-// FatArchHeader is a header for a Macho-0 32 bit or 64 bit
+// FatArch has architecture information for a fat file.
 type FatArch struct {
 	FatArchHeader
 	FileHeader *macho.FileHeader
@@ -35,13 +35,14 @@ type FatArch struct {
 	fileOffset uint64
 }
 
-// FatFile presets an universal file for 32 bit or 64 bit
+// FatFile presets an universal file
 type FatFile struct {
 	Magic        uint32
 	Arches       []FatArch
 	HiddenArches []FatArch
 }
 
+// offset returns an offset of first macho header
 func (f *FatFile) offset() uint64 {
 	return f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(f.Arches)+len(f.HiddenArches))
 }
@@ -102,7 +103,7 @@ func (f *FatFile) writeFatArchHeader(out io.Writer, hdr FatArchHeader) error {
 	if f.Magic == MagicFat64 {
 		fatArchHdr := fatArch64Header{FatArchHeader: hdr, Reserved: 0}
 		if err := binary.Write(out, binary.BigEndian, fatArchHdr); err != nil {
-			return fmt.Errorf("error write fat arch64 headers: %w", err)
+			return fmt.Errorf("error write fat_arch64 header: %w", err)
 		}
 		return nil
 	}
@@ -115,7 +116,7 @@ func (f *FatFile) writeFatArchHeader(out io.Writer, hdr FatArchHeader) error {
 		Align:  hdr.Align,
 	}
 	if err := binary.Write(out, binary.BigEndian, fatArchHdr); err != nil {
-		return fmt.Errorf("error write fat arch headers: %w", err)
+		return fmt.Errorf("error write fat_arch header: %w", err)
 	}
 	return nil
 }
@@ -224,13 +225,13 @@ func (f *FatFile) Create(out io.Writer) error {
 		return err
 	}
 
-	// write header
+	// write a fat header
 	// see https://cs.opensource.google/go/go/+/refs/tags/go1.18:src/debug/macho/fat.go;l=45
 	if err := binary.Write(out, binary.BigEndian, fatHeader); err != nil {
-		return fmt.Errorf("error write fat header: %w", err)
+		return fmt.Errorf("error write fat_header: %w", err)
 	}
 
-	// write headers
+	// write architecture headers
 	for _, hdr := range arches {
 		if err := f.writeFatArchHeader(out, hdr.FatArchHeader); err != nil {
 			return err

@@ -51,7 +51,7 @@ func (l *Lipo) thin(perm os.FileMode, fatArch lmacho.FatArch) error {
 	defer r.Close()
 
 	if _, err := io.CopyN(out, r, int64(fatArch.Size)); err != nil {
-		return fmt.Errorf("failed to write binary data: %w", err)
+		return fmt.Errorf("error write binary data: %w", err)
 	}
 
 	if err := out.Chmod(perm); err != nil {

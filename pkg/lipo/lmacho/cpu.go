@@ -5,12 +5,14 @@ import (
 	"fmt"
 )
 
+type SubCpu = uint32
+
 func IsSupportedCpu(v string) bool {
 	_, ok := cpuNameSet[v]
 	return ok
 }
 
-func ToCpu(v string) (cpu macho.Cpu, sub uint32, ok bool) {
+func ToCpu(v string) (cpu macho.Cpu, sub SubCpu, ok bool) {
 	cs, ok := cpuNameSet[v]
 	if ok {
 		return macho.Cpu(cs.t), cs.s, true
@@ -18,7 +20,7 @@ func ToCpu(v string) (cpu macho.Cpu, sub uint32, ok bool) {
 	return 0, 0, false
 }
 
-func ToCpuString(cpu macho.Cpu, subCpu uint32) string {
+func ToCpuString(cpu macho.Cpu, subCpu SubCpu) string {
 	maskedSub := (subCpu & ^MaskSubCpuType)
 	id := id(uint32(cpu), subCpu)
 	cs, ok := cpuIDSet[id]
@@ -30,9 +32,9 @@ func ToCpuString(cpu macho.Cpu, subCpu uint32) string {
 }
 
 func CpuNames() []string {
-	cpus := make([]string, 0, len(cpuNames))
-	for _, c := range cpuNames {
-		cpus = append(cpus, c.v)
+	cpus := make([]string, len(cpuNames))
+	for i, c := range cpuNames {
+		cpus[i] = c.v
 	}
 	return cpus
 }
@@ -103,42 +105,42 @@ const (
 	// skip
 )
 
-const MaskSubCpuType uint32 = 0xff000000
+const MaskSubCpuType SubCpu = 0xff000000
 
 const (
-	SubCpuTypeX86All    uint32 = 3
-	SubCpuTypeX86_64All uint32 = 3
-	SubCpuTypeX86Arch1  uint32 = 4
-	SubCpuTypeX86_64H   uint32 = 8
+	SubCpuTypeX86All    SubCpu = 3
+	SubCpuTypeX86_64All SubCpu = 3
+	SubCpuTypeX86Arch1  SubCpu = 4
+	SubCpuTypeX86_64H   SubCpu = 8
 )
 
 const (
-	SubCpuTypeArmAll uint32 = 0
-	SubCpuTypeArmV4T uint32 = 5
-	SubCpuTypeArmV6  uint32 = 6
+	SubCpuTypeArmAll SubCpu = 0
+	SubCpuTypeArmV4T SubCpu = 5
+	SubCpuTypeArmV6  SubCpu = 6
 	// skip
-	SubCpuTypeArmV7  uint32 = 9
-	SubCpuTypeArmV7F uint32 = 10
-	SubCpuTypeArmV7S uint32 = 11
-	SubCpuTypeArmV7K uint32 = 12
+	SubCpuTypeArmV7  SubCpu = 9
+	SubCpuTypeArmV7F SubCpu = 10
+	SubCpuTypeArmV7S SubCpu = 11
+	SubCpuTypeArmV7K SubCpu = 12
 	// skip
-	SubCpuTypeArmV6M  uint32 = 14
-	SubCpuTypeArmV7M  uint32 = 15
-	SubCpuTypeArmV7EM uint32 = 16
-	SubCpuTypeArmV8M  uint32 = 17
+	SubCpuTypeArmV6M  SubCpu = 14
+	SubCpuTypeArmV7M  SubCpu = 15
+	SubCpuTypeArmV7EM SubCpu = 16
+	SubCpuTypeArmV8M  SubCpu = 17
 )
 
 const (
-	SubCpuTypeArm64_32V8 uint32 = 1
+	SubCpuTypeArm64_32V8 SubCpu = 1
 )
 
 const (
-	SubCpuTypeArm64All uint32 = 0
-	SubCpuTypeArm64V8  uint32 = 1
-	SubCpuTypeArm64E   uint32 = 2
+	SubCpuTypeArm64All SubCpu = 0
+	SubCpuTypeArm64V8  SubCpu = 1
+	SubCpuTypeArm64E   SubCpu = 2
 )
 
-func ToCpuValues(c macho.Cpu, s uint32) (cpu string, sub string) {
+func ToCpuValues(c macho.Cpu, s SubCpu) (cpu string, sub string) {
 	var v string
 	switch c {
 	case CpuTypeI386:
