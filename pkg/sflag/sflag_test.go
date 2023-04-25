@@ -249,7 +249,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-output", "output1",
 				"-replace", "x86_64",
 			},
-			errMsg: "more values are required",
+			errMsg: "-replace flag: more values are required",
 		},
 		{
 			name: "-replace without args",
@@ -258,16 +258,16 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-replace", "x86_64",
 				"-output", "output2",
 			},
-			errMsg: "more values are required",
+			errMsg: "-replace flag: more values are required",
 		},
 		{
-			name: "-replace without args",
+			name: "-output without an arg",
 			args: []string{
 				"path/to/in1",
 				"-replace", "x86_64", "target1",
 				"-output",
 			},
-			errMsg: "value is not specified",
+			errMsg: "-output flag: value is not specified",
 		},
 		{
 			name: "dup flag",
@@ -276,7 +276,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-output", "out1",
 				"-output", "out2",
 			},
-			errMsg: "duplication: more than one -output option specified",
+			errMsg: "duplication: more than one -output flag specified",
 		},
 		{
 			name: "multiple flag group",

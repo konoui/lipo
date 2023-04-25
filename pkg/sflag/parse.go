@@ -1,7 +1,6 @@
 package sflag
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -42,7 +41,7 @@ func (f *FlagSet) parse() (bool, error) {
 
 	_, seen := f.seen[name]
 	if seen && flag.denyDuplicate {
-		return false, fmt.Errorf("duplication: more than one -%s option specified", name)
+		return false, fmt.Errorf("duplication: more than one -%s flag specified", flag.Name)
 	}
 
 	// update and skip flag name
@@ -58,7 +57,7 @@ func (f *FlagSet) parse() (bool, error) {
 	}
 
 	if len(f.args) < 1 {
-		return false, errors.New("value is not specified")
+		return false, fmt.Errorf("-%s flag: value is not specified", flag.Name)
 	}
 
 	values, isValues := value.(Values)
@@ -74,13 +73,13 @@ func (f *FlagSet) parse() (bool, error) {
 	cap := values.Cap()
 	for i := 0; i < cap; i++ {
 		if len(f.args) == 0 {
-			return false, errors.New("more values are required")
+			return false, fmt.Errorf("-%s flag: more values are required", flag.Name)
 		}
 
 		nextArg := f.args[0]
 		_, isName := f.flags[flagName(nextArg)]
 		if isName {
-			return false, errors.New("more values are required")
+			return false, fmt.Errorf("-%s flag: more values are required", flag.Name)
 		}
 
 		v := f.consumeArg()
