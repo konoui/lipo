@@ -56,12 +56,12 @@ func (f *FlagSet) parse() (bool, error) {
 		return true, nil
 	}
 
-	if len(f.args) < 1 {
-		return false, fmt.Errorf("-%s flag: value is not specified", flag.Name)
-	}
-
 	values, isValues := value.(Values)
 	if !isValues {
+		if len(f.args) < 1 {
+			return false, fmt.Errorf("-%s flag: one value is required", flag.Name)
+		}
+
 		v := f.consumeArg()
 		if err := value.Set(v); err != nil {
 			return false, err

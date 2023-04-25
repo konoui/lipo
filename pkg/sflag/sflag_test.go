@@ -267,7 +267,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-replace", "x86_64", "target1",
 				"-output",
 			},
-			errMsg: "-output flag: value is not specified",
+			errMsg: "-output flag: one value is required",
 		},
 		{
 			name: "dup flag",
