@@ -9,8 +9,8 @@ import (
 	"github.com/konoui/lipo/pkg/sflag"
 )
 
-func fatal(w io.Writer, g *sflag.Group, msg string) (exitCode int) {
-	fmt.Fprintf(w, "Error %s\n", msg)
+func fatal(w io.Writer, msg string) (exitCode int) {
+	fmt.Fprintf(w, "Error: %s\n", msg)
 	return 1
 }
 
@@ -94,7 +94,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		AddRequired(detailedInfo.Flag())
 
 	if err := fset.Parse(args); err != nil {
-		fmt.Fprint(stderr, err.Error())
+		fmt.Fprintf(stderr, "ParseError: %s\n", err.Error())
 		return 1
 	}
 
@@ -108,8 +108,6 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		fmt.Fprintln(stderr, err.Error())
 		if group != nil {
 			fmt.Fprint(stderr, group.Usage())
-		} else {
-			fmt.Fprint(stderr, fset.Usage())
 		}
 		return 1
 	}
@@ -131,60 +129,60 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	switch group.Name {
 	case "create":
 		if err := l.Create(); err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		return
 	case "thin":
 		if err := l.Thin(thin.Value()); err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		return
 	case "remove":
 		if err := l.Remove(remove.Value()...); err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		return
 	case "extract":
 		if err := l.Extract(extract.Value()...); err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		return
 	case "extract_family":
 		extractFamily := extractFamily.Value()
 		extractFamily = append(extractFamily, extract.Value()...)
 		if err := l.ExtractFamily(extractFamily...); err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		return
 	case "replace":
 		if err := l.Replace(conv(replace.Value(), newReplace)); err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		return
 	case "archs":
 		arches, err := l.Archs()
 		if err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		fmt.Fprintln(stdout, strings.Join(arches, " "))
 		return
 	case "info":
 		v, err := l.Info()
 		if err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		fmt.Fprintln(stdout, strings.Join(v, "\n"))
 		return
 	case "detailed_info":
 		err := l.DetailedInfo(stdout)
 		if err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		return
 	case "verify_arch":
 		ok, err := l.VerifyArch(verifyArch.Value()...)
 		if err != nil {
-			return fatal(stderr, group, err.Error())
+			return fatal(stderr, err.Error())
 		}
 		if !ok {
 			return 1
