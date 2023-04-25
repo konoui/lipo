@@ -91,13 +91,13 @@ func TestLipo_Replace(t *testing.T) {
 			verifyArches(t, got, tt.inputs...)
 
 			want := filepath.Join(p.Dir, wantName(t))
-			p.Replace(t, want, p.FatBin, rapReplaceInputs(ri))
+			p.Replace(t, want, p.FatBin, wrapReplaceInputs(ri))
 			diffSha256(t, want, got)
 		})
 	}
 }
 
-func rapReplaceInputs(ri []*lipo.ReplaceInput) [][2]string {
+func wrapReplaceInputs(ri []*lipo.ReplaceInput) [][2]string {
 	ret := [][2]string{}
 	for _, i := range ri {
 		ret = append(ret, [2]string{i.Arch, i.Bin})

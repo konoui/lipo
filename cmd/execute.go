@@ -70,7 +70,6 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		// if extract is specified, apple lipo regard values as family
 		AddOptional(extract.Flag()).
 		AddOptional(segAligns.Flag()).
-		AddOptional(arch.Flag()).
 		AddOptional(fat64.Flag())
 	removeGroup.
 		AddRequired(remove.Flag()).
@@ -95,7 +94,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		AddRequired(detailedInfo.Flag())
 
 	if err := fset.Parse(args); err != nil {
-		fmt.Fprint(stderr, fset.Usage())
+		fmt.Fprint(stderr, err.Error())
 		return 1
 	}
 
