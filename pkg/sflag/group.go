@@ -33,6 +33,10 @@ type Group struct {
 	description string
 }
 
+func (g *Group) String() string {
+	return g.Name
+}
+
 func (g *Group) AddRequired(flag *Flag) *Group {
 	return g.add(flag, TypeRequired)
 }
@@ -81,24 +85,22 @@ func (g *Group) Seen(name string) bool {
 
 func LookupGroup(groups ...*Group) (*Group, error) {
 	found := []*Group{}
-	errNames := []string{}
 	for _, group := range groups {
 		if err := group.validate(); err == nil {
 			found = append(found, group)
-			errNames = append(errNames, group.Name)
 		}
 	}
 
 	if len(found) == 0 {
-		return nil, fmt.Errorf("found no flag group")
+		return nil, fmt.Errorf("found no flag group from %v", groups)
 	}
 	if len(found) > 1 {
-		return groups[0], fmt.Errorf("found multiple flag groups: %v", errNames)
+		return groups[0], fmt.Errorf("found multiple flag groups: %v", found)
 	}
 	return found[0], nil
 }
 
-// NonGroupFlagNames returns non group flag with specified
+// NonGroupFlagNames returns flag name not belonging to the flag group.
 func (g *Group) NonGroupFlagNames() []string {
 	diff := []string{}
 	for name := range g.flagSet.seen {
@@ -114,13 +116,13 @@ func (g *Group) validate() error {
 	flags := g.LookupByType(TypeRequired)
 	for _, flag := range flags {
 		if !g.Seen(flag.Name) {
-			return fmt.Errorf("required flag -%s is not specified", flag.Name)
+			return fmt.Errorf("required flag in the group is not specified: %s", flag.Name)
 		}
 	}
 
 	diff := g.NonGroupFlagNames()
 	if len(diff) > 0 {
-		return fmt.Errorf("non group flag is specified: %v", diff)
+		return fmt.Errorf("undefined flags in the group are specified: %v", diff)
 	}
 
 	return nil

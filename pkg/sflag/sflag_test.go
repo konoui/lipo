@@ -96,7 +96,7 @@ func TestFlagSet_Parse(t *testing.T) {
 			f, g, refs := fset(t, in)
 			eq(t, g.Name, "create")
 			equal(t, gotInput, f.Args())
-			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			eq(t, "path/to/out", refs.output.Value())
 			if !refs.create.Value() {
 				t.Errorf("create is not true")
 			}
@@ -118,7 +118,7 @@ func TestFlagSet_Parse(t *testing.T) {
 			got1 := replaces[0]
 			got2 := replaces[1]
 
-			if replaces := refs.replace.Value(); len(replaces) != 2 {
+			if len(replaces) != 2 {
 				t.Fatalf("len() is not equal. want: %v, got: %v", dataSet[2:], replaces)
 			}
 
@@ -140,7 +140,7 @@ func TestFlagSet_Parse(t *testing.T) {
 			f, g, refs := fset(t, in)
 			eq(t, g.Name, "extract")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			eq(t, "path/to/out", refs.output.Value())
 			equal(t, []string{"arm64", "arm64e"}, refs.extract.Value())
 		}
 	})
@@ -155,7 +155,7 @@ func TestFlagSet_Parse(t *testing.T) {
 			f, g, refs := fset(t, in)
 			eq(t, g.Name, "extract_family")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			eq(t, "path/to/out", refs.output.Value())
 			equal(t, []string{"arm64e"}, refs.extractFamily.Value())
 			equal(t, []string{"x86_64"}, refs.extract.Value())
 		}
@@ -171,7 +171,7 @@ func TestFlagSet_Parse(t *testing.T) {
 			f, g, refs := fset(t, in)
 			eq(t, g.Name, "remove")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
+			eq(t, "path/to/out", refs.output.Value())
 			equal(t, []string{"x86_64h", "x86_64"}, refs.remove.Value())
 		}
 	})
@@ -185,8 +185,8 @@ func TestFlagSet_Parse(t *testing.T) {
 			f, g, refs := fset(t, in)
 			eq(t, g.Name, "thin")
 			equal(t, []string{"path/to/in1"}, f.Args())
-			equal(t, []string{"path/to/out"}, []string{refs.output.Value()})
-			equal(t, []string{"x86_64"}, []string{refs.thin.Value()})
+			eq(t, "path/to/out", refs.output.Value())
+			eq(t, "x86_64", refs.thin.Value())
 		}
 	})
 	t.Run("archs", func(t *testing.T) {
@@ -230,7 +230,7 @@ func TestFlagSet_Parse(t *testing.T) {
 		if err := f.Parse(args); err != nil {
 			t.Fatal(err)
 		}
-		equal(t, []string{"stop-archs"}, []string{out.Value()})
+		eq(t, "stop-archs", out.Value())
 		equal(t, []string{"x86_64", "arm64"}, archs.Value())
 		equal(t, []string{"-input1"}, f.Args())
 	})
@@ -249,7 +249,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-output", "output1",
 				"-replace", "x86_64",
 			},
-			errMsg: "-replace flag: more values are required",
+			errMsg: "the -replace flag requires 2 values at least",
 		},
 		{
 			name: "-replace without args",
@@ -258,7 +258,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-replace", "x86_64",
 				"-output", "output2",
 			},
-			errMsg: "-replace flag: more values are required",
+			errMsg: "the -replace flag requires 2 values at least",
 		},
 		{
 			name: "-output without an arg",
@@ -267,7 +267,32 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-replace", "x86_64", "target1",
 				"-output",
 			},
-			errMsg: "-output flag: one value is required",
+			errMsg: "the -output flag requires one value",
+		},
+		{
+			name: "-thin without arg. -output should not regard as a value for -thin",
+			args: []string{
+				"path/to/in1",
+				"-thin",
+				"-output", "out",
+			},
+			errMsg: "the -thin flag requires one value",
+		},
+		{
+			name: "-verify_arch without arg",
+			args: []string{
+				"path/to/in1",
+				"-verify_arch",
+			},
+			errMsg: "the -verify_arch flag requires one value at least",
+		},
+		{
+			name: "-verify_arch without arg",
+			args: []string{
+				"path/to/in1",
+				"-verify_arch",
+			},
+			errMsg: "the -verify_arch flag requires one value at least",
 		},
 		{
 			name: "dup flag",
@@ -279,22 +304,12 @@ func TestFlagSet_ParseError(t *testing.T) {
 			errMsg: "duplication: more than one -output flag specified",
 		},
 		{
-			name: "multiple flag group",
-			args: []string{
-				"path/to/in1",
-				"-output", "out1",
-				"-create",
-				"-archs",
-			},
-			errMsg: "found no flag group",
-		},
-		{
 			name: "no flag group",
 			args: []string{
 				"path/to/in1",
 				"-output", "out1",
 			},
-			errMsg: "found no flag group",
+			errMsg: "found no flag group from [create thin extract extract_family remove replace archs verify_arch]",
 		},
 	}
 	for _, tt := range tests {
@@ -311,6 +326,8 @@ func TestFlagSet_ParseError(t *testing.T) {
 					if err.Error() != tt.errMsg {
 						t.Fatalf("want: %v, got: %v\n", tt.errMsg, err.Error())
 					}
+				} else {
+					t.Error("error should occur")
 				}
 			}
 		})

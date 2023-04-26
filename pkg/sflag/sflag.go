@@ -113,7 +113,7 @@ func FixedStringFlags(p *[][2]string) Value {
 	maxLen := 2
 	from := func(v string) ([][2]string, error) {
 		if cur >= maxLen {
-			return nil, fmt.Errorf("fill error. cur %d, len %d", cur, maxLen)
+			return nil, fmt.Errorf("cursor exceeded maximum length: cursor %d, max_len %d", cur, maxLen)
 		}
 		if len(*p) <= idx {
 			*p = append(*p, [2]string{})

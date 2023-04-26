@@ -4,6 +4,12 @@ import (
 	"fmt"
 )
 
+const (
+	fmtRequireOneValue        = "the -%s flag requires one value"
+	fmtRequireOneValueAtLeast = fmtRequireOneValue + " at least"
+	fmtRequireMoreValues      = "the -%s flag requires %d values at least"
+)
+
 func (f *FlagSet) Parse(args []string) error {
 	f.args = args
 	newArgs := []string{}
@@ -58,8 +64,12 @@ func (f *FlagSet) parse() (bool, error) {
 
 	values, isValues := value.(Values)
 	if !isValues {
-		if len(f.args) < 1 {
-			return false, fmt.Errorf("-%s flag: one value is required", flag.Name)
+		if len(f.args) == 0 {
+			return false, fmt.Errorf(fmtRequireOneValue, flag.Name)
+		}
+
+		if f.isNextArgFlag() {
+			return false, fmt.Errorf(fmtRequireOneValue, flag.Name)
 		}
 
 		v := f.consumeArg()
@@ -69,17 +79,21 @@ func (f *FlagSet) parse() (bool, error) {
 		return true, nil
 	}
 
-	// limited cap case, consume num of remaining caps
+	// limited-cap case, consume num of remaining caps
 	cap := values.Cap()
 	for i := 0; i < cap; i++ {
 		if len(f.args) == 0 {
-			return false, fmt.Errorf("-%s flag: more values are required", flag.Name)
+			if cap == 1 {
+				return false, fmt.Errorf(fmtRequireOneValueAtLeast, flag.Name)
+			}
+			return false, fmt.Errorf(fmtRequireMoreValues, flag.Name, cap)
 		}
 
-		nextArg := f.args[0]
-		_, isName := f.flags[flagName(nextArg)]
-		if isName {
-			return false, fmt.Errorf("-%s flag: more values are required", flag.Name)
+		if f.isNextArgFlag() {
+			if cap == 1 {
+				return false, fmt.Errorf(fmtRequireOneValueAtLeast, flag.Name)
+			}
+			return false, fmt.Errorf(fmtRequireMoreValues, flag.Name, cap)
 		}
 
 		v := f.consumeArg()
@@ -88,7 +102,7 @@ func (f *FlagSet) parse() (bool, error) {
 		}
 	}
 
-	// check no limit case after limited case since transition of limit cap to no limit will occur
+	// check non-limit case after limited-cap case since a transition of limited-cap to non-limit will occur
 	cap = values.Cap()
 	if cap == CapNoLimit {
 		for {
@@ -96,9 +110,7 @@ func (f *FlagSet) parse() (bool, error) {
 				return false, nil
 			}
 
-			nextArg := f.args[0]
-			_, isName := f.flags[flagName(nextArg)]
-			if isName {
+			if f.isNextArgFlag() {
 				return true, nil
 			}
 
@@ -108,11 +120,13 @@ func (f *FlagSet) parse() (bool, error) {
 			}
 		}
 	}
-	// cap is limited
+	// limited cap case
 	return true, nil
 
 }
 
+// flagName checks `s` is registered flag name or not.
+// if not flag name, return empty string, otherwise it returns flag name without hyphen
 func flagName(s string) string {
 	if len(s) < 2 || s[0] != '-' {
 		return ""
@@ -124,4 +138,14 @@ func flagName(s string) string {
 func (f *FlagSet) consumeArg() (arg string) {
 	arg, f.args = f.args[0], f.args[1:]
 	return arg
+}
+
+// isNextArgFlag return true if next arg is registered flag name
+func (f *FlagSet) isNextArgFlag() bool {
+	if len(f.args) == 0 {
+		return false
+	}
+	nextArg := f.args[0]
+	_, isFlag := f.flags[flagName(nextArg)]
+	return isFlag
 }
