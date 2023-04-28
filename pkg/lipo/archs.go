@@ -18,7 +18,7 @@ func (l *Lipo) Archs() ([]string, error) {
 }
 
 func archs(bin string) ([]string, error) {
-	fat, err := lmacho.OpenFat(bin)
+	fat, err := lmacho.NewFatFile(bin)
 	if err != nil {
 		if !errors.Is(err, macho.ErrNotFat) {
 			return nil, err
@@ -27,7 +27,7 @@ func archs(bin string) ([]string, error) {
 		// if not fat file, assume single macho file
 		f, err := macho.Open(bin)
 		if err != nil {
-			return nil, fmt.Errorf("not fat/thin file: %w", err)
+			return nil, fmt.Errorf("input is not fat file and thin file: %w", err)
 		}
 		defer f.Close()
 

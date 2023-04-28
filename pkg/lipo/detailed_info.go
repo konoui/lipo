@@ -79,7 +79,7 @@ type tplFatBinary struct {
 func detailedInfo(bin string) (string, bool, error) {
 
 	var out strings.Builder
-	ff, err := lmacho.OpenFat(bin)
+	ff, err := lmacho.NewFatFile(bin)
 	if err != nil {
 		if !errors.Is(err, macho.ErrNotFat) {
 			return "", false, err

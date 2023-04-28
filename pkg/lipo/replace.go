@@ -23,7 +23,7 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 		return err
 	}
 
-	ff, err := lmacho.OpenFat(fatBin)
+	ff, err := lmacho.NewFatFile(fatBin)
 	if err != nil {
 		return err
 	}

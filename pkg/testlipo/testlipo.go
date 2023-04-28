@@ -310,7 +310,7 @@ func appendCmd(cmd string, args []string) []string {
 }
 
 func PatchFat64Reserved(t *testing.T, p string) {
-	ff, err := lmacho.OpenFat(p)
+	ff, err := lmacho.NewFatFile(p)
 	if err != nil {
 		if errors.Is(err, macho.ErrNotFat) {
 			return

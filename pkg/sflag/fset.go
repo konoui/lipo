@@ -27,7 +27,11 @@ func (f *FlagSet) Args() []string {
 }
 
 func (f *FlagSet) Lookup(name string) *Flag {
-	return f.flags[name]
+	flag, ok := f.flags[name]
+	if !ok {
+		return nil
+	}
+	return flag
 }
 
 func (f *FlagSet) NewGroup(name string) *Group {

@@ -21,7 +21,7 @@ func (l *Lipo) ExtractFamily(arches ...string) error {
 		return err
 	}
 
-	ff, err := lmacho.OpenFat(fatBin)
+	ff, err := lmacho.NewFatFile(fatBin)
 	if err != nil {
 		return err
 	}

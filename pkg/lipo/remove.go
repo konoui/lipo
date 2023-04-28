@@ -21,7 +21,7 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 		return err
 	}
 
-	ff, err := lmacho.OpenFat(fatBin)
+	ff, err := lmacho.NewFatFile(fatBin)
 	if err != nil {
 		return err
 	}

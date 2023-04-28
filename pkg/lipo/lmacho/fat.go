@@ -27,7 +27,7 @@ type FatArchHeader struct {
 	Align  uint32
 }
 
-// FatArch has architecture information for a fat file.
+// FatArch has architecture information to create a fat file.
 type FatArch struct {
 	FatArchHeader
 	FileHeader *macho.FileHeader
@@ -121,7 +121,7 @@ func (f *FatFile) writeFatArchHeader(out io.Writer, hdr FatArchHeader) error {
 	return nil
 }
 
-func OpenFat(name string) (*FatFile, error) {
+func NewFatFile(name string) (*FatFile, error) {
 	f, err := os.OpenFile(name, os.O_RDONLY, 0766)
 	if err != nil {
 		return nil, err
