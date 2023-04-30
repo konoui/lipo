@@ -2,9 +2,17 @@ package sflag
 
 import (
 	"errors"
-	"fmt"
-	"strconv"
 )
+
+type FlagGetter interface {
+	Flag() *Flag
+}
+
+type FlagRef[T any] struct {
+	flag *Flag
+}
+
+type FlagOption func(*Flag)
 
 type Flag struct {
 	Name          string
@@ -23,13 +31,9 @@ type Values interface {
 	Cap() int
 }
 
-const (
-	CapNoLimit = -1
-)
-
 type flagValue[T any] struct {
-	p    *T
-	from func(v string) (T, error)
+	p       *T
+	convert func(v string) (T, error)
 }
 
 type flagValues[T any] struct {
@@ -37,25 +41,85 @@ type flagValues[T any] struct {
 	cap func() int
 }
 
-func FlagValue[T any](p *T, from func(v string) (T, error)) Value {
-	f := flagValue[T]{p: p, from: from}
+var (
+	_ FlagGetter = &FlagRef[any]{}
+	_ Value      = &flagValue[any]{}
+	_ Values     = &flagValues[any]{}
+)
+
+const (
+	CapNoLimit = -1
+)
+
+// Get returns a typed flag value
+func (fr *FlagRef[T]) Get() T {
+	return fr.flag.Value.Get().(T)
+}
+
+// Flag returns a Flag var to access flag name and usage.
+// To access a flag value, use Get() instead of Flag.Value
+func (fr *FlagRef[T]) Flag() *Flag {
+	return fr.flag
+}
+
+func WithDenyDuplicate() FlagOption {
+	return func(flag *Flag) {
+		flag.denyDuplicate = true
+	}
+}
+
+// Var registers Value with name and usage as Flag
+// This is used to define a custom flag type.
+func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) *Flag {
+	if name == "" {
+		panic("empty flag name is registered")
+	}
+
+	if f.flags == nil {
+		f.flags = make(map[string]*Flag)
+	}
+
+	if f.seen == nil {
+		f.seen = make(map[string]struct{})
+	}
+
+	_, exists := f.flags[name]
+	if exists {
+		panic("duplicate flag name is registered")
+	}
+	flag := &Flag{Name: name, Usage: usage, Value: v}
+	f.flags[name] = flag
+
+	for _, opt := range opts {
+		if opt != nil {
+			opt(flag)
+		}
+	}
+	return flag
+}
+
+// FlagValue converts (T and convert method) to Value of interface to define a custom flag type.
+func FlagValue[T any](p *T, convert func(v string) (T, error)) Value {
+	f := flagValue[T]{p: p, convert: convert}
 	return &f
 }
 
-func FlagValues[T any](p *T, from func(v string) (T, error), cap func() int) Values {
+// FlagValue converts (T, convert and cap methods) to Value of interface to define a custom flag type.
+func FlagValues[T any](p *T, convert func(v string) (T, error), cap func() int) Values {
 	fvs := flagValues[T]{
-		flagValue: flagValue[T]{p: p, from: from},
+		flagValue: flagValue[T]{p: p, convert: convert},
 		cap:       cap,
 	}
 	return &fvs
 }
 
+// Set converts string value to T and stores it
 func (fv *flagValue[T]) Set(v string) error {
 	if fv.p == nil {
 		return errors.New("pointer is empty")
 	}
 
-	value, err := fv.from(v)
+	value, err := fv.convert(v)
 	if err != nil {
 		return err
 	}
@@ -69,66 +133,7 @@ func (fv *flagValue[T]) Get() any {
 	return *fv.p
 }
 
+// Cap returns number of availabilities to store values
 func (fv *flagValues[T]) Cap() int {
 	return fv.cap()
-}
-
-// ---- definitions
-
-func String(p *string) Value {
-	return FlagValue(p, func(v string) (string, error) { return v, nil })
-}
-
-func Bool(p *bool) Value {
-	return FlagValue(p, strconv.ParseBool)
-}
-
-func StringFlags(p *[]string) Value {
-	cur := 0
-	from := func(v string) ([]string, error) {
-		if cur < len(*p) {
-			(*p)[cur] = v
-		} else {
-			*p = append(*p, v)
-		}
-		cur++
-		return *p, nil
-	}
-	return FlagValue(p, from)
-}
-
-func Strings(p *[]string) Value {
-	fv := StringFlags(p).(*flagValue[[]string])
-	cap := func() int {
-		if len(*p) == 0 {
-			return 1
-		}
-		return CapNoLimit
-	}
-	return FlagValues(p, fv.from, cap)
-}
-
-func FixedStringFlags(p *[][2]string) Value {
-	var idx, cur int
-	maxLen := 2
-	from := func(v string) ([][2]string, error) {
-		if cur >= maxLen {
-			return nil, fmt.Errorf("cursor exceeded maximum length: cursor %d, max_len %d", cur, maxLen)
-		}
-		if len(*p) <= idx {
-			*p = append(*p, [2]string{})
-		}
-		(*p)[idx][cur] = v
-		cur++
-		return *p, nil
-	}
-	cap := func() int {
-		cap := maxLen - cur
-		if cap == 0 {
-			cur = 0
-			idx++
-		}
-		return cap
-	}
-	return FlagValues(p, from, cap)
 }

@@ -49,49 +49,49 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	fat64 := fset.Bool("fat64", "-fat64")
 
 	createGroup.
-		AddRequired(create.Flag()).
-		AddRequired(out.Flag()).
-		AddOptional(segAligns.Flag()).
-		AddOptional(arch.Flag()).
-		AddOptional(hideArm64.Flag()).
-		AddOptional(fat64.Flag())
+		AddRequired(create).
+		AddRequired(out).
+		AddOptional(segAligns).
+		AddOptional(arch).
+		AddOptional(hideArm64).
+		AddOptional(fat64)
 	thinGroup.
 		// apple lipo does not raise error if -thin with -segalign but this this lipo will raise an error
-		AddRequired(thin.Flag()).
-		AddRequired(out.Flag())
+		AddRequired(thin).
+		AddRequired(out)
 	extractGroup.
-		AddRequired(extract.Flag()).
-		AddRequired(out.Flag()).
-		AddOptional(segAligns.Flag()).
-		AddOptional(fat64.Flag())
+		AddRequired(extract).
+		AddRequired(out).
+		AddOptional(segAligns).
+		AddOptional(fat64)
 	extractFamilyGroup.
-		AddRequired(extractFamily.Flag()).
-		AddRequired(out.Flag()).
+		AddRequired(extractFamily).
+		AddRequired(out).
 		// if extract is specified, apple lipo regard values as family
-		AddOptional(extract.Flag()).
-		AddOptional(segAligns.Flag()).
-		AddOptional(fat64.Flag())
+		AddOptional(extract).
+		AddOptional(segAligns).
+		AddOptional(fat64)
 	removeGroup.
-		AddRequired(remove.Flag()).
-		AddRequired(out.Flag()).
-		AddOptional(segAligns.Flag()).
-		AddOptional(hideArm64.Flag()).
-		AddOptional(fat64.Flag())
+		AddRequired(remove).
+		AddRequired(out).
+		AddOptional(segAligns).
+		AddOptional(hideArm64).
+		AddOptional(fat64)
 	replaceGroup.
-		AddRequired(replace.Flag()).
-		AddRequired(out.Flag()).
-		AddOptional(segAligns.Flag()).
-		AddOptional(arch.Flag()).
-		AddOptional(hideArm64.Flag()).
-		AddOptional(fat64.Flag())
+		AddRequired(replace).
+		AddRequired(out).
+		AddOptional(segAligns).
+		AddOptional(arch).
+		AddOptional(hideArm64).
+		AddOptional(fat64)
 	archsGroup.
-		AddRequired(archs.Flag())
+		AddRequired(archs)
 	verifyArchGroup.
-		AddRequired(verifyArch.Flag())
+		AddRequired(verifyArch)
 	infoGroup.
-		AddRequired(info.Flag())
+		AddRequired(info)
 	detailedInfoGroup.
-		AddRequired(detailedInfo.Flag())
+		AddRequired(detailedInfo)
 
 	if err := fset.Parse(args); err != nil {
 		fmt.Fprintf(stderr, "ParseError: %s\n", err.Error())
@@ -114,15 +114,15 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 
 	in := fset.Args()
 	opts := []lipo.Option{
-		lipo.WithOutput(out.Value()),
+		lipo.WithOutput(out.Get()),
 		lipo.WithInputs(in...),
-		lipo.WithArch(conv(arch.Value(), newArch)),
-		lipo.WithSegAlign(conv(segAligns.Value(), newSegAlign)),
+		lipo.WithArch(conv(arch.Get(), newArch)),
+		lipo.WithSegAlign(conv(segAligns.Get(), newSegAlign)),
 	}
-	if hideArm64.Value() {
+	if hideArm64.Get() {
 		opts = append(opts, lipo.WithHideArm64())
 	}
-	if fat64.Value() {
+	if fat64.Get() {
 		opts = append(opts, lipo.WithFat64())
 	}
 	l := lipo.New(opts...)
@@ -133,29 +133,29 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		}
 		return
 	case "thin":
-		if err := l.Thin(thin.Value()); err != nil {
+		if err := l.Thin(thin.Get()); err != nil {
 			return fatal(stderr, err.Error())
 		}
 		return
 	case "remove":
-		if err := l.Remove(remove.Value()...); err != nil {
+		if err := l.Remove(remove.Get()...); err != nil {
 			return fatal(stderr, err.Error())
 		}
 		return
 	case "extract":
-		if err := l.Extract(extract.Value()...); err != nil {
+		if err := l.Extract(extract.Get()...); err != nil {
 			return fatal(stderr, err.Error())
 		}
 		return
 	case "extract_family":
-		extractFamily := extractFamily.Value()
-		extractFamily = append(extractFamily, extract.Value()...)
+		extractFamily := extractFamily.Get()
+		extractFamily = append(extractFamily, extract.Get()...)
 		if err := l.ExtractFamily(extractFamily...); err != nil {
 			return fatal(stderr, err.Error())
 		}
 		return
 	case "replace":
-		if err := l.Replace(conv(replace.Value(), newReplace)); err != nil {
+		if err := l.Replace(conv(replace.Get(), newReplace)); err != nil {
 			return fatal(stderr, err.Error())
 		}
 		return
@@ -180,7 +180,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		}
 		return
 	case "verify_arch":
-		ok, err := l.VerifyArch(verifyArch.Value()...)
+		ok, err := l.VerifyArch(verifyArch.Get()...)
 		if err != nil {
 			return fatal(stderr, err.Error())
 		}

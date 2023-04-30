@@ -14,11 +14,11 @@ func (f *FlagSet) Parse(args []string) error {
 	f.args = args
 	newArgs := []string{}
 	for {
-		ok, err := f.parse()
+		isFlag, err := f.parse()
 		if err != nil {
 			return err
 		}
-		if !ok {
+		if !isFlag {
 			if len(f.args) == 0 {
 				break
 			}
@@ -26,10 +26,12 @@ func (f *FlagSet) Parse(args []string) error {
 		}
 	}
 	f.args = newArgs
+	f.parsed = true
 	return nil
 }
 
-func (f *FlagSet) parse() (bool, error) {
+// parse returns false when a next argument is not a flag
+func (f *FlagSet) parse() (isFlag bool, _ error) {
 	if len(f.args) == 0 {
 		return false, nil
 	}

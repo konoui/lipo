@@ -7,11 +7,12 @@ import (
 )
 
 type FlagSet struct {
-	name  string
-	flags map[string]*Flag
-	args  []string
-	seen  map[string]struct{}
-	Usage func() string
+	name   string
+	flags  map[string]*Flag
+	args   []string
+	seen   map[string]struct{}
+	Usage  func() string
+	parsed bool
 }
 
 func NewFlagSet(name string) *FlagSet {

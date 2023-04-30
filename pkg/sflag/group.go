@@ -37,19 +37,20 @@ func (g *Group) String() string {
 	return g.Name
 }
 
-func (g *Group) AddRequired(flag *Flag) *Group {
-	return g.add(flag, TypeRequired)
+func (g *Group) AddRequired(fg FlagGetter) *Group {
+	return g.add(fg, TypeRequired)
 }
 
-func (g *Group) AddOptional(flag *Flag) *Group {
-	return g.add(flag, TypeOptional)
+func (g *Group) AddOptional(fg FlagGetter) *Group {
+	return g.add(fg, TypeOptional)
 }
 
-func (g *Group) add(flag *Flag, typ FlagType) *Group {
+func (g *Group) add(fg FlagGetter, typ FlagType) *Group {
 	if g.types == nil {
 		g.types = make(map[string]FlagType)
 	}
 
+	flag := fg.Flag()
 	g.types[flag.Name] = typ
 	return g
 }
@@ -86,6 +87,9 @@ func (g *Group) Seen(name string) bool {
 func LookupGroup(groups ...*Group) (*Group, error) {
 	found := []*Group{}
 	for _, group := range groups {
+		if !group.flagSet.parsed {
+			return nil, fmt.Errorf("must call FlagSet.Parse() before LookupGroup()")
+		}
 		if err := group.validate(); err == nil {
 			found = append(found, group)
 		}
