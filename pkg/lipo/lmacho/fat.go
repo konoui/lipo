@@ -42,6 +42,14 @@ type FatFile struct {
 	HiddenArches []FatArch
 }
 
+type FormatError struct {
+	Err error
+}
+
+func (e *FormatError) Error() string {
+	return e.Err.Error()
+}
+
 // offset returns an offset of first macho header
 func (f *FatFile) offset() uint64 {
 	return f.fatHeaderSize() + f.fatArchHeaderSize()*uint64(len(f.Arches)+len(f.HiddenArches))
@@ -312,13 +320,15 @@ func (fa *FatArch) Open() (*File, error) {
 	return &File{sr: sr, c: f}, nil
 }
 
+// newFatFile returns *FatFile
+// If the file is thin file, return macho.ErrNotFat, otherwise an error is wrapped in FormatError.
 func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 	ff := FatFile{}
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
 
 	err := binary.Read(sr, binary.BigEndian, &ff.Magic)
 	if err != nil {
-		return nil, errors.New("error reading magic number")
+		return nil, &FormatError{errors.New("error reading magic number")}
 	}
 
 	if ff.Magic != macho.MagicFat && ff.Magic != MagicFat64 {
@@ -328,30 +338,31 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 		if leMagic == macho.Magic32 || leMagic == macho.Magic64 {
 			return nil, macho.ErrNotFat
 		}
-		return nil, errors.New("invalid magic number")
+		return nil, &FormatError{errors.New("invalid magic number")}
+
 	}
 
 	var narch uint32
 	err = binary.Read(sr, binary.BigEndian, &narch)
 	if err != nil {
-		return nil, errors.New("invalid fat_header")
+		return nil, &FormatError{errors.New("invalid fat_header")}
 	}
 
 	if narch < 1 {
-		return nil, errors.New("file contains no images")
+		return nil, &FormatError{errors.New("file contains no images")}
 	}
 
 	ff.Arches = make([]FatArch, narch)
 	for i := uint32(0); i < narch; i++ {
 		fatHdr, err := ff.readFatArchHeader(sr)
 		if err != nil {
-			return nil, err
+			return nil, &FormatError{err}
 		}
 
 		fr := io.NewSectionReader(sr, int64(fatHdr.Offset), int64(fatHdr.Size))
 		f, err := macho.NewFile(fr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid macho-file: %w", err)
+			return nil, &FormatError{fmt.Errorf("invalid macho-file: %w", err)}
 		}
 		defer f.Close()
 
@@ -374,7 +385,7 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 		hr := io.NewSectionReader(sr, int64(nextHdrOffset), int64(ff.fatArchHeaderSize()))
 		fatHdr, err := ff.readFatArchHeader(hr)
 		if err != nil {
-			return nil, err
+			return nil, &FormatError{fmt.Errorf("hideARM64: %w", err)}
 		}
 
 		fr := io.NewSectionReader(sr, int64(fatHdr.Offset), int64(fatHdr.Size))
@@ -383,7 +394,7 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 		}
 		f, err := macho.NewFile(fr)
 		if err != nil {
-			return nil, fmt.Errorf("hideARM64: %w", err)
+			return nil, &FormatError{fmt.Errorf("hideARM64: %w", err)}
 		}
 		defer f.Close()
 		ff.HiddenArches = append(ff.HiddenArches, FatArch{
@@ -396,7 +407,7 @@ func newFatFile(r io.ReaderAt, name string) (*FatFile, error) {
 	}
 
 	if err := hasDuplicatesErr(ff.AllArches()); err != nil {
-		return nil, err
+		return nil, &FormatError{err}
 	}
 
 	return &ff, nil

@@ -97,10 +97,6 @@ func TestLipo_Create(t *testing.T) {
 			// tests for fat bin is expected
 			verifyArches(t, got, tt.arches...)
 
-			if p.Skip() {
-				t.Skip("skip lipo binary test")
-			}
-
 			diffSha256(t, p.FatBin, got)
 		})
 	}

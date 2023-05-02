@@ -20,14 +20,17 @@ func (l *Lipo) Archs() ([]string, error) {
 func archs(bin string) ([]string, error) {
 	fat, err := lmacho.NewFatFile(bin)
 	if err != nil {
-		if !errors.Is(err, macho.ErrNotFat) {
+		var e *lmacho.FormatError
+		if errors.As(err, &e) {
+			return nil, errors.Join(err, fmt.Errorf("can't figure out the architecture type of: %s", bin))
+		} else if !errors.Is(err, macho.ErrNotFat) {
 			return nil, err
 		}
 
 		// if not fat file, assume single macho file
 		f, err := macho.Open(bin)
 		if err != nil {
-			return nil, fmt.Errorf("input is not fat file and thin file: %w", err)
+			return nil, err
 		}
 		defer f.Close()
 

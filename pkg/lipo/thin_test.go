@@ -42,10 +42,6 @@ func TestLipo_Thin(t *testing.T) {
 				t.Errorf("thin error %v\n", err)
 			}
 
-			if p.Skip() {
-				t.Skip("skip lipo binary tests")
-			}
-
 			want := filepath.Join(p.Dir, wantName(t))
 			p.Thin(t, want, p.FatBin, tt.arch)
 			diffSha256(t, want, got)

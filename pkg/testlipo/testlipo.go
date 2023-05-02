@@ -32,7 +32,7 @@ type LipoBin struct {
 	segAligns []string
 	hideArm64 bool
 	fat64     bool
-	exist     bool
+	ignoreErr bool
 }
 
 type TestLipo struct {
@@ -65,8 +65,19 @@ func WithFat64(v bool) Opt {
 	}
 }
 
+// IgnoreErr will ignore a lipo command error not to call t.Fatal()
+func IgnoreErr(v bool) Opt {
+	return func(l *LipoBin) {
+		l.ignoreErr = v
+	}
+}
+
 func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
 	t.Helper()
+
+	if len(arches) == 0 {
+		t.Fatal("input arches are zero")
+	}
 
 	tempDir := filepath.Join(os.TempDir(), "testlipo-output")
 	err := os.MkdirAll(tempDir, 0740)
@@ -103,13 +114,15 @@ func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
 
 	lipoBin := NewLipoBin(t, opts...)
 	fatBin := filepath.Join(dir, "fat-"+strings.Join(arches, "-"))
-	if !lipoBin.Skip() && len(archBins) > 0 {
+	if len(archBins) > 0 {
 		// create fat bit for inputs
 		inputs := make([]string, 0, len(archBins))
 		for _, in := range arches {
 			inputs = append(inputs, archBins[in])
 		}
+		lipoBin.ignoreErr = false
 		lipoBin.Create(t, fatBin, inputs...)
+		lipoBin.ignoreErr = true
 	}
 
 	return &TestLipo{
@@ -155,15 +168,11 @@ func (l *TestLipo) NewArchObj(t *testing.T, arch string) (path string) {
 func NewLipoBin(t *testing.T, opts ...Opt) LipoBin {
 	t.Helper()
 	bin, err := exec.LookPath("lipo")
-	if errors.Is(err, exec.ErrNotFound) {
-		return LipoBin{exist: false}
-	}
-
 	if err != nil {
 		t.Fatalf("could not find lipo command %v\n", err)
 	}
 
-	l := LipoBin{exist: true, Bin: bin, segAligns: []string{}}
+	l := LipoBin{Bin: bin, segAligns: []string{}}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(&l)
@@ -172,22 +181,18 @@ func NewLipoBin(t *testing.T, opts ...Opt) LipoBin {
 	return l
 }
 
-func (l *LipoBin) Skip() bool {
-	return !l.exist
-}
-
 func (l *LipoBin) DetailedInfo(t *testing.T, bins ...string) string {
 	t.Helper()
 	args := append([]string{"-detailed_info"}, bins...)
 	cmd := exec.Command(l.Bin, args...)
-	return execute(t, cmd, true)
+	return execute(t, cmd, l.ignoreErr)
 }
 
 func (l *LipoBin) Info(t *testing.T, bins ...string) string {
 	t.Helper()
 	args := append([]string{"-info"}, bins...)
 	cmd := exec.Command(l.Bin, args...)
-	v := execute(t, cmd, true)
+	v := execute(t, cmd, l.ignoreErr)
 	// Note arrange the output
 	// if no fat case, suffix has `/n`
 	// if fat case, suffix has `a space` and `/n`
@@ -210,7 +215,7 @@ func (l *LipoBin) Create(t *testing.T, out string, inputs ...string) {
 		args = append(args, "-fat64")
 	}
 	cmd := exec.Command(l.Bin, args...)
-	execute(t, cmd, true)
+	execute(t, cmd, l.ignoreErr)
 }
 
 func (l *LipoBin) Remove(t *testing.T, out, in string, arches []string) {
@@ -222,7 +227,7 @@ func (l *LipoBin) Remove(t *testing.T, out, in string, arches []string) {
 		args = append(args, "-hideARM64")
 	}
 	cmd := exec.Command(l.Bin, args...)
-	execute(t, cmd, true)
+	execute(t, cmd, l.ignoreErr)
 }
 
 func (l *LipoBin) Extract(t *testing.T, out, in string, arches []string) {
@@ -234,7 +239,7 @@ func (l *LipoBin) Extract(t *testing.T, out, in string, arches []string) {
 		args = append(args, "-fat64")
 	}
 	cmd := exec.Command(l.Bin, args...)
-	execute(t, cmd, true)
+	execute(t, cmd, l.ignoreErr)
 }
 
 func (l *LipoBin) ExtractFamily(t *testing.T, out, in string, arches []string) {
@@ -246,13 +251,13 @@ func (l *LipoBin) ExtractFamily(t *testing.T, out, in string, arches []string) {
 		args = append(args, "-fat64")
 	}
 	cmd := exec.Command(l.Bin, args...)
-	execute(t, cmd, true)
+	execute(t, cmd, l.ignoreErr)
 }
 
 func (l *LipoBin) Thin(t *testing.T, out, in, arch string) {
 	t.Helper()
 	cmd := exec.Command(l.Bin, in, "-thin", arch, "-output", out)
-	execute(t, cmd, true)
+	execute(t, cmd, l.ignoreErr)
 }
 
 func (l *LipoBin) Replace(t *testing.T, out, in string, archBins [][2]string) {
@@ -271,29 +276,23 @@ func (l *LipoBin) Replace(t *testing.T, out, in string, archBins [][2]string) {
 		args = append(args, "-fat64")
 	}
 	cmd := exec.Command(l.Bin, args...)
-	execute(t, cmd, true)
+	execute(t, cmd, l.ignoreErr)
 }
 
 func (l *LipoBin) Archs(t *testing.T, in string) string {
 	t.Helper()
 	cmd := exec.Command(l.Bin, in, "-archs")
-	v := execute(t, cmd, false)
+	v := execute(t, cmd, l.ignoreErr)
 	// Note arrange the output
 	v = strings.TrimSuffix(v, "\n")
 	return v
 }
 
-func execute(t *testing.T, cmd *exec.Cmd, combine bool) string {
+func execute(t *testing.T, cmd *exec.Cmd, ignoreErr bool) string {
 	t.Helper()
 
-	var out []byte
-	var err error
-	if combine {
-		out, err = cmd.CombinedOutput()
-	} else {
-		out, err = cmd.Output()
-	}
-	if err != nil {
+	out, err := cmd.CombinedOutput()
+	if err != nil && !ignoreErr {
 		t.Log("CMD:", cmd.String())
 		t.Log("OUTPUT:", string(out))
 		t.Fatalf("Error: %v", err)
@@ -366,9 +365,7 @@ func DiffSha256(t *testing.T, wantBin, gotBin string) {
 		t.Errorf("want %s got %s", want, got)
 		t.Log("dumping detail")
 		b := NewLipoBin(t)
-		if b.Skip() {
-			return
-		}
+
 		t.Logf("want:\n%s\n", b.DetailedInfo(t, wantBin))
 		printStat(t, wantBin)
 		t.Logf("got:\n%s\n", b.DetailedInfo(t, gotBin))

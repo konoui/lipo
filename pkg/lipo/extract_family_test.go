@@ -69,10 +69,6 @@ func TestLipo_ExtractFamily(t *testing.T) {
 				t.Errorf("extract error %v\n", err)
 			}
 
-			if p.Skip() {
-				t.Skip("skip lipo binary tests")
-			}
-
 			want := filepath.Join(p.Dir, wantName(t))
 			p.ExtractFamily(t, want, p.FatBin, arches)
 			diffSha256(t, want, got)

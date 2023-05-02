@@ -77,14 +77,17 @@ type tplFatBinary struct {
 }
 
 func detailedInfo(bin string) (string, bool, error) {
-
 	var out strings.Builder
 	ff, err := lmacho.NewFatFile(bin)
 	if err != nil {
-		if !errors.Is(err, macho.ErrNotFat) {
+		var e *lmacho.FormatError
+		if errors.As(err, &e) {
+			return "", false, errors.Join(err, fmt.Errorf("can't figure out the architecture type of: %s", bin))
+		} else if !errors.Is(err, macho.ErrNotFat) {
 			return "", false, err
 		}
-		// fallback info if thin file
+
+		// if not fat file, assume single macho file
 		v, _, err := info(bin)
 		if err != nil {
 			return "", false, err

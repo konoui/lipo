@@ -66,10 +66,6 @@ func TestLipo_Extract(t *testing.T) {
 			// tests for fat bin is expected
 			verifyArches(t, got, arches...)
 
-			if p.Skip() {
-				t.Skip("skip lipo binary tests")
-			}
-
 			want := filepath.Join(p.Dir, wantName(t))
 			p.Extract(t, want, p.FatBin, arches)
 			diffSha256(t, want, got)

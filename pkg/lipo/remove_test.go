@@ -87,10 +87,6 @@ func TestLipo_Remove(t *testing.T) {
 
 			verifyArches(t, got, wantArches...)
 
-			if p.Skip() {
-				t.Skip("skip lipo binary tests")
-			}
-
 			want := filepath.Join(p.Dir, wantName(t))
 			p.Remove(t, want, p.FatBin, arches)
 			diffSha256(t, want, got)

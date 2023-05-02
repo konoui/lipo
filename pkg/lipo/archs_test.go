@@ -16,10 +16,6 @@ func TestLipo_Archs(t *testing.T) {
 	arches := cpuNames()
 	p := testlipo.Setup(t, arches)
 
-	if p.Skip() {
-		t.Skip("skip lipo binary tests")
-	}
-
 	l := lipo.New(lipo.WithInputs(p.FatBin))
 	gotArches, err := l.Archs()
 	if err != nil {
@@ -46,6 +42,44 @@ func TestLipo_Archs(t *testing.T) {
 	}
 }
 
+func TestLipo_ArchsWithError(t *testing.T) {
+	t.Run("not found", func(t *testing.T) {
+		_, err := lipo.New(lipo.WithInputs("not-found")).Archs()
+		if err == nil {
+			t.Error("should occur error")
+			return
+		}
+		want := "open not-found: no such file or directory"
+		got := err.Error()
+		if got != want {
+			t.Errorf("want: %s, got: %s", want, got)
+		}
+	})
+	t.Run("not binary", func(t *testing.T) {
+		f, err := os.Create("not-binary")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		input := f.Name()
+		_, err = lipo.New(lipo.WithInputs(input)).Archs()
+		if err == nil {
+			t.Error("should occur error")
+			return
+		}
+		tl := testlipo.NewLipoBin(t, testlipo.IgnoreErr(true))
+		want := "can't figure out the architecture type of: not-binary"
+		got1 := tl.Archs(t, input)
+		got2 := err.Error()
+		if !strings.Contains(got1, want) {
+			t.Errorf("want: %s, got1: %s", want, got1)
+		}
+		if !strings.Contains(got2, want) {
+			t.Errorf("want: %s, got2: %s", want, got2)
+		}
+	})
+}
+
 func TestLipo_ArchsToLocalFiles(t *testing.T) {
 	t.Run("archs", func(t *testing.T) {
 		lipoBin := testlipo.NewLipoBin(t)
@@ -57,10 +91,6 @@ func TestLipo_ArchsToLocalFiles(t *testing.T) {
 
 		if len(ents) == 0 {
 			t.Skip("found no files")
-		}
-
-		if lipoBin.Skip() {
-			t.Skip("skip lipo binary tests")
 		}
 
 		for _, ent := range ents {
