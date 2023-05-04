@@ -1,6 +1,7 @@
 package sflag
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -60,25 +61,25 @@ func (g *Group) AddDescription(s string) *Group {
 	return g
 }
 
-func (g *Group) LookupByType(typ FlagType) []*Flag {
+func (g *Group) lookupByType(typ FlagType) []*Flag {
 	flags := []*Flag{}
 	for name, ft := range g.types {
 		if ft == typ {
-			flags = append(flags, g.Lookup(name))
+			flags = append(flags, g.lookup(name))
 		}
 	}
 	return flags
 }
 
-func (g *Group) Lookup(name string) *Flag {
+func (g *Group) lookup(name string) *Flag {
 	_, ok := g.types[name]
 	if ok {
-		return g.flagSet.Lookup(name)
+		return g.flagSet.lookup(name)
 	}
 	return nil
 }
 
-func (g *Group) Seen(name string) bool {
+func (g *Group) seen(name string) bool {
 	_, o := g.flagSet.seen[name]
 	_, k := g.types[name]
 	return o && k
@@ -86,17 +87,20 @@ func (g *Group) Seen(name string) bool {
 
 func LookupGroup(groups ...*Group) (*Group, error) {
 	found := []*Group{}
+	errs := []error{}
 	for _, group := range groups {
 		if !group.flagSet.parsed {
 			return nil, fmt.Errorf("must call FlagSet.Parse() before LookupGroup()")
 		}
 		if err := group.validate(); err == nil {
 			found = append(found, group)
+		} else {
+			errs = append(errs, err)
 		}
 	}
 
 	if len(found) == 0 {
-		return nil, fmt.Errorf("found no flag group from %v", groups)
+		return nil, errors.Join(errors.New("found no flag group"), errors.Join(errs...))
 	}
 	if len(found) > 1 {
 		return groups[0], fmt.Errorf("found multiple flag groups: %v", found)
@@ -104,8 +108,8 @@ func LookupGroup(groups ...*Group) (*Group, error) {
 	return found[0], nil
 }
 
-// NonGroupFlagNames returns flag name not belonging to the flag group.
-func (g *Group) NonGroupFlagNames() []string {
+// nonGroupFlagNames returns flag name not belonging to the flag group.
+func (g *Group) nonGroupFlagNames() []string {
 	diff := []string{}
 	for name := range g.flagSet.seen {
 		_, exist := g.types[name]
@@ -117,16 +121,16 @@ func (g *Group) NonGroupFlagNames() []string {
 }
 
 func (g *Group) validate() error {
-	flags := g.LookupByType(TypeRequired)
+	flags := g.lookupByType(TypeRequired)
 	for _, flag := range flags {
-		if !g.Seen(flag.Name) {
-			return fmt.Errorf("required flag in the group is not specified: %s", flag.Name)
+		if !g.seen(flag.Name) {
+			return fmt.Errorf("a required flag %s in the group %s is not specified", flag.Name, g.Name)
 		}
 	}
 
-	diff := g.NonGroupFlagNames()
+	diff := g.nonGroupFlagNames()
 	if len(diff) > 0 {
-		return fmt.Errorf("undefined flags in the group are specified: %v", diff)
+		return fmt.Errorf("undefined flags %v in the group %s are specified", diff, g.Name)
 	}
 
 	return nil
@@ -150,7 +154,7 @@ func (g *Group) Usage() string {
 	b.WriteString("\n")
 	flags := make([]*Flag, 0, len(g.types))
 	for k := range g.types {
-		flags = append(flags, g.Lookup(k))
+		flags = append(flags, g.lookup(k))
 	}
 
 	// sort by flag type

@@ -16,6 +16,7 @@ type FlagOption func(*Flag)
 
 type Flag struct {
 	Name          string
+	ShortName     string
 	Usage         string
 	Value         Value
 	denyDuplicate bool
@@ -62,17 +63,29 @@ func (fr *FlagRef[T]) Flag() *Flag {
 	return fr.flag
 }
 
+// WithDenyDuplicate Parse() returns an error if encountering duplicated flags are specified.
+// This is used for a custom flag definition as pre-defined flags(Bool/String etc) are enabled by default.
 func WithDenyDuplicate() FlagOption {
 	return func(flag *Flag) {
 		flag.denyDuplicate = true
 	}
 }
 
-// Var registers Value with name and usage as Flag
+func WithShortName(short string) FlagOption {
+	return func(flag *Flag) {
+		flag.ShortName = short
+	}
+}
+
+// Register registers Value with name and usage as a Flag
 // This is used to define a custom flag type.
-func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) *Flag {
+func Register[T any](f *FlagSet, v Value, name, usage string, opts ...FlagOption) *FlagRef[T] {
+	if _, ok := v.Get().(T); !ok {
+		panic("Value.Get().[T] does not match Register[T]/FlagRef[T]")
+	}
+
 	if name == "" {
-		panic("empty flag name is registered")
+		panic("the flag name is empty string")
 	}
 
 	if f.flags == nil {
@@ -83,9 +96,13 @@ func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) *Flag {
 		f.seen = make(map[string]struct{})
 	}
 
+	if f.shortTo == nil {
+		f.shortTo = make(map[string]string)
+	}
+
 	_, exists := f.flags[name]
 	if exists {
-		panic("duplicate flag name is registered")
+		panic("the flag name is duplicate in the registration process")
 	}
 	flag := &Flag{Name: name, Usage: usage, Value: v}
 	f.flags[name] = flag
@@ -95,7 +112,16 @@ func (f *FlagSet) Var(v Value, name, usage string, opts ...FlagOption) *Flag {
 			opt(flag)
 		}
 	}
-	return flag
+
+	if sname := flag.ShortName; sname != "" {
+		_, exists := f.shortTo[sname]
+		if exists {
+			panic("the short flag name is duplicate in the registration process")
+		}
+		f.shortTo[sname] = name
+	}
+
+	return &FlagRef[T]{flag: flag}
 }
 
 // FlagValue converts (T and convert method) to Value of interface to define a custom flag type.

@@ -7,12 +7,14 @@ import (
 )
 
 type FlagSet struct {
-	name   string
-	flags  map[string]*Flag
-	args   []string
-	seen   map[string]struct{}
-	Usage  func() string
-	parsed bool
+	name  string
+	flags map[string]*Flag
+	// map for a short name to a long name
+	shortTo map[string]string
+	args    []string
+	seen    map[string]struct{}
+	Usage   func() string
+	parsed  bool
 }
 
 func NewFlagSet(name string) *FlagSet {
@@ -27,11 +29,8 @@ func (f *FlagSet) Args() []string {
 	return f.args
 }
 
-func (f *FlagSet) Lookup(name string) *Flag {
-	flag, ok := f.flags[name]
-	if !ok {
-		return nil
-	}
+func (f *FlagSet) lookup(name string) *Flag {
+	flag, _ := f.isFlagName("-" + name)
 	return flag
 }
 

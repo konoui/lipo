@@ -23,14 +23,14 @@ func register() (*sflag.FlagSet, []*sflag.Group, *flagRefs) {
 	f := sflag.NewFlagSet("lipo")
 	refs := new(flagRefs)
 
-	refs.output = f.String("output", "-output <file>")
-	refs.segAligns = f.FixedStringFlags("segalign", "<arch_type> <alignment>")
-	refs.create = f.Bool("create", "-create")
-	refs.thin = f.String("thin", "thin <arch>")
-	refs.replace = f.FixedStringFlags("replace", "-replace <arch> <file>")
-	refs.extract = f.StringFlags("extract", "-extract <arch>")
+	refs.output = f.String("output", "-output <file>", sflag.WithShortName("o"))
+	refs.segAligns = f.FixedStringFlags("segalign", "<arch_type> <alignment>", sflag.WithShortName("s"))
+	refs.create = f.Bool("create", "-create", sflag.WithShortName("c"))
+	refs.thin = f.String("thin", "thin <arch>", sflag.WithShortName("t"))
+	refs.replace = f.FixedStringFlags("replace", "-replace <arch> <file>", sflag.WithShortName("rep"))
+	refs.extract = f.StringFlags("extract", "-extract <arch>", sflag.WithShortName("e"))
 	refs.extractFamily = f.StringFlags("extract_family", "-extract_family <arch>")
-	refs.remove = f.StringFlags("remove", "-remove <arch>")
+	refs.remove = f.StringFlags("remove", "-remove <arch>", sflag.WithShortName("rem"))
 	refs.archs = f.Bool("archs", "-archs <arch> ...")
 	refs.verifyArch = f.Strings("verify_arch", "verify_arch <arch>")
 
@@ -189,6 +189,20 @@ func TestFlagSet_Parse(t *testing.T) {
 			eq(t, "x86_64", refs.thin.Get())
 		}
 	})
+	t.Run("thin-with-short-flag", func(t *testing.T) {
+		dataSet := [][]string{
+			{"path/to/in1"},
+			{"-o", "path/to/out"},
+			{"-t", "x86_64"},
+		}
+		for _, in := range shuffle(dataSet) {
+			f, g, refs := fset(t, in)
+			eq(t, g.Name, "thin")
+			equal(t, []string{"path/to/in1"}, f.Args())
+			eq(t, "path/to/out", refs.output.Get())
+			eq(t, "x86_64", refs.thin.Get())
+		}
+	})
 	t.Run("archs", func(t *testing.T) {
 		dataSet := [][]string{
 			{"path/to/in1"},
@@ -322,9 +336,17 @@ func TestFlagSet_ParseError(t *testing.T) {
 			name: "no flag group",
 			args: []string{
 				"path/to/in1",
-				"-output", "out1",
+				"-create",
 			},
-			errMsg: "found no flag group from [create thin extract extract_family remove replace archs verify_arch]",
+			errMsg: `found no flag group
+a required flag output in the group create is not specified
+a required flag thin in the group thin is not specified
+a required flag extract in the group extract is not specified
+a required flag extract_family in the group extract_family is not specified
+a required flag remove in the group remove is not specified
+a required flag replace in the group replace is not specified
+a required flag archs in the group archs is not specified
+a required flag verify_arch in the group verify_arch is not specified`,
 		},
 	}
 	for _, tt := range tests {
@@ -339,7 +361,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 			if err == nil {
 				if _, err := sflag.LookupGroup(groups...); err != nil {
 					if err.Error() != tt.errMsg {
-						t.Fatalf("want: %v, got: %v\n", tt.errMsg, err.Error())
+						t.Fatalf("want:\n%v, got:\n%v\n", tt.errMsg, err.Error())
 					}
 				} else {
 					t.Error("error should occur")

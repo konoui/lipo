@@ -6,27 +6,25 @@ import (
 )
 
 // Bool presents `-flag“ NOT `-flag true/false`
-func (f *FlagSet) Bool(name, usage string) *FlagRef[bool] {
+func (f *FlagSet) Bool(name, usage string, opts ...FlagOption) *FlagRef[bool] {
 	p := new(bool)
-	flag := f.Var(FlagValue(p, strconv.ParseBool), name, usage, WithDenyDuplicate())
-	ref := &FlagRef[bool]{flag: flag}
-	return ref
+	addOpts := append([]FlagOption{WithDenyDuplicate()}, opts...)
+	return Register[bool](f, FlagValue(p, strconv.ParseBool), name, usage, addOpts...)
 }
 
 // String presents `-flag <value>`
-func (f *FlagSet) String(name, usage string) *FlagRef[string] {
+func (f *FlagSet) String(name, usage string, opts ...FlagOption) *FlagRef[string] {
 	p := new(string)
-	flag := f.Var(
+	addOpts := append([]FlagOption{WithDenyDuplicate()}, opts...)
+	return Register[string](f,
 		FlagValue(p, func(v string) (string, error) { return v, nil }),
-		name, usage, WithDenyDuplicate())
-	return &FlagRef[string]{flag: flag}
+		name, usage, addOpts...)
 }
 
 // StringFlags presents `-flag <value1> -flag <value2> -flag <value3> -flag ...`
-func (f *FlagSet) StringFlags(name, usage string) *FlagRef[[]string] {
+func (f *FlagSet) StringFlags(name, usage string, opts ...FlagOption) *FlagRef[[]string] {
 	p := new([]string)
-	flag := f.Var(newStringFlags(p), name, usage)
-	return &FlagRef[[]string]{flag: flag}
+	return Register[[]string](f, newStringFlags(p), name, usage, opts...)
 }
 
 func newStringFlags(p *[]string) Value {
@@ -44,10 +42,10 @@ func newStringFlags(p *[]string) Value {
 }
 
 // Strings presents `-flag <value1> <value2> <value3> ...`
-func (f *FlagSet) Strings(name, usage string) *FlagRef[[]string] {
+func (f *FlagSet) Strings(name, usage string, opts ...FlagOption) *FlagRef[[]string] {
 	p := new([]string)
-	flag := f.Var(newStrings(p), name, usage, WithDenyDuplicate())
-	return &FlagRef[[]string]{flag: flag}
+	addOpts := append([]FlagOption{WithDenyDuplicate()}, opts...)
+	return Register[[]string](f, newStrings(p), name, usage, addOpts...)
 }
 
 func newStrings(p *[]string) Value {
@@ -63,10 +61,9 @@ func newStrings(p *[]string) Value {
 
 // FixedStringFlags presents `-flag <value1> <value2> -flag <value3> <value4> -flag ...`
 // This is a reference implementation
-func (f *FlagSet) FixedStringFlags(name, usage string) *FlagRef[[][2]string] {
+func (f *FlagSet) FixedStringFlags(name, usage string, opts ...FlagOption) *FlagRef[[][2]string] {
 	p := new([][2]string)
-	flag := f.Var(newFixedStringFlags(p), name, usage)
-	return &FlagRef[[][2]string]{flag: flag}
+	return Register[[][2]string](f, newFixedStringFlags(p), name, usage, opts...)
 }
 
 func newFixedStringFlags(p *[][2]string) Value {
