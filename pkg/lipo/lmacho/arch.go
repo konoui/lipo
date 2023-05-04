@@ -70,6 +70,6 @@ func align(offset, v uint64) uint64 {
 	return (offset + v - 1) / v * v
 }
 
-func boundaryOK(s uint64) (ok bool) {
+func boundary32OK(s uint64) (ok bool) {
 	return s < 1<<32
 }

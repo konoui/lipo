@@ -22,7 +22,7 @@ func archs(bin string) ([]string, error) {
 	if err != nil {
 		var e *lmacho.FormatError
 		if errors.As(err, &e) {
-			return nil, errors.Join(err, fmt.Errorf("can't figure out the architecture type of: %s", bin))
+			return nil, fmt.Errorf("can't figure out the architecture type of: %s: %w", bin, err)
 		} else if !errors.Is(err, macho.ErrNotFat) {
 			return nil, err
 		}

@@ -212,7 +212,7 @@ func (f *FatFile) sortedArches() ([]FatArch, error) {
 		offset = align(offset, 1<<arches[i].Align)
 		arches[i].Offset = offset
 		offset += arches[i].Size
-		if f.Magic == macho.MagicFat && !boundaryOK(offset) {
+		if f.Magic == macho.MagicFat && !boundary32OK(offset) {
 			return nil, fmt.Errorf("exceeds maximum 32 bit size at %s. please handle it as fat64", arches[i].Name)
 		}
 	}
@@ -230,6 +230,10 @@ func (f *FatFile) Create(out io.Writer) error {
 	}
 
 	if err := hasDuplicatesErr(arches); err != nil {
+		return err
+	}
+
+	if err := checkMaxAlignBit(arches); err != nil {
 		return err
 	}
 
@@ -423,5 +427,15 @@ func hasDuplicatesErr(arches []FatArch) error {
 		seenArches[seenArch] = true
 	}
 
+	return nil
+}
+
+func checkMaxAlignBit(arches []FatArch) error {
+	for _, fa := range arches {
+		if fa.Align > alignBitMax {
+			return fmt.Errorf("align (2^%d) too large of fat file %s (cputype (%d) cpusubtype (%d)) (maximum 2^%d)", fa.Align, fa.Name, fa.Cpu, fa.SubCpu^MaskSubCpuType, alignBitMax)
+		}
+
+	}
 	return nil
 }

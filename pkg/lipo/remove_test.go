@@ -110,4 +110,18 @@ func TestLipo_RemoveError(t *testing.T) {
 			t.Errorf("want: %s, got: %s", want, got)
 		}
 	})
+
+	t.Run("result-in-empty-inputs", func(t *testing.T) {
+		p := testlipo.Setup(t, []string{"arm64"})
+		got := filepath.Join(p.Dir, wantName(t))
+		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
+		err := l.Remove("arm64")
+		if err == nil {
+			t.Errorf("error does not occur")
+		}
+		want := "no inputs would result in an empty fat file"
+		if got := err.Error(); got != want {
+			t.Errorf("want: %s, got: %s", want, got)
+		}
+	})
 }

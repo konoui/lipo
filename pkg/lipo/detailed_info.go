@@ -82,7 +82,7 @@ func detailedInfo(bin string) (string, bool, error) {
 	if err != nil {
 		var e *lmacho.FormatError
 		if errors.As(err, &e) {
-			return "", false, errors.Join(err, fmt.Errorf("can't figure out the architecture type of: %s", bin))
+			return "", false, fmt.Errorf("can't figure out the architecture type of: %s: %w", bin, err)
 		} else if !errors.Is(err, macho.ErrNotFat) {
 			return "", false, err
 		}

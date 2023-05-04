@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/util"
@@ -17,7 +18,7 @@ type fatArches []lmacho.FatArch
 
 func (f fatArches) createFatBinary(path string, perm os.FileMode, cfg *lmacho.FatFileConfig) error {
 	if len(f) == 0 {
-		return errors.New("no inputs to create a fat file")
+		return errors.New("no inputs would result in an empty fat file")
 	}
 
 	out, err := createTemp(path)
@@ -108,13 +109,23 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 	}
 
 	for _, a := range segAligns {
+		origHex := a.AlignHex
+		if strings.HasPrefix(a.AlignHex, "0x") || strings.HasPrefix(a.AlignHex, "0X") {
+			a.AlignHex = a.AlignHex[2:]
+		}
 		align, err := strconv.ParseInt(a.AlignHex, 16, 64)
 		if err != nil {
-			return err
+			return fmt.Errorf("segalign %s not a proper hexadecimal number: %w", origHex, err)
 		}
 
 		if align == 0 || (align != 1 && (align%2) != 0) {
 			return fmt.Errorf("segalign %s (hex) must be a non-zero power of two", a.AlignHex)
+		}
+
+		// https://github.com/apple-oss-distributions/cctools/blob/cctools-973.0.1/misc/lipo.c#LL74C42-L74C47
+		maxSectAlign, _ := strconv.ParseInt("8000", 16, 64) // 0x8000 =  2^15
+		if align > maxSectAlign {
+			return fmt.Errorf("segalign %s (hex) must equal to or less than %x (hex)", a.AlignHex, maxSectAlign)
 		}
 
 		alignBit := uint32(math.Log2(float64(align)))

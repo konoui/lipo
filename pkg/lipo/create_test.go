@@ -137,6 +137,16 @@ func TestLipo_CreateError(t *testing.T) {
 			segAligns:  []*lipo.SegAlignInput{{Arch: "arm64e", AlignHex: "10"}},
 			wantErrMsg: "segalign arm64e specified but resulting fat file does not contain that architecture",
 		},
+		{
+			name:       "-create -segalign x86_64 0x10000",
+			segAligns:  []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "0x10000"}},
+			wantErrMsg: "segalign 10000 (hex) must equal to or less than 8000 (hex)",
+		},
+		{
+			name:       "-create -segalign x86_64 0x",
+			segAligns:  []*lipo.SegAlignInput{{Arch: "x86_64", AlignHex: "0x"}},
+			wantErrMsg: "segalign 0x not a proper hexadecimal number",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
