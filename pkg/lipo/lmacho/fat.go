@@ -21,7 +21,7 @@ type FatHeader struct {
 // FatArchHeader presets an architecture header for a Macho-0 32 bit and 64 bit
 type FatArchHeader struct {
 	Cpu    macho.Cpu
-	SubCpu uint32
+	SubCpu SubCpu
 	Offset uint64
 	Size   uint64
 	Align  uint32
