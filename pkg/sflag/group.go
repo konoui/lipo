@@ -62,8 +62,24 @@ func (g *Group) AddDescription(s string) *Group {
 }
 
 func (g *Group) lookupByType(typ FlagType) []*Flag {
+	keys, i := make([]string, len(g.types)), 0
+	for k := range g.types {
+		keys[i] = k
+		i++
+	}
+	sort.SliceStable(keys, func(i, j int) bool {
+		if g.Name == keys[i] {
+			return true
+		}
+		if g.Name == keys[j] {
+			return false
+		}
+		return keys[i] > keys[j]
+	})
+
 	flags := []*Flag{}
-	for name, ft := range g.types {
+	for _, name := range keys {
+		ft := g.types[name]
 		if ft == typ {
 			flags = append(flags, g.lookup(name))
 		}
