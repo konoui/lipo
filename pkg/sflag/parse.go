@@ -6,8 +6,7 @@ import (
 )
 
 const (
-	fmtRequireOneValue        = "the -%s flag requires one value"
-	fmtRequireOneValueAtLeast = fmtRequireOneValue + " at least"
+	fmtRequireOneValueAtLeast = "the -%s flag requires one value at least"
 	fmtRequireMoreValues      = "the -%s flag requires %d values at least"
 )
 
@@ -56,35 +55,17 @@ func (f *FlagSet) parse() (isFlag bool, _ error) {
 	// update and skip flag name
 	f.consumeArg()
 
-	value := flag.Value
+	value := flag.value
 	// special case, value is not required
-	if _, ok := value.Get().(bool); ok {
-		if err := value.Set("true"); err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-
-	values, isValues := value.(Values)
-	if !isValues {
-		if len(f.args) == 0 {
-			return false, fmt.Errorf(fmtRequireOneValue, flag.Name)
-		}
-
-		// check next is a flag or not
-		if _, ok := f.isFlagName(f.args[0]); ok {
-			return false, fmt.Errorf(fmtRequireOneValue, flag.Name)
-		}
-
-		v := f.consumeArg()
-		if err := value.Set(v); err != nil {
+	if _, ok := value.(*Value[bool]); ok {
+		if err := value.set("true"); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
 
 	// limited-cap case, consume num of remaining caps
-	cap := values.Cap()
+	cap := value.cap()
 	for i := 0; i < cap; i++ {
 		if len(f.args) == 0 {
 			if cap == 1 {
@@ -101,13 +82,13 @@ func (f *FlagSet) parse() (isFlag bool, _ error) {
 		}
 
 		v := f.consumeArg()
-		if err := values.Set(v); err != nil {
+		if err := value.set(v); err != nil {
 			return false, err
 		}
 	}
 
 	// check non-limit case after limited-cap case since a transition of limited-cap to non-limit will occur
-	cap = values.Cap()
+	cap = value.cap()
 	if cap == CapNoLimit {
 		for {
 			if len(f.args) == 0 {
@@ -119,7 +100,7 @@ func (f *FlagSet) parse() (isFlag bool, _ error) {
 			}
 
 			v := f.consumeArg()
-			if err := values.Set(v); err != nil {
+			if err := value.set(v); err != nil {
 				return false, err
 			}
 		}
@@ -155,7 +136,7 @@ func (f *FlagSet) isFlagName(s string) (*Flag, bool) {
 }
 
 // flagName checks `s` is registered flag name or not.
-// if not flag name, return empty string, otherwise it returns flag name without hyphen
+// if not flag name, return empty string, otherwise it returns flag name without a hyphen
 func flagName(s string) string {
 	if len(s) < 1 || s[0] != '-' {
 		return ""

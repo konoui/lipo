@@ -296,7 +296,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-replace", "x86_64", "target1",
 				"-output",
 			},
-			errMsg: "the -output flag requires one value",
+			errMsg: "the -output flag requires one value at least",
 		},
 		{
 			name: "-thin without arg. -output should not regard as a value for -thin",
@@ -305,7 +305,7 @@ func TestFlagSet_ParseError(t *testing.T) {
 				"-thin",
 				"-output", "out",
 			},
-			errMsg: "the -thin flag requires one value",
+			errMsg: "the -thin flag requires one value at least",
 		},
 		{
 			name: "-verify_arch without arg",

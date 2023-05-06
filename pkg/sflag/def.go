@@ -5,68 +5,64 @@ import (
 	"strconv"
 )
 
-// Bool presents `-flag“ NOT `-flag true/false`
-func (f *FlagSet) Bool(name, usage string, opts ...FlagOption) *FlagRef[bool] {
-	p := new(bool)
-	addOpts := append([]FlagOption{WithDenyDuplicate()}, opts...)
-	return Register[bool](f, FlagValue(p, strconv.ParseBool), name, usage, addOpts...)
-}
-
-// String presents `-flag <value>`
-func (f *FlagSet) String(name, usage string, opts ...FlagOption) *FlagRef[string] {
-	p := new(string)
-	addOpts := append([]FlagOption{WithDenyDuplicate()}, opts...)
-	return Register[string](f,
-		FlagValue(p, func(v string) (string, error) { return v, nil }),
+// Bool represents `-flag` NOT `-flag true/false`
+func (f *FlagSet) Bool(name, usage string, opts ...FlagOpt) *FlagRef[bool] {
+	addOpts := append([]FlagOpt{WithDenyDuplicate()}, opts...)
+	return Register(f,
+		NewValue(new(bool), strconv.ParseBool),
 		name, usage, addOpts...)
 }
 
-// StringFlags presents `-flag <value1> -flag <value2> -flag <value3> -flag ...`
-func (f *FlagSet) StringFlags(name, usage string, opts ...FlagOption) *FlagRef[[]string] {
-	p := new([]string)
-	return Register[[]string](f, newStringFlags(p), name, usage, opts...)
+// String represents `-flag <value>`
+func (f *FlagSet) String(name, usage string, opts ...FlagOpt) *FlagRef[string] {
+	addOpts := append([]FlagOpt{WithDenyDuplicate()}, opts...)
+	return Register(f,
+		NewValue(new(string), func(v string) (string, error) { return v, nil }),
+		name, usage, addOpts...)
 }
 
-func newStringFlags(p *[]string) Value {
-	cur := 0
+// StringFlags represents `-flag <value1> -flag <value2> -flag <value3> -flag ...`
+func (f *FlagSet) StringFlags(name, usage string, opts ...FlagOpt) *FlagRef[[]string] {
+	return Register(f, newStringFlags(), name, usage, opts...)
+}
+
+func newStringFlags() *Value[[]string] {
+	p := new([]string)
 	convert := func(v string) ([]string, error) {
-		if cur < len(*p) {
-			(*p)[cur] = v
-		} else {
-			*p = append(*p, v)
-		}
-		cur++
+		*p = append(*p, v)
 		return *p, nil
 	}
-	return FlagValue(p, convert)
+	return NewValue(p, convert)
 }
 
-// Strings presents `-flag <value1> <value2> <value3> ...`
-func (f *FlagSet) Strings(name, usage string, opts ...FlagOption) *FlagRef[[]string] {
-	p := new([]string)
-	addOpts := append([]FlagOption{WithDenyDuplicate()}, opts...)
-	return Register[[]string](f, newStrings(p), name, usage, addOpts...)
+// Strings represents `-flag <value1> <value2> <value3> ...`
+func (f *FlagSet) Strings(name, usage string, opts ...FlagOpt) *FlagRef[[]string] {
+	addOpts := append([]FlagOpt{WithDenyDuplicate()}, opts...)
+	return Register(f, newStrings(), name, usage, addOpts...)
 }
 
-func newStrings(p *[]string) Value {
-	fv := newStringFlags(p).(*flagValue[[]string])
-	cap := func() int {
+func newStrings() *Value[[]string] {
+	fv := newStringFlags()
+	p := fv.p
+	fv.capper = func() int {
+		// require one value at least
 		if len(*p) == 0 {
 			return 1
 		}
 		return CapNoLimit
 	}
-	return FlagValues(p, fv.convert, cap)
+	return fv
 }
 
-// FixedStringFlags presents `-flag <value1> <value2> -flag <value3> <value4> -flag ...`
+// FixedStringFlags represents `-flag <value1> <value2> -flag <value3> <value4> -flag ...`
 // This is a reference implementation
-func (f *FlagSet) FixedStringFlags(name, usage string, opts ...FlagOption) *FlagRef[[][2]string] {
-	p := new([][2]string)
-	return Register[[][2]string](f, newFixedStringFlags(p), name, usage, opts...)
+func (f *FlagSet) FixedStringFlags(name, usage string, opts ...FlagOpt) *FlagRef[[][2]string] {
+	return Register(f, newFixedStringFlags(), name, usage, opts...)
 }
 
-func newFixedStringFlags(p *[][2]string) Value {
+func newFixedStringFlags() *Value[[][2]string] {
+	p := new([][2]string)
+
 	var idx, cur int
 	maxLen := 2
 	convert := func(v string) ([][2]string, error) {
@@ -89,5 +85,5 @@ func newFixedStringFlags(p *[][2]string) Value {
 		}
 		return cap
 	}
-	return FlagValues(p, convert, cap)
+	return NewValues(p, convert, cap)
 }
