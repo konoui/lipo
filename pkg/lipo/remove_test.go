@@ -65,7 +65,7 @@ func TestLipo_Remove(t *testing.T) {
 			opts := []lipo.Option{
 				lipo.WithInputs(p.FatBin),
 				lipo.WithOutput(got),
-				lipo.WithSegAlign(tt.segAligns),
+				lipo.WithSegAlign(tt.segAligns...),
 			}
 			if tt.hideArm64 {
 				opts = append(opts, lipo.WithHideArm64())

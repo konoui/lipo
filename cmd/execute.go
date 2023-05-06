@@ -116,8 +116,8 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	opts := []lipo.Option{
 		lipo.WithOutput(out.Get()),
 		lipo.WithInputs(in...),
-		lipo.WithArch(conv(arch.Get(), newArch)),
-		lipo.WithSegAlign(conv(segAligns.Get(), newSegAlign)),
+		lipo.WithArch(conv(arch.Get(), newArch)...),
+		lipo.WithSegAlign(conv(segAligns.Get(), newSegAlign)...),
 	}
 	if hideArm64.Get() {
 		opts = append(opts, lipo.WithHideArm64())

@@ -54,7 +54,7 @@ func TestLipo_Extract(t *testing.T) {
 			opts := []lipo.Option{
 				lipo.WithInputs(p.FatBin),
 				lipo.WithOutput(got),
-				lipo.WithSegAlign(tt.segAligns),
+				lipo.WithSegAlign(tt.segAligns...),
 			}
 			if tt.fat64 {
 				opts = append(opts, lipo.WithFat64())

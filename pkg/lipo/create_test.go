@@ -81,7 +81,7 @@ func TestLipo_Create(t *testing.T) {
 			opts := []lipo.Option{
 				lipo.WithInputs(p.Bins()...),
 				lipo.WithOutput(got),
-				lipo.WithSegAlign(tt.segAligns),
+				lipo.WithSegAlign(tt.segAligns...),
 			}
 			if tt.hideArm64 {
 				opts = append(opts, lipo.WithHideArm64())
@@ -107,7 +107,7 @@ func TestLipo_CreateWithArch(t *testing.T) {
 		p := testlipo.Setup(t, []string{"x86_64", "arm64", "arm64e"})
 		archInputs := []*lipo.ArchInput{{Arch: "arm64e", Bin: p.Bin(t, "arm64e")}}
 		got := filepath.Join(p.Dir, gotName(t))
-		opts := []lipo.Option{lipo.WithInputs(p.Bin(t, "arm64"), p.Bin(t, "x86_64")), lipo.WithOutput(got), lipo.WithArch(archInputs)}
+		opts := []lipo.Option{lipo.WithInputs(p.Bin(t, "arm64"), p.Bin(t, "x86_64")), lipo.WithOutput(got), lipo.WithArch(archInputs...)}
 		if err := lipo.New(opts...).Create(); err != nil {
 			t.Fatalf("failed to create fat bin %v", err)
 		}
@@ -155,7 +155,7 @@ func TestLipo_CreateError(t *testing.T) {
 			l := lipo.New(
 				lipo.WithInputs(p.Bins()...),
 				lipo.WithOutput(got),
-				lipo.WithSegAlign(tt.segAligns))
+				lipo.WithSegAlign(tt.segAligns...))
 			err := l.Create()
 			if err == nil {
 				t.Fatal("error not occur")

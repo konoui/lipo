@@ -53,13 +53,13 @@ func WithOutput(out string) Option {
 	}
 }
 
-func WithSegAlign(aligns []*SegAlignInput) Option {
+func WithSegAlign(aligns ...*SegAlignInput) Option {
 	return func(l *Lipo) {
 		l.segAligns = aligns
 	}
 }
 
-func WithArch(arches []*ArchInput) Option {
+func WithArch(arches ...*ArchInput) Option {
 	return func(l *Lipo) {
 		l.arches = arches
 	}
