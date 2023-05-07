@@ -39,6 +39,8 @@ type ArchInput struct {
 	Bin  string
 }
 
+type ReplaceInput = ArchInput
+
 type Option func(l *Lipo)
 
 func WithInputs(in ...string) Option {

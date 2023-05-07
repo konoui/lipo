@@ -4,13 +4,7 @@ import (
 	"fmt"
 
 	"github.com/konoui/lipo/pkg/lipo/lmacho"
-	"github.com/konoui/lipo/pkg/util"
 )
-
-type ReplaceInput struct {
-	Arch string
-	Bin  string
-}
 
 func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	if err := validateOneInput(l.in); err != nil {
@@ -29,12 +23,7 @@ func (l *Lipo) Replace(inputs []*ReplaceInput) error {
 	}
 	all := fatArches(ff.AllArches())
 
-	archInputs := util.Map(inputs, func(i *ReplaceInput) *ArchInput {
-		return &ArchInput{
-			Arch: i.Arch,
-			Bin:  i.Bin,
-		}
-	})
+	archInputs := inputs
 	// check an ReplaceInput.Arch is equal to an arch in ReplaceInput.Bin
 	// check no duplication arches
 	fatInputs, err := newFatArches(archInputs...)

@@ -155,7 +155,7 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		}
 		return
 	case "replace":
-		if err := l.Replace(conv(replace.Get(), newReplace)); err != nil {
+		if err := l.Replace(conv(replace.Get(), newArch)); err != nil {
 			return fatal(stderr, err.Error())
 		}
 		return
@@ -196,10 +196,6 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 
 func newSegAlign(r [2]string) *lipo.SegAlignInput {
 	return &lipo.SegAlignInput{Arch: r[0], AlignHex: r[1]}
-}
-
-func newReplace(r [2]string) *lipo.ReplaceInput {
-	return &lipo.ReplaceInput{Arch: r[0], Bin: r[1]}
 }
 
 func newArch(r [2]string) *lipo.ArchInput {
