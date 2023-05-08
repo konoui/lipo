@@ -4,6 +4,11 @@ import (
 	"io"
 )
 
+var (
+	_ io.ReadCloser = &File{}
+	_ io.ReaderAt   = &File{}
+)
+
 type File struct {
 	sr *io.SectionReader
 	c  io.Closer

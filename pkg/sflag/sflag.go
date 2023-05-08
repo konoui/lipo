@@ -31,7 +31,7 @@ type Value[T any] struct {
 	capper    func() int
 }
 
-// value is an internal interface which is used by a Parse() of FlagSet to set values
+// value is an internal interface which is used by the Parse() of FlagSet to set values
 type value interface {
 	set(string) error
 	cap() int
@@ -51,7 +51,7 @@ func (fr *FlagRef[T]) Get() T {
 	return fr.v.get()
 }
 
-// Flag returns a Flag to access the flag name and the usage.
+// Flag returns the Flag to access the flag name and the usage.
 func (fr *FlagRef[T]) Flag() *Flag {
 	return fr.flag
 }
@@ -70,7 +70,7 @@ func WithShortName(short string) FlagOpt {
 	}
 }
 
-// Register registers Value with a Name and an Usage as a Flag
+// Register registers a Value with a Name and an Usage as a Flag
 // This is used to define a custom flag type.
 func Register[T any](f *FlagSet, v *Value[T], name, usage string, opts ...FlagOpt) *FlagRef[T] {
 	if v.p == nil {
@@ -117,7 +117,7 @@ func Register[T any](f *FlagSet, v *Value[T], name, usage string, opts ...FlagOp
 	return &FlagRef[T]{flag: flag, v: v}
 }
 
-// NewValues is used for a single value definition. e.g.) bool, string, int.
+// NewValue is used for a single value definition. e.g.) bool, string, int.
 // When implementing `-flag value1 -flag value2 -flag value3`, it can be also useful.
 func NewValue[T any](p *T, converter func(v string) (T, error)) *Value[T] {
 	fv := Value[T]{p: p, converter: converter, capper: func() int { return 1 }}

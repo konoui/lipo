@@ -108,6 +108,12 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 		return fmt.Errorf("segalign %s specified multiple times", *dup)
 	}
 
+	// make a map to lookup a fatArch early
+	fam := make(map[string]*lmacho.FatArch)
+	for i := range f {
+		fam[lmacho.ToCpuString(f[i].Cpu, f[i].SubCpu)] = &f[i]
+	}
+
 	for _, a := range segAligns {
 		origHex := a.AlignHex
 		if strings.HasPrefix(a.AlignHex, "0x") || strings.HasPrefix(a.AlignHex, "0X") {
@@ -128,18 +134,14 @@ func (f fatArches) updateAlignBit(segAligns []*SegAlignInput) error {
 			return fmt.Errorf("segalign %s (hex) must equal to or less than %x (hex)", a.AlignHex, maxSectAlign)
 		}
 
-		alignBit := uint32(math.Log2(float64(align)))
-		found := false
-		for idx := range f {
-			if lmacho.ToCpuString(f[idx].Cpu, f[idx].SubCpu) == a.Arch {
-				f[idx].Align = alignBit
-				found = true
-				break
-			}
-		}
+		fa, found := fam[a.Arch]
 		if !found {
 			return fmt.Errorf("segalign %s specified but resulting fat file does not contain that architecture", a.Arch)
 		}
+
+		// update align bit
+		alignBit := uint32(math.Log2(float64(align)))
+		fa.Align = alignBit
 	}
 
 	return nil
