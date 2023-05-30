@@ -25,7 +25,6 @@ func (f fatArches) createFatBinary(path string, perm os.FileMode, cfg *lmacho.Fa
 	if err != nil {
 		return err
 	}
-	// for an error in the middle of other operations
 	defer out.Close()
 
 	err = lmacho.NewFatFileFromArches(f, cfg).Create(out)
@@ -37,7 +36,7 @@ func (f fatArches) createFatBinary(path string, perm os.FileMode, cfg *lmacho.Fa
 		return err
 	}
 
-	if err := out.Close(); err != nil {
+	if err := out.Sync(); err != nil {
 		return err
 	}
 
