@@ -309,6 +309,8 @@ func appendCmd(cmd string, args []string) []string {
 }
 
 func PatchFat64Reserved(t *testing.T, p string) {
+	t.Helper()
+
 	ff, err := lmacho.NewFatFile(p)
 	if err != nil {
 		if errors.Is(err, macho.ErrNotFat) {
@@ -321,8 +323,6 @@ func PatchFat64Reserved(t *testing.T, p string) {
 		return
 	}
 
-	t.Log("patching fat64 reserved filed with zero")
-
 	f, err := os.OpenFile(p, os.O_RDWR, 0777)
 	fatalIf(t, err)
 
@@ -331,9 +331,23 @@ func PatchFat64Reserved(t *testing.T, p string) {
 	fatalIf(t, err)
 
 	for _, fa := range ff.AllArches() {
-		off := binary.Size(fa.FatArchHeader)
-		_, err = f.Seek(int64(off), io.SeekCurrent)
+		// seek an offset of fat64 reserved field
+		off, err := f.Seek(int64(binary.Size(fa.FatArchHeader)), io.SeekCurrent)
 		fatalIf(t, err)
+
+		// get current value of reserved field
+		cur := uint32(0)
+		err = binary.Read(f, binary.BigEndian, &cur)
+		fatalIf(t, err)
+		if cur == 0 {
+			return
+		}
+
+		t.Logf("[WARNING] fa64 reserved field is not zero: %d(0x%x), patching it with zero\n", cur, cur)
+		// reset the offset to patch reserved field
+		_, err = f.Seek(int64(off), io.SeekStart)
+		fatalIf(t, err)
+
 		reserved := uint32(0)
 		err = binary.Write(f, binary.BigEndian, &reserved)
 		fatalIf(t, err)
