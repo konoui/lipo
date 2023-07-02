@@ -83,24 +83,24 @@ func (bm *BinManager) singleAdd(t *testing.T, arch string) (path string) {
 	}()
 
 	// from file cache
-	// _, err := macho.Open(archBin)
-	// if err == nil {
-	// 	bm.archBins[arch] = archBin
-	// 	return archBin
-	// }
-
-	// generate a new binary
-	if arch == "x86_64" {
-		bm.writeMainFile(t)
-		compile(t, bm.mainFile, archBin, "amd64")
+	_, err := macho.Open(archBin)
+	if err == nil {
 		bm.archBins[arch] = archBin
 		return archBin
 	}
 
+	// generate a new binary
 	if arch == "arm64" {
 		bm.writeMainFile(t)
 		compile(t, bm.mainFile, archBin, "arm64")
 		bm.arm64Bin = archBin
+		bm.archBins[arch] = archBin
+		return archBin
+	}
+
+	if arch == "x86_64" {
+		bm.writeMainFile(t)
+		compile(t, bm.mainFile, archBin, "amd64")
 		bm.archBins[arch] = archBin
 		return archBin
 	}
