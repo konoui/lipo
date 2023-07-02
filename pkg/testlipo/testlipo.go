@@ -38,8 +38,7 @@ type LipoBin struct {
 }
 
 type TestLipo struct {
-	bm     *BinManager
-	Dir    string
+	*BinManager
 	arches []string
 	FatBin string
 	LipoBin
@@ -92,31 +91,30 @@ func Setup(t *testing.T, bm *BinManager, arches []string, opts ...Opt) *TestLipo
 	lipoBin.ignoreErr = true
 
 	return &TestLipo{
-		Dir:     dir,
-		arches:  arches,
-		bm:      bm,
-		FatBin:  fatBin,
-		LipoBin: lipoBin,
+		arches:     arches,
+		BinManager: bm,
+		FatBin:     fatBin,
+		LipoBin:    lipoBin,
 	}
 }
 
 func (l *TestLipo) Bin(t *testing.T, arch string) (path string) {
-	bin := l.bm.getBinPath(t, arch)
+	bin := l.getBinPath(t, arch)
 	return bin
 }
 
 func (l *TestLipo) Bins(t *testing.T) (paths []string) {
-	return l.bm.getBinPaths(t, l.arches)
+	return l.getBinPaths(t, l.arches)
 }
 
 func (l *TestLipo) NewArchBin(t *testing.T, arch string) (path string) {
 	t.Helper()
-	return l.bm.singleAdd(t, arch)
+	return l.singleAdd(t, arch)
 }
 
 func (l *TestLipo) NewArchObj(t *testing.T, arch string) (path string) {
 	t.Helper()
-	return l.bm.singleAdd(t, "obj_"+arch)
+	return l.singleAdd(t, "obj_"+arch)
 }
 
 func NewLipoBin(t *testing.T, opts ...Opt) LipoBin {
