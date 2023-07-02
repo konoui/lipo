@@ -54,7 +54,7 @@ func TestLipo_Remove(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.inputs,
+			p := testlipo.Setup(t, bm, tt.inputs,
 				testSegAlignOpt(tt.segAligns),
 				testlipo.WithHideArm64(tt.hideArm64),
 				testlipo.WithFat64(tt.fat64),
@@ -96,7 +96,7 @@ func TestLipo_Remove(t *testing.T) {
 
 func TestLipo_RemoveError(t *testing.T) {
 	t.Run("not-match-arch", func(t *testing.T) {
-		p := testlipo.Setup(t, []string{"arm64", "x86_64"})
+		p := testlipo.Setup(t, bm, []string{"arm64", "x86_64"})
 
 		got := filepath.Join(p.Dir, wantName(t))
 		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
@@ -112,7 +112,7 @@ func TestLipo_RemoveError(t *testing.T) {
 	})
 
 	t.Run("result-in-empty-inputs", func(t *testing.T) {
-		p := testlipo.Setup(t, []string{"arm64"})
+		p := testlipo.Setup(t, bm, []string{"arm64"})
 		got := filepath.Join(p.Dir, wantName(t))
 		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 		err := l.Remove("arm64")

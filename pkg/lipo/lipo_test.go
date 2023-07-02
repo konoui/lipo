@@ -11,6 +11,8 @@ import (
 	"github.com/konoui/lipo/pkg/util"
 )
 
+var bm = testlipo.NewBinManager(testlipo.TestDir)
+
 func testSegAlignOpt(inputs []*lipo.SegAlignInput) testlipo.Opt {
 	ain := []string{}
 	for _, v := range inputs {

@@ -11,6 +11,8 @@ import (
 	"github.com/konoui/lipo/pkg/testlipo"
 )
 
+var bm = testlipo.NewBinManager(testlipo.TestDir)
+
 const (
 	phOutput     = "<output_file>"
 	phInputFat   = "<input_fat_file>"
@@ -34,7 +36,7 @@ func replace(t *testing.T, p *testlipo.TestLipo, rawArgs []string, mylipo bool) 
 		in = strings.ReplaceAll(in, phArm64Thin, p.Bin(t, "arm64"))
 		in = strings.ReplaceAll(in, phX86_64Thin, p.Bin(t, "x86_64"))
 		if in == phInputThins {
-			args = append(args, p.Bins()...)
+			args = append(args, p.Bins(t)...)
 			continue
 		}
 		args = append(args, in)
@@ -157,7 +159,7 @@ func TestExecute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			outBuf, errBuf := &bytes.Buffer{}, &bytes.Buffer{}
-			p := testlipo.Setup(t, append(tt.addArches, "arm64", "x86_64"))
+			p := testlipo.Setup(t, bm, append(tt.addArches, "arm64", "x86_64"))
 			args, gotBin := replace(t, p, tt.args, true)
 
 			gotExitCode := cmd.Execute(outBuf, errBuf, args)

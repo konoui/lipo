@@ -45,7 +45,7 @@ func TestLipo_Extract(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.inputs,
+			p := testlipo.Setup(t, bm, tt.inputs,
 				testSegAlignOpt(tt.segAligns),
 				testlipo.WithFat64(tt.fat64))
 
@@ -75,7 +75,7 @@ func TestLipo_Extract(t *testing.T) {
 
 func TestLipo_ExtractWithOverwriteInput(t *testing.T) {
 	t.Run("overwrite-input", func(t *testing.T) {
-		p := testlipo.Setup(t, []string{"x86_64", "arm64"})
+		p := testlipo.Setup(t, bm, []string{"x86_64", "arm64"})
 		// input and output are same path
 		got := p.FatBin
 		l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
@@ -88,7 +88,7 @@ func TestLipo_ExtractWithOverwriteInput(t *testing.T) {
 }
 
 func TestLipo_ExtractError(t *testing.T) {
-	p := testlipo.Setup(t, []string{"arm64", "x86_64"})
+	p := testlipo.Setup(t, bm, []string{"arm64", "x86_64"})
 	got := filepath.Join(p.Dir, gotName(t))
 	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 

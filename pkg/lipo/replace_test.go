@@ -63,7 +63,7 @@ func TestLipo_Replace(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.inputs,
+			p := testlipo.Setup(t, bm, tt.inputs,
 				testSegAlignOpt(tt.segAligns),
 				testlipo.WithHideArm64(tt.hideArm64),
 				testlipo.WithFat64(tt.fat64),
@@ -106,7 +106,7 @@ func wrapReplaceInputs(ri []*lipo.ReplaceInput) [][2]string {
 }
 
 func TestLipo_ReplaceError(t *testing.T) {
-	p := testlipo.Setup(t, []string{"arm64", "x86_64"})
+	p := testlipo.Setup(t, bm, []string{"arm64", "x86_64"})
 	got := filepath.Join(p.Dir, gotName(t))
 	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 
@@ -145,7 +145,7 @@ func TestLipo_ReplaceError(t *testing.T) {
 	})
 
 	t.Run("-hideARM64-with-obj", func(t *testing.T) {
-		p := testlipo.Setup(t, []string{"arm64", "armv7k"})
+		p := testlipo.Setup(t, bm, []string{"arm64", "armv7k"})
 		objArm64 := p.NewArchObj(t, "arm64")
 		l := lipo.New(
 			lipo.WithInputs(p.FatBin),

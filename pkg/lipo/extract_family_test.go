@@ -50,7 +50,7 @@ func TestLipo_ExtractFamily(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.inputs,
+			p := testlipo.Setup(t, bm, tt.inputs,
 				testSegAlignOpt(tt.segAligns),
 				testlipo.WithFat64(tt.fat64))
 
@@ -77,7 +77,7 @@ func TestLipo_ExtractFamily(t *testing.T) {
 }
 
 func TestLipo_ExtracFamilyError(t *testing.T) {
-	p := testlipo.Setup(t, []string{"x86_64"})
+	p := testlipo.Setup(t, bm, []string{"x86_64"})
 	got := filepath.Join(p.Dir, gotName(t))
 	l := lipo.New(lipo.WithInputs(p.FatBin), lipo.WithOutput(got))
 

@@ -14,7 +14,7 @@ import (
 func TestLipo_Archs(t *testing.T) {
 	// fat binary test
 	arches := cpuNames()
-	p := testlipo.Setup(t, arches)
+	p := testlipo.Setup(t, bm, arches)
 
 	l := lipo.New(lipo.WithInputs(p.FatBin))
 	gotArches, err := l.Archs()
