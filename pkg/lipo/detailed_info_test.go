@@ -40,7 +40,7 @@ func TestLipo_DetailedInfo(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.inputs, testlipo.WithHideArm64(tt.hideArm64))
+			p := testlipo.Setup(t, bm, tt.inputs, testlipo.WithHideArm64(tt.hideArm64))
 			fat1 := p.FatBin
 			fat2 := p.FatBin
 			args := append([]string{}, fat1, fat2)

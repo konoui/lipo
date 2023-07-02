@@ -27,6 +27,8 @@ func main() {
 }
 `
 
+var TestDir = filepath.Join(os.TempDir(), "testlipo-output")
+
 type LipoBin struct {
 	Bin       string
 	segAligns []string
@@ -36,13 +38,11 @@ type LipoBin struct {
 }
 
 type TestLipo struct {
-	archBins map[string]string
-	// for reserving bins() order
-	arches []string
+	bm     *BinManager
 	Dir    string
+	arches []string
 	FatBin string
 	LipoBin
-	arm64Bin string
 }
 
 type Opt func(l *LipoBin)
@@ -72,97 +72,51 @@ func IgnoreErr(v bool) Opt {
 	}
 }
 
-func Setup(t *testing.T, arches []string, opts ...Opt) *TestLipo {
+func Setup(t *testing.T, bm *BinManager, arches []string, opts ...Opt) *TestLipo {
 	t.Helper()
 
 	if len(arches) == 0 {
 		t.Fatal("input arches are zero")
 	}
 
-	tempDir := filepath.Join(os.TempDir(), "testlipo-output")
-	err := os.MkdirAll(tempDir, 0740)
+	err := os.MkdirAll(bm.Dir, 0740)
 	fatalIf(t, err)
-	dir := tempDir
+	dir := bm.Dir
 
-	mainfile := filepath.Join(dir, "main.go")
-	err = os.WriteFile(mainfile, []byte(godata), os.ModePerm)
-	fatalIf(t, err)
-
-	// base binaries
-	amd64Bin := filepath.Join(dir, "x86_64")
-	arm64Bin := filepath.Join(dir, "arm64")
-	compile(t, mainfile, amd64Bin, "amd64")
-	compile(t, mainfile, arm64Bin, "arm64")
-
-	archBins := map[string]string{}
-	for _, arch := range arches {
-		// create base binary first,
-		if arch == "x86_64" {
-			archBins[arch] = amd64Bin
-		} else if arch == "arm64" {
-			archBins[arch] = arm64Bin
-		} else if strings.HasPrefix(arch, "obj_") {
-			archBin := filepath.Join(dir, arch)
-			copyAndManipulate(t, arm64Bin, archBin, arch[4:], macho.TypeObj)
-			archBins[arch] = archBin
-		} else {
-			archBin := filepath.Join(dir, arch)
-			copyAndManipulate(t, arm64Bin, archBin, arch, macho.TypeExec)
-			archBins[arch] = archBin
-		}
-	}
+	bm.add(t, arches...)
 
 	lipoBin := NewLipoBin(t, opts...)
 	fatBin := filepath.Join(dir, "fat-"+strings.Join(arches, "-"))
-	if len(archBins) > 0 {
-		// create fat bit for inputs
-		inputs := make([]string, 0, len(archBins))
-		for _, in := range arches {
-			inputs = append(inputs, archBins[in])
-		}
-		lipoBin.ignoreErr = false
-		lipoBin.Create(t, fatBin, inputs...)
-		lipoBin.ignoreErr = true
-	}
+	lipoBin.ignoreErr = false
+	lipoBin.Create(t, fatBin, bm.getBinPaths(t, arches)...)
+	lipoBin.ignoreErr = true
 
 	return &TestLipo{
-		Dir:      dir,
-		archBins: archBins,
-		arches:   arches,
-		FatBin:   fatBin,
-		LipoBin:  lipoBin,
-		arm64Bin: arm64Bin,
+		Dir:     dir,
+		arches:  arches,
+		bm:      bm,
+		FatBin:  fatBin,
+		LipoBin: lipoBin,
 	}
 }
 
 func (l *TestLipo) Bin(t *testing.T, arch string) (path string) {
-	bin, ok := l.archBins[arch]
-	if !ok {
-		t.Fatalf("found no arch %s\n", arch)
-	}
+	bin := l.bm.getBinPath(t, arch)
 	return bin
 }
 
-func (l *TestLipo) Bins() (paths []string) {
-	bins := make([]string, len(l.archBins))
-	for i, a := range l.arches {
-		bins[i] = l.archBins[a]
-	}
-	return bins
+func (l *TestLipo) Bins(t *testing.T) (paths []string) {
+	return l.bm.getBinPaths(t, l.arches)
 }
 
 func (l *TestLipo) NewArchBin(t *testing.T, arch string) (path string) {
 	t.Helper()
-	archBin := filepath.Join(l.Dir, "new-arch-bin-"+arch)
-	copyAndManipulate(t, l.arm64Bin, archBin, arch, macho.TypeExec)
-	return archBin
+	return l.bm.singleAdd(t, arch)
 }
 
 func (l *TestLipo) NewArchObj(t *testing.T, arch string) (path string) {
 	t.Helper()
-	archBin := filepath.Join(l.Dir, "new-arch-obj-"+arch)
-	copyAndManipulate(t, l.arm64Bin, archBin, arch, macho.TypeObj)
-	return archBin
+	return l.bm.singleAdd(t, "obj_"+arch)
 }
 
 func NewLipoBin(t *testing.T, opts ...Opt) LipoBin {

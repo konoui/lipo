@@ -72,14 +72,14 @@ func TestLipo_Create(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, tt.arches,
+			p := testlipo.Setup(t, bm, tt.arches,
 				testSegAlignOpt(tt.segAligns),
 				testlipo.WithHideArm64(tt.hideArm64),
 				testlipo.WithFat64(tt.fat64),
 			)
 			got := filepath.Join(p.Dir, gotName(t))
 			opts := []lipo.Option{
-				lipo.WithInputs(p.Bins()...),
+				lipo.WithInputs(p.Bins(t)...),
 				lipo.WithOutput(got),
 				lipo.WithSegAlign(tt.segAligns...),
 			}
@@ -104,7 +104,7 @@ func TestLipo_Create(t *testing.T) {
 
 func TestLipo_CreateWithArch(t *testing.T) {
 	t.Run("arch-inputs", func(t *testing.T) {
-		p := testlipo.Setup(t, []string{"x86_64", "arm64", "arm64e"})
+		p := testlipo.Setup(t, bm, []string{"x86_64", "arm64", "arm64e"})
 		archInputs := []*lipo.ArchInput{{Arch: "arm64e", Bin: p.Bin(t, "arm64e")}}
 		got := filepath.Join(p.Dir, gotName(t))
 		opts := []lipo.Option{lipo.WithInputs(p.Bin(t, "arm64"), p.Bin(t, "x86_64")), lipo.WithOutput(got), lipo.WithArch(archInputs...)}
@@ -150,10 +150,10 @@ func TestLipo_CreateError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := testlipo.Setup(t, []string{"x86_64", "arm64"})
+			p := testlipo.Setup(t, bm, []string{"x86_64", "arm64"})
 			got := filepath.Join(p.Dir, gotName(t))
 			l := lipo.New(
-				lipo.WithInputs(p.Bins()...),
+				lipo.WithInputs(p.Bins(t)...),
 				lipo.WithOutput(got),
 				lipo.WithSegAlign(tt.segAligns...))
 			err := l.Create()
