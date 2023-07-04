@@ -78,6 +78,16 @@ func (bm *BinManager) singleAdd(t *testing.T, arch string) (path string) {
 	}
 
 	archBin := filepath.Join(bm.Dir, arch)
+	defer func() {
+		if path == "" {
+			path = "bad arch: " + arch
+			return
+		}
+		bm.archBins[arch] = path
+		if arch == "arm64" {
+			bm.arm64Bin = path
+		}
+	}()
 
 	// from file cache
 	m, err := macho.Open(archBin)
@@ -90,35 +100,29 @@ func (bm *BinManager) singleAdd(t *testing.T, arch string) (path string) {
 		if farch != arch {
 			panic(fmt.Sprintf("file %s does not match arch %s", arch, farch))
 		}
-		bm.archBins[arch] = archBin
 		return archBin
 	}
 
 	// generate a new binary
-	if arch == "arm64" {
+	switch {
+	case arch == "arm64":
 		bm.writeMainFile(t)
 		compile(t, bm.mainFile, archBin, "arm64")
-		bm.arm64Bin = archBin
-		bm.archBins[arch] = archBin
 		return archBin
-	}
-
-	if arch == "x86_64" {
+	case arch == "x86_64":
 		bm.writeMainFile(t)
 		compile(t, bm.mainFile, archBin, "amd64")
-		bm.archBins[arch] = archBin
 		return archBin
-	}
-
-	if strings.HasPrefix(arch, "obj_") {
+	case arch == "amd64":
+		t.Fatal("use x86_64 instead of amd64")
+		return ""
+	case strings.HasPrefix(arch, "obj_"):
 		copyAndManipulate(t, bm.arm64Bin, archBin, arch[4:], macho.TypeObj)
-		bm.archBins[arch] = archBin
+		return archBin
+	default:
+		copyAndManipulate(t, bm.arm64Bin, archBin, arch, macho.TypeExec)
 		return archBin
 	}
-
-	copyAndManipulate(t, bm.arm64Bin, archBin, arch, macho.TypeExec)
-	bm.archBins[arch] = archBin
-	return archBin
 }
 
 func (bm *BinManager) writeMainFile(t *testing.T) {

@@ -86,9 +86,10 @@ func Setup(t *testing.T, bm *BinManager, arches []string, opts ...Opt) *TestLipo
 
 	lipoBin := NewLipoBin(t, opts...)
 	fatBin := filepath.Join(dir, "fat-"+strings.Join(arches, "-"))
+	tmp := lipoBin.ignoreErr
 	lipoBin.ignoreErr = false
 	lipoBin.Create(t, fatBin, bm.getBinPaths(t, arches)...)
-	lipoBin.ignoreErr = true
+	lipoBin.ignoreErr = tmp
 
 	return &TestLipo{
 		arches:     arches,
@@ -261,7 +262,6 @@ func appendCmd(cmd string, args []string) []string {
 }
 
 func PatchFat64Reserved(t *testing.T, p string) {
-	t.Helper()
 
 	ff, err := lmacho.NewFatFile(p)
 	if err != nil {
@@ -346,8 +346,6 @@ func printStat(t *testing.T, bin string) {
 }
 
 func compile(t *testing.T, mainfile, binPath, arch string) {
-	t.Helper()
-
 	args := []string{"build", "-o"}
 	args = append(args, binPath, mainfile)
 	cmd := exec.Command("go", args...)
@@ -357,7 +355,6 @@ func compile(t *testing.T, mainfile, binPath, arch string) {
 }
 
 func calcSha256(t *testing.T, p string) string {
-	t.Helper()
 	f, err := os.Open(p)
 	fatalIf(t, err)
 	defer f.Close()
@@ -370,7 +367,6 @@ func calcSha256(t *testing.T, p string) string {
 }
 
 func copyAndManipulate(t *testing.T, src, dst string, arch string, typ macho.Type) {
-	t.Helper()
 	cpu, sub, ok := lmacho.ToCpu(arch)
 	if !ok {
 		t.Fatalf("copyAndManipulate: unsupported arch: %s\n", arch)
@@ -419,6 +415,7 @@ func copyAndManipulate(t *testing.T, src, dst string, arch string, typ macho.Typ
 }
 
 func fatalIf(t *testing.T, err error) {
+	t.Helper()
 	if err != nil {
 		t.Fatal(err)
 	}
