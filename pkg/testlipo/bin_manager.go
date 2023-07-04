@@ -16,7 +16,6 @@ type BinManager struct {
 	mu       sync.Mutex
 	archBins map[string]string
 	Dir      string
-	FatBin   string
 	arm64Bin string
 	mainFile string
 }
@@ -131,7 +130,13 @@ func (bm *BinManager) writeMainFile(t *testing.T) {
 	if bm.mainFile != "" {
 		return
 	}
+
 	mainfile := filepath.Join(bm.Dir, "main.go")
+	if _, err := os.Stat(mainfile); err == nil {
+		bm.mainFile = mainfile
+		return
+	}
+
 	err := os.WriteFile(mainfile, []byte(godata), os.ModePerm)
 	fatalIf(t, err)
 
