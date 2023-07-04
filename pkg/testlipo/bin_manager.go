@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 type BinManager struct {
@@ -76,15 +78,18 @@ func (bm *BinManager) singleAdd(t *testing.T, arch string) (path string) {
 	}
 
 	archBin := filepath.Join(bm.Dir, arch)
-	defer func() {
-		if path == "" {
-			panic(fmt.Sprintf("empty result for %s %s", arch, archBin))
-		}
-	}()
 
 	// from file cache
-	_, err := macho.Open(archBin)
+	m, err := macho.Open(archBin)
 	if err == nil {
+		defer m.Close()
+		farch := lmacho.ToCpuString(m.Cpu, m.SubCpu)
+		if strings.HasPrefix(arch, "obj_") {
+			farch = "obj_" + farch
+		}
+		if farch != arch {
+			panic(fmt.Sprintf("file %s does not match arch %s", arch, farch))
+		}
 		bm.archBins[arch] = archBin
 		return archBin
 	}
