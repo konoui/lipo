@@ -21,12 +21,13 @@ builds:
     env:
       - CGO_ENABLED=0
 archives:
-  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
-    replacements:
-      darwin: macOS
-      linux: linux
-      386: i386
-      windows: windows
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{ .Os }}_
+      {{- if eq .Arch "darwin" }}macOS
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
     format: binary
 
 checksum:
