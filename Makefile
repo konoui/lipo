@@ -21,6 +21,9 @@ test:
 test-large-file:
 	./test-large-file.sh
 
+release-test:
+	goreleaser --snapshot --skip-publish --rm-dist
+
 cover:
 	go test -coverpkg=./... -coverprofile=cover.out ./...
 	go tool cover -html=cover.out -o cover.html

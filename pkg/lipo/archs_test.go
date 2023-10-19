@@ -12,33 +12,51 @@ import (
 )
 
 func TestLipo_Archs(t *testing.T) {
-	// fat binary test
-	arches := cpuNames()
-	p := testlipo.Setup(t, bm, arches)
-
-	l := lipo.New(lipo.WithInputs(p.FatBin))
-	gotArches, err := l.Archs()
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name     string
+		setupper func(t *testing.T) (p string, want string)
+	}{
+		{
+			name: "fat",
+			setupper: func(t *testing.T) (string, string) {
+				arches := cpuNames()
+				p := testlipo.Setup(t, bm, arches)
+				return p.FatBin, p.Archs(t, p.FatBin)
+			},
+		},
+		{
+			name: "thin",
+			setupper: func(t *testing.T) (string, string) {
+				arches := cpuNames()
+				p := testlipo.Setup(t, bm, arches)
+				tg := p.Bin(t, "x86_64")
+				return tg, p.Archs(t, tg)
+			},
+		},
+		{
+			name: "archive",
+			setupper: func(t *testing.T) (string, string) {
+				l := testlipo.NewLipoBin(t)
+				p := filepath.Join("./ar/testdata/arm64-func123.a")
+				return p, l.Archs(t, p)
+			},
+		},
 	}
 
-	got := strings.Join(gotArches, " ")
-	want := p.Archs(t, p.FatBin)
-	if want != got {
-		t.Errorf("fat bin want %v\ngot %v\n", want, got)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p, want := tt.setupper(t)
+			l := lipo.New(lipo.WithInputs(p))
+			gotArches, err := l.Archs()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// single binary test
-	tg := p.Bin(t, "x86_64")
-	l = lipo.New(lipo.WithInputs(tg))
-	gotArches, err = l.Archs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got = strings.Join(gotArches, " ")
-	want = p.Archs(t, tg)
-	if want != got {
-		t.Errorf("thin bin want %v\ngot %v\n", want, got)
+			got := strings.Join(gotArches, " ")
+			if want != got {
+				t.Errorf("bin want %v\ngot %v\n", want, got)
+			}
+		})
 	}
 }
 
@@ -78,9 +96,11 @@ func TestLipo_ArchsWithError(t *testing.T) {
 			t.Errorf("want: %s, got2: %s", want, got2)
 		}
 	})
+
+	// TODO invalid archive
 }
 
-func TestLipo_ArchsToLocalFiles(t *testing.T) {
+func TestLipo_ArchsForLocalFiles(t *testing.T) {
 	t.Run("archs", func(t *testing.T) {
 		lipoBin := testlipo.NewLipoBin(t)
 		dir := "/bin/"

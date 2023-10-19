@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,19 +15,20 @@ import (
 
 func TestLipo_DetailedInfo(t *testing.T) {
 	tests := []struct {
-		name      string
-		inputs    []string
-		addThin   []string
-		hideArm64 bool
+		name        string
+		inputs      []string
+		addThins    []string
+		addArchives []string
+		hideArm64   bool
 	}{
 		{
 			name:   "two",
 			inputs: []string{"arm64", "x86_64"},
 		},
 		{
-			name:    "fat and thin",
-			inputs:  []string{"arm64", "x86_64"},
-			addThin: []string{"arm64"},
+			name:     "fat and thin",
+			inputs:   []string{"arm64", "x86_64"},
+			addThins: []string{"arm64"},
 		},
 		{
 			name:   "all arches",
@@ -37,6 +39,11 @@ func TestLipo_DetailedInfo(t *testing.T) {
 			inputs:    []string{"arm64", "armv7k"},
 			hideArm64: true,
 		},
+		{
+			name:        "archives",
+			inputs:      []string{"arm64"},
+			addArchives: []string{filepath.Join("./ar/testdata/arm64-func123.a")},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -44,7 +51,8 @@ func TestLipo_DetailedInfo(t *testing.T) {
 			fat1 := p.FatBin
 			fat2 := p.FatBin
 			args := append([]string{}, fat1, fat2)
-			args = append(args, util.Map(tt.addThin, func(v string) string { return p.Bin(t, v) })...)
+			args = append(args, util.Map(tt.addThins, func(v string) string { return p.Bin(t, v) })...)
+			args = append(args, tt.addArchives...)
 			l := lipo.New(lipo.WithInputs(args...))
 
 			got := &bytes.Buffer{}

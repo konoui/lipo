@@ -2,8 +2,6 @@ package lipo
 
 import (
 	"bytes"
-	"debug/macho"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -80,14 +78,13 @@ func detailedInfo(bin string) (string, bool, error) {
 	var out strings.Builder
 	ff, err := lmacho.NewFatFile(bin)
 	if err != nil {
-		var e *lmacho.FormatError
-		if errors.As(err, &e) {
-			return "", false, fmt.Errorf("can't figure out the architecture type of: %s: %w", bin, err)
-		} else if !errors.Is(err, macho.ErrNotFat) {
+		_, err := inspectFile(bin)
+		if err != nil {
 			return "", false, err
 		}
 
 		// if not fat file, assume single macho file
+		// append message to message of info such as "Non-fat file: ...."
 		v, _, err := info(bin)
 		if err != nil {
 			return "", false, err
