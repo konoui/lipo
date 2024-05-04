@@ -40,6 +40,11 @@ func (f fatArches) createFatBinary(path string, perm os.FileMode, cfg *lmacho.Fa
 		return err
 	}
 
+	// close before rename
+	if err := out.Close(); err != nil {
+		return err
+	}
+
 	// atomic operation
 	return os.Rename(out.Name(), path)
 }
