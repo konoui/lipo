@@ -2,19 +2,19 @@
 
 set -eu
 
-ARM64_FILE="./arm64"
-AMD64_FILE="./amd64"
+ARM64_FILE="./bin/arm64"
+AMD64_FILE="./bin/amd64"
 ARM64_LARGE_FILE=$ARM64_FILE.large
 AMD64_LARGE_FILE=$AMD64_FILE.large
 
 if [ ! -f $ARM64_FILE ]; then
     echo creating ARM64_FILE
-    CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o arm64 example/main.go
+    CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o $ARM64_FILE example/main.go
 fi
 
 if [ ! -f $AMD64_FILE ]; then
     echo creating AMD64_FILE
-    CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o amd64 example/main.go
+    CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $AMD64_FILE example/main.go
 fi
 
 if [ ! -f large-data ]; then

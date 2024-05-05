@@ -21,6 +21,9 @@ test:
 test-large-file:
 	./test-large-file.sh
 
+test-on-non-macos:
+	./test-on-non-macos.sh
+
 cover:
 	go test -coverpkg=./... -coverprofile=cover.out ./...
 	go tool cover -html=cover.out -o cover.html

@@ -63,7 +63,7 @@ func (l *Lipo) thin(perm os.FileMode, fatArch lmacho.FatArch) error {
 	}
 
 	// close before rename
-	if err := r.Close(); err != nil {
+	if err := out.Close(); err != nil {
 		return err
 	}
 

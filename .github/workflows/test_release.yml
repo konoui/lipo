@@ -7,10 +7,8 @@ jobs:
   test:
     runs-on: macos-latest
     steps:
-    - name: checkout
-      uses: actions/checkout@v3
-    - name: set up go
-      uses: actions/setup-go@v3
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
       with:
         go-version-file: "go.mod"
     - name: lint
@@ -21,18 +19,32 @@ jobs:
         sw_vers
         make test
         make test-large-file
+  test_on_non_macos:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: "go.mod"
+    - name: test
+      shell: bash
+      run: |
+        make test-on-non-macos
+
+
   release:
     runs-on: macos-latest
     name: goreleaser
-    needs: [test]
+    needs: [test, test_on_non_macos]
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-    - name: checkout
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - name: set up go
-      uses: actions/setup-go@v3
+    - uses: actions/setup-go@v5
       with:
         go-version-file: "go.mod"
     - name: Run GoReleaser
