@@ -87,6 +87,7 @@ func (g *Group) lookupByType(typ FlagType) []*Flag {
 	return flags
 }
 
+// lookup returns a Flag if the flag name is registered in the group and the flag set
 func (g *Group) lookup(name string) *Flag {
 	_, ok := g.types[name]
 	if ok {
@@ -99,6 +100,18 @@ func (g *Group) seen(name string) bool {
 	_, o := g.flagSet.seen[name]
 	_, k := g.types[name]
 	return o && k
+}
+
+// nonGroupFlagNames returns flag name not belonging to the flag group.
+func (g *Group) nonGroupFlagNames() []string {
+	diff := []string{}
+	for name := range g.flagSet.seen {
+		_, exist := g.types[name]
+		if !exist {
+			diff = append(diff, name)
+		}
+	}
+	return diff
 }
 
 func LookupGroup(groups ...*Group) (*Group, error) {
@@ -116,7 +129,10 @@ func LookupGroup(groups ...*Group) (*Group, error) {
 	}
 
 	if len(found) == 0 {
-		return nil, errors.Join(errors.New("found no flag group"), errors.Join(errs...))
+		if selected := selectError(errs); len(selected) > 0 {
+			return nil, errors.Join(selected...)
+		}
+		return nil, errors.Join(errors.New("please check the usage of the command. found no flag group"), errors.Join(errs...))
 	}
 	if len(found) > 1 {
 		return groups[0], fmt.Errorf("found multiple flag groups: %v", found)
@@ -124,29 +140,37 @@ func LookupGroup(groups ...*Group) (*Group, error) {
 	return found[0], nil
 }
 
-// nonGroupFlagNames returns flag name not belonging to the flag group.
-func (g *Group) nonGroupFlagNames() []string {
-	diff := []string{}
-	for name := range g.flagSet.seen {
-		_, exist := g.types[name]
-		if !exist {
-			diff = append(diff, name)
+const fmtUniqueNotFound = "%s: -%s is not specified"
+const fmtRequiredNotFound = "%s: -%s is required"
+const fmtUndefinedFound = "%s: %v are undefined"
+
+// selectError selects errors that have unique flag
+func selectError(errors []error) []error {
+	selected := []error{}
+	for _, e := range errors {
+		if !strings.HasSuffix(e.Error(), "is not specified") {
+			selected = append(selected, e)
 		}
 	}
-	return diff
+	return selected
 }
 
 func (g *Group) validate() error {
+	hasUnique := g.lookup(g.Name) != nil
+	if hasUnique && !g.seen(g.Name) {
+		return fmt.Errorf(fmtUniqueNotFound, g.Name, g.Name)
+	}
+
 	flags := g.lookupByType(TypeRequired)
 	for _, flag := range flags {
 		if !g.seen(flag.Name) {
-			return fmt.Errorf("a required flag %s in the group %s is not specified", flag.Name, g.Name)
+			return fmt.Errorf(fmtRequiredNotFound, g.Name, flag.Name)
 		}
 	}
 
 	diff := g.nonGroupFlagNames()
 	if len(diff) > 0 {
-		return fmt.Errorf("undefined flags %v in the group %s are specified", diff, g.Name)
+		return fmt.Errorf(fmtUndefinedFound, g.Name, diff)
 	}
 
 	return nil

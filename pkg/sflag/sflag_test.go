@@ -333,20 +333,22 @@ func TestFlagSet_ParseError(t *testing.T) {
 			errMsg: "duplication: more than one -output flag specified",
 		},
 		{
-			name: "no flag group",
+			name: "when group name flag is specified, the error is related with group name",
 			args: []string{
 				"path/to/in1",
 				"-create",
 			},
-			errMsg: `found no flag group
-a required flag output in the group create is not specified
-a required flag thin in the group thin is not specified
-a required flag extract in the group extract is not specified
-a required flag extract_family in the group extract_family is not specified
-a required flag remove in the group remove is not specified
-a required flag replace in the group replace is not specified
-a required flag archs in the group archs is not specified
-a required flag verify_arch in the group verify_arch is not specified`,
+			errMsg: `create: -output is required`,
+		},
+		{
+			name: "when multiple group name flags are specified, the errors are related with group names",
+			args: []string{
+				"path/to/in1",
+				"-create",
+				"-replace", "test", "test",
+				"-output", "test",
+			},
+			errMsg: "create: [replace] are undefined\nreplace: [create] are undefined",
 		},
 	}
 	for _, tt := range tests {
