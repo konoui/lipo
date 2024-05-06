@@ -52,3 +52,9 @@ hello-world (for architecture arm64): Mach-O 64-bit executable arm64
 ### Supported Options
 
 `-archs`, `-create`, `-extract`, `-extract_family`, `-output`, `-remove`, `-replace`, `-segalign`, `-thin`, `-verify_arch`, `-arch`, `-info`, `-detailed_info`, `-hideARM64`, `-fat64`
+
+Please run the `-help` command for more details.
+
+```
+$ lipo -help
+```

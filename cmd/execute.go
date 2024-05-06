@@ -14,8 +14,15 @@ func fatal(w io.Writer, msg string) (exitCode int) {
 	return 1
 }
 
+var (
+	Version  = "*"
+	Revision = "*"
+)
+
 func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	fset := sflag.NewFlagSet("lipo")
+	helpGroup := fset.NewGroup("help")
+	versionGroup := fset.NewGroup("version")
 	createGroup := fset.NewGroup("create").AddDescription(createDescription)
 	thinGroup := fset.NewGroup("thin").AddDescription(thinDescription)
 	extractGroup := fset.NewGroup("extract").AddDescription(extractDescription)
@@ -26,12 +33,17 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	verifyArchGroup := fset.NewGroup("verify_arch").AddDescription(verifyArchDescription)
 	infoGroup := fset.NewGroup("info").AddDescription(infoDescription)
 	detailedInfoGroup := fset.NewGroup("detailed_info").AddDescription(detailedInfoDescription)
-	groups := []*sflag.Group{createGroup, thinGroup, extractGroup,
+	groups := []*sflag.Group{
+		helpGroup, versionGroup,
+		createGroup, thinGroup, extractGroup,
 		extractFamilyGroup, removeGroup, replaceGroup,
 		archsGroup, verifyArchGroup, infoGroup,
 		detailedInfoGroup,
 	}
 	fset.Usage = sflag.UsageFunc(groups...)
+	// original lipo does not have help/version command.
+	help := fset.Bool("help", "-help")
+	version := fset.Bool("version", "-version")
 	out := fset.String("output", "-output <output_file>", sflag.WithShortName("o"))
 	segAligns := fset.FixedStringFlags("segalign", "-segalign <arch_type> <alignment>", sflag.WithShortName("s"))
 	arch := fset.FixedStringFlags("arch", "-arch <arch_type> <input_file>", sflag.WithShortName("a"))
@@ -48,6 +60,8 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 	hideArm64 := fset.Bool("hideARM64", "-hideARM64")
 	fat64 := fset.Bool("fat64", "-fat64")
 
+	helpGroup.AddRequired(help)
+	versionGroup.AddRequired(version)
 	createGroup.
 		AddRequired(create).
 		AddRequired(out).
@@ -188,8 +202,14 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 			return 1
 		}
 		return
+	case "version":
+		fmt.Fprintf(stdout, "%s/%s\n", Version, Revision)
+		return 0
+	case "help":
+		fmt.Fprint(stdout, fset.Usage())
+		return 0
 	default:
-		fset.Usage()
+		fmt.Fprint(stderr, fset.Usage())
 		return 1
 	}
 }

@@ -7,6 +7,9 @@ BINARY := bin/$(BIN_NAME)
 GOLANGCI_LINT_VERSION := v1.52.2
 export GO111MODULE=on
 
+CMD_PACKAGE_DIR := github.com/konoui/lipo/cmd
+LDFLAGS := -X '$(CMD_PACKAGE_DIR).Version=$(VERSION)' -X '$(CMD_PACKAGE_DIR).Revision=$(REVISION)'
+
 ## Build binaries on your environment
 build:
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(SRC_DIR)
