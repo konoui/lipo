@@ -1,13 +1,12 @@
 package lipo
 
 import (
-	"debug/macho"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
 
@@ -90,38 +89,13 @@ func New(opts ...Option) *Lipo {
 	return l
 }
 
-func hideArmObjectErr(arches fatArches) error {
-	for _, arch := range arches {
-		if arch.FileHeader.Type == macho.TypeObj {
-			return fmt.Errorf("hideARM64 specified but thin file %s is not of type MH_EXECUTE", arch.Name)
-		}
+// createTemp creates a temporary file from file path
+func createTemp(path string) (*os.File, error) {
+	f, err := os.CreateTemp(filepath.Dir(path), "tmp-lipo-out")
+	if err != nil {
+		return nil, fmt.Errorf("can't create temporary output file: %w", err)
 	}
-	return nil
-}
-
-func newFatArches(arches ...*ArchInput) (fatArches, error) {
-	fatArches := make(fatArches, len(arches))
-	for i, arch := range arches {
-		fa, err := lmacho.NewFatArch(arch.Bin)
-		if err != nil {
-			return nil, err
-		}
-		if arch.Arch != "" {
-			if cpu := lmacho.ToCpuString(fa.Cpu, fa.SubCpu); cpu != arch.Arch {
-				return nil, fmt.Errorf("specified architecture: %s for input file: %s does not match the file's architecture", arch.Arch, arch.Bin)
-			}
-		}
-		fatArches[i] = *fa
-	}
-
-	dup := util.Duplicates(fatArches, func(v lmacho.FatArch) string {
-		return lmacho.ToCpuString(v.Cpu, v.SubCpu)
-	})
-	if dup != nil {
-		return nil, fmt.Errorf("duplicate architecture: %s", *dup)
-	}
-
-	return fatArches, nil
+	return f, nil
 }
 
 func validateOneInput(inputs []string) error {
@@ -130,20 +104,6 @@ func validateOneInput(inputs []string) error {
 		return errNoInput
 	} else if num != 1 {
 		return fmt.Errorf("only one input file can be specified")
-	}
-	return nil
-}
-
-func validateInputArches(arches []string) error {
-	dup := util.Duplicates(arches, func(v string) string { return v })
-	if dup != nil {
-		return fmt.Errorf("architecture %s specified multiple times", *dup)
-	}
-
-	for _, arch := range arches {
-		if !lmacho.IsSupportedCpu(arch) {
-			return fmt.Errorf(unsupportedArchFmt, arch)
-		}
 	}
 	return nil
 }
@@ -157,9 +117,9 @@ func perm(f string) (fs.FileMode, error) {
 	return perm, nil
 }
 
-// remove return values `a` does not have
-func remove[T comparable](a []T, b []T) T {
-	m := util.ExistMap(a, func(t T) T { return t })
+// diff return values `a` does not have
+func diff[T comparable](a []T, b []T) T {
+	m := util.ExistsMap(a, func(t T) T { return t })
 	for _, v := range b {
 		if _, ok := m[v]; !ok {
 			return v

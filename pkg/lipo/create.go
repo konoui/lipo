@@ -1,7 +1,12 @@
 package lipo
 
 import (
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"debug/macho"
+	"errors"
+	"fmt"
+	"os"
+
+	"github.com/konoui/lipo/pkg/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
 
@@ -12,30 +17,62 @@ func (l *Lipo) Create() error {
 		return errNoInput
 	}
 
-	fatArches, err := newFatArches(archInputs...)
+	arches, err := OpenArches(archInputs)
 	if err != nil {
+		return err
+	}
+	defer close(arches...)
+
+	if err := updateAlignBit(arches, l.segAligns); err != nil {
 		return err
 	}
 
 	// apple lipo will use a last file permission
 	// https://github.com/apple-oss-distributions/cctools/blob/cctools-973.0.1/misc/lipo.c#L1124
-	perm, err := perm(fatArches[len(fatArches)-1].Name)
+	perm, err := perm(arches[len(arches)-1].Name())
 	if err != nil {
 		return err
 	}
 
-	if err := fatArches.updateAlignBit(l.segAligns); err != nil {
-		return err
+	return createFatBinary(l.out, arches, perm, l.fat64, l.hideArm64)
+}
+
+func createFatBinary[T Arch](path string, arches []T, perm os.FileMode, fat64 bool, hideARM64 bool) error {
+	if len(arches) == 0 {
+		return errors.New("no inputs would result in an empty fat file")
 	}
 
-	if l.hideArm64 {
-		if err := hideArmObjectErr(fatArches); err != nil {
-			return err
+	if hideARM64 {
+		for _, obj := range arches {
+			if obj.Type() == macho.TypeObj {
+				return fmt.Errorf("hideARM64 specified but thin file %s is not of type MH_EXECUTE", obj.Name())
+			}
 		}
 	}
 
-	return fatArches.createFatBinary(l.out, perm, &lmacho.FatFileConfig{
-		HideArm64: l.hideArm64,
-		Fat64:     l.fat64,
-	})
+	out, err := createTemp(path)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if err := lmacho.Create(out, arches, fat64, hideARM64); err != nil {
+		return err
+	}
+
+	if err := out.Chmod(perm); err != nil {
+		return err
+	}
+
+	if err := out.Sync(); err != nil {
+		return err
+	}
+
+	// close before rename
+	if err := out.Close(); err != nil {
+		return err
+	}
+
+	// atomic operation
+	return os.Rename(out.Name(), path)
 }

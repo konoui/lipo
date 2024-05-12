@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"github.com/konoui/lipo/pkg/lmacho"
 	"github.com/konoui/lipo/pkg/testlipo"
 	"github.com/konoui/lipo/pkg/util"
 )

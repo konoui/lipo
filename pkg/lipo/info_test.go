@@ -40,4 +40,39 @@ func TestLipo_Info(t *testing.T) {
 			t.Errorf("\nwant:\n%s\ngot:\n%s", want, got)
 		}
 	})
+
+	t.Run("archive-object", func(t *testing.T) {
+		in := "../ar/testdata/arm64-func12.a"
+		l := lipo.New(lipo.WithInputs(in))
+		info, err := l.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := strings.Join(info, "\n")
+
+		tl := testlipo.NewLipoBin(t)
+		got := tl.Info(t, in)
+
+		if want != got {
+			t.Errorf("want %s, got %s", want, got)
+		}
+	})
+
+	t.Run("invalid-archive-object", func(t *testing.T) {
+		in := "../ar/testdata/arm64-amd64-func12.a"
+		l := lipo.New(lipo.WithInputs(in))
+		_, err := l.Info()
+		if err == nil {
+			t.Fatal("error is nil")
+		}
+
+		want := err.Error()
+
+		tl := testlipo.NewLipoBin(t, testlipo.IgnoreErr(true))
+		got := tl.Info(t, in)
+
+		if !strings.HasSuffix(got, want) {
+			t.Errorf("\nwant: %s\ngot: %s", want, got)
+		}
+	})
 }

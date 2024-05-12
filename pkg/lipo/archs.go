@@ -1,11 +1,7 @@
 package lipo
 
 import (
-	"debug/macho"
-	"errors"
 	"fmt"
-
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 func (l *Lipo) Archs() ([]string, error) {
@@ -18,29 +14,29 @@ func (l *Lipo) Archs() ([]string, error) {
 }
 
 func archs(bin string) ([]string, error) {
-	fat, err := lmacho.NewFatFile(bin)
+	obj, typ, err := inspect(bin)
 	if err != nil {
-		var e *lmacho.FormatError
-		if errors.As(err, &e) {
-			return nil, fmt.Errorf("can't figure out the architecture type of: %s: %w", bin, err)
-		} else if !errors.Is(err, macho.ErrNotFat) {
-			return nil, err
-		}
+		return nil, err
+	}
 
-		// if not fat file, assume single macho file
-		f, err := macho.Open(bin)
+	switch typ {
+	case inspectThin:
+		fallthrough
+	case inspectArchive:
+		return []string{obj.CPUString()}, nil
+	case inspectFat:
+		fat, err := OpenFatFile(bin)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("internal error: %w", err)
 		}
-		defer f.Close()
+		defer fat.Close()
 
-		return []string{lmacho.ToCpuString(f.Cpu, f.SubCpu)}, nil
+		cpus := make([]string, len(fat.Arches))
+		for i := range cpus {
+			cpus[i] = fat.Arches[i].CPUString()
+		}
+		return cpus, nil
+	default:
+		return nil, fmt.Errorf("unexpected type: %d", typ)
 	}
-
-	all := fat.AllArches()
-	cpus := make([]string, len(all))
-	for i, hdr := range all {
-		cpus[i] = lmacho.ToCpuString(hdr.Cpu, hdr.SubCpu)
-	}
-	return cpus, nil
 }

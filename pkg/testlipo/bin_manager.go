@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"github.com/konoui/lipo/pkg/lmacho"
 )
 
 type BinManager struct {

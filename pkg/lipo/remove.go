@@ -2,16 +2,10 @@ package lipo
 
 import (
 	"fmt"
-
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 func (l *Lipo) Remove(arches ...string) (err error) {
 	if err := validateOneInput(l.in); err != nil {
-		return err
-	}
-
-	if err := validateInputArches(arches); err != nil {
 		return err
 	}
 
@@ -21,30 +15,22 @@ func (l *Lipo) Remove(arches ...string) (err error) {
 		return err
 	}
 
-	ff, err := lmacho.NewFatFile(fatBin)
+	ff, err := OpenFatFile(fatBin)
 	if err != nil {
 		return err
 	}
-	all := fatArches(ff.AllArches())
+	defer ff.Close()
 
-	if l.hideArm64 {
-		if err := hideArmObjectErr(all); err != nil {
-			return err
-		}
-	}
-
-	fatArches := all.remove(arches...)
-	if (len(all) - len(fatArches)) != len(arches) {
-		diffArch := remove(all.arches(), arches)
+	removed := remove(ff.Arches, arches...)
+	if (len(ff.Arches) - len(removed)) != len(arches) {
+		diffArch := diff(cpuStrings(ff.Arches), arches)
 		return fmt.Errorf(noMatchFmt, diffArch, fatBin)
 	}
 
-	if err := fatArches.updateAlignBit(l.segAligns); err != nil {
+	if err := updateAlignBit(removed, l.segAligns); err != nil {
 		return err
 	}
 
-	return fatArches.createFatBinary(l.out, perm, &lmacho.FatFileConfig{
-		HideArm64: l.hideArm64,
-		Fat64:     l.fat64,
-	})
+	return createFatBinary(l.out, removed, perm, l.fat64, l.hideArm64)
+
 }

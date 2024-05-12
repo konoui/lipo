@@ -1,7 +1,6 @@
 package lipo
 
 import (
-	"debug/macho"
 	"fmt"
 	"strings"
 )
@@ -29,22 +28,28 @@ func (l *Lipo) Info() ([]string, error) {
 }
 
 func info(bin string) (string, bool, error) {
+	fatFmt := "Architectures in the fat file: %s are: %s"
+
 	arches, err := archs(bin)
 	if err != nil {
 		return "", false, err
 	}
 
 	v := strings.Join(arches, " ")
-	fatFmt := "Architectures in the fat file: %s are: %s"
-	if len(arches) > 1 {
-		return fmt.Sprintf(fatFmt, bin, v), true, nil
+
+	_, typ, err := inspect(bin)
+	if err != nil {
+		return "", false, err
 	}
 
-	f, err := macho.Open(bin)
-	if err == nil {
-		f.Close()
+	switch typ {
+	case inspectThin:
+		fallthrough
+	case inspectArchive:
 		return fmt.Sprintf("Non-fat file: %s is architecture: %s", bin, v), false, nil
+	case inspectFat:
+		return fmt.Sprintf(fatFmt, bin, v), true, nil
+	default:
+		return "", false, fmt.Errorf("unexpected type: %d", typ)
 	}
-
-	return fmt.Sprintf(fatFmt, bin, v), true, nil
 }

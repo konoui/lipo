@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"github.com/konoui/lipo/pkg/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
 
@@ -86,6 +86,12 @@ func Setup(t *testing.T, bm *BinManager, arches []string, opts ...Opt) *TestLipo
 
 	lipoBin := NewLipoBin(t, opts...)
 	fatBin := filepath.Join(dir, "fat-"+strings.Join(arches, "-"))
+	if lipoBin.hideArm64 {
+		fatBin = fatBin + "-hideARM64"
+	}
+	if lipoBin.fat64 {
+		fatBin = fatBin + "-fat64"
+	}
 	tmp := lipoBin.ignoreErr
 	lipoBin.ignoreErr = false
 	lipoBin.Create(t, fatBin, bm.getBinPaths(t, arches)...)
@@ -262,10 +268,12 @@ func appendCmd(cmd string, args []string) []string {
 }
 
 func PatchFat64Reserved(t *testing.T, p string) {
+	f, err := os.OpenFile(p, os.O_RDWR, 0777)
+	fatalIf(t, err)
 
-	ff, err := lmacho.NewFatFile(p)
+	ff, err := lmacho.NewFatFile(f)
 	if err != nil {
-		if errors.Is(err, macho.ErrNotFat) {
+		if errors.Is(err, lmacho.ErrThin) {
 			return
 		}
 		fatalIf(t, err)
@@ -275,16 +283,13 @@ func PatchFat64Reserved(t *testing.T, p string) {
 		return
 	}
 
-	f, err := os.OpenFile(p, os.O_RDWR, 0777)
-	fatalIf(t, err)
-
 	// seek fatHeader
-	_, err = f.Seek(4*2, io.SeekStart)
+	_, err = f.Seek(int64(lmacho.FatHeaderSize()), io.SeekStart)
 	fatalIf(t, err)
 
-	for _, fa := range ff.AllArches() {
+	for range ff.Arches {
 		// seek an offset of fat64 reserved field
-		off, err := f.Seek(int64(binary.Size(fa.FatArchHeader)), io.SeekCurrent)
+		off, err := f.Seek(int64(lmacho.FatArchHeaderSize(lmacho.MagicFat64)-4), io.SeekCurrent)
 		fatalIf(t, err)
 
 		// get current value of reserved field
@@ -292,10 +297,10 @@ func PatchFat64Reserved(t *testing.T, p string) {
 		err = binary.Read(f, binary.BigEndian, &cur)
 		fatalIf(t, err)
 		if cur == 0 {
-			return
+			continue
 		}
 
-		t.Logf("[WARNING] fa64 reserved field is not zero: %d(0x%x), patching it with zero\n", cur, cur)
+		t.Logf("[WARNING] fa64 reserved field is not zero: %d(0x%x) at %d, patching it with zero\n: %s", cur, cur, off, p)
 		// reset the offset to patch reserved field
 		_, err = f.Seek(int64(off), io.SeekStart)
 		fatalIf(t, err)

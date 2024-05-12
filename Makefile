@@ -4,11 +4,11 @@ SRC_DIR := ./
 BIN_NAME := lipo
 BINARY := bin/$(BIN_NAME)
 
-GOLANGCI_LINT_VERSION := v1.52.2
+GOLANGCI_LINT_VERSION := v1.58.1
 export GO111MODULE=on
 
-CMD_PACKAGE_DIR := github.com/konoui/lipo/cmd
-LDFLAGS := -X '$(CMD_PACKAGE_DIR).Version=$(VERSION)' -X '$(CMD_PACKAGE_DIR).Revision=$(REVISION)'
+CMD_PACKAGE := github.com/konoui/lipo/cmd
+LDFLAGS := -X '$(CMD_PACKAGE).Version=$(VERSION)' -X '$(CMD_PACKAGE).Revision=$(REVISION)'
 
 ## Build binaries on your environment
 build:
@@ -26,6 +26,9 @@ test-large-file:
 
 test-on-non-macos:
 	./test-on-non-macos.sh
+
+release-test:
+	goreleaser --snapshot --skip-publish --rm-dist
 
 cover:
 	go test -coverpkg=./... -coverprofile=cover.out ./...

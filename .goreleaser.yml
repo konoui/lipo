@@ -14,10 +14,12 @@ builds:
     goarch:
       - amd64
       - arm64
+    flags:
+      - -trimpath
     ldflags:
       - -s -w
-      - -X main.Version={{.Version}}
-      - -X main.Revision={{.ShortCommit}}
+      - -X github.com/konoui/lipo/cmd.Version={{.Version}}
+      - -X github.com/konoui/lipo/cmd.Revision={{.ShortCommit}}
     env:
       - CGO_ENABLED=0
 archives:

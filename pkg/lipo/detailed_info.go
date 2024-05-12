@@ -2,14 +2,12 @@ package lipo
 
 import (
 	"bytes"
-	"debug/macho"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"text/template"
 
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"github.com/konoui/lipo/pkg/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
 
@@ -78,16 +76,13 @@ type tplFatBinary struct {
 
 func detailedInfo(bin string) (string, bool, error) {
 	var out strings.Builder
-	ff, err := lmacho.NewFatFile(bin)
-	if err != nil {
-		var e *lmacho.FormatError
-		if errors.As(err, &e) {
-			return "", false, fmt.Errorf("can't figure out the architecture type of: %s: %w", bin, err)
-		} else if !errors.Is(err, macho.ErrNotFat) {
-			return "", false, err
-		}
 
-		// if not fat file, assume single macho file
+	_, typ, err := inspect(bin)
+	if err != nil {
+		return "", false, err
+	}
+
+	if typ != inspectFat {
 		v, _, err := info(bin)
 		if err != nil {
 			return "", false, err
@@ -95,19 +90,37 @@ func detailedInfo(bin string) (string, bool, error) {
 		return fmt.Sprintf("input file %s is not a fat file\n%s", bin, v), false, nil
 	}
 
-	nFatArch := fmt.Sprintf("%d", len(ff.Arches))
-	if len(ff.HiddenArches) > 0 {
-		nFatArch = fmt.Sprintf("%d (+%d hidden)", len(ff.Arches), len(ff.HiddenArches))
+	ff, err := OpenFatFile(bin)
+	if err != nil {
+		return "", false, err
+	}
+	defer ff.Close()
+
+	rawArches := util.Map(ff.Arches, func(v Arch) *lmacho.FatArch {
+		return v.(*arch).Object.(*lmacho.FatArch)
+	})
+
+	hiddenArches := util.Filter(rawArches, func(v *lmacho.FatArch) bool {
+		return v.Hidden
+	})
+
+	visibleArches := util.Filter(rawArches, func(v *lmacho.FatArch) bool {
+		return !v.Hidden
+	})
+
+	nFatArch := fmt.Sprintf("%d", len(visibleArches))
+	if len(hiddenArches) > 0 {
+		nFatArch = fmt.Sprintf("%d (+%d hidden)", len(visibleArches), len(hiddenArches))
 	}
 	fb := &tplFatBinary{
 		FatBinary: bin,
 		FatMagic:  fmt.Sprintf("0x%x", ff.Magic),
 		NFatArch:  nFatArch,
-		Arches:    make([]*tplFatArch, 0, len(ff.Arches)),
+		Arches:    make([]*tplFatArch, 0, len(visibleArches)),
 	}
-	fb.Arches = util.Map(ff.Arches, tplArch)
+	fb.Arches = util.Map(visibleArches, tplArch)
 	fb.Arches = append(fb.Arches,
-		util.Map(ff.HiddenArches, func(v lmacho.FatArch) *tplFatArch {
+		util.Map(hiddenArches, func(v *lmacho.FatArch) *tplFatArch {
 			ta := tplArch(v)
 			ta.Arch = fmt.Sprintf("%s (hidden)", ta.Arch)
 			return ta
@@ -118,17 +131,17 @@ func detailedInfo(bin string) (string, bool, error) {
 	return out.String(), true, nil
 }
 
-func tplArch(a lmacho.FatArch) *tplFatArch {
-	c, s := lmacho.ToCpuValues(a.Cpu, a.SubCpu)
-	arch := lmacho.ToCpuString(a.Cpu, a.SubCpu)
+func tplArch(a *lmacho.FatArch) *tplFatArch {
+	c, s := lmacho.ToCpuValues(a.CPU(), a.SubCPU())
+	arch := lmacho.ToCpuString(a.CPU(), a.SubCPU())
 	return &tplFatArch{
 		Arch:         arch,
 		CpuType:      c,
 		SubCpuType:   s,
-		Capabilities: fmt.Sprintf("0x%x", (a.SubCpu&lmacho.MaskSubCpuType)>>24),
-		Offset:       a.Offset,
-		Size:         a.Size,
-		AlignBit:     a.Align,
-		Align:        1 << a.Align,
+		Capabilities: fmt.Sprintf("0x%x", (a.SubCPU()&lmacho.MaskSubCpuType)>>24),
+		Offset:       a.FatArchHeader().Offset,
+		Size:         a.Size(),
+		AlignBit:     a.Align(),
+		Align:        1 << a.Align(),
 	}
 }

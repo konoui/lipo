@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lipo"
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
+	"github.com/konoui/lipo/pkg/lmacho"
 	"github.com/konoui/lipo/pkg/testlipo"
 )
 
@@ -91,7 +91,6 @@ func TestLipo_Create(t *testing.T) {
 
 			// tests for fat bin is expected
 			verifyArches(t, got, tt.arches...)
-
 			diffSha256(t, p.FatBin, got)
 		})
 	}

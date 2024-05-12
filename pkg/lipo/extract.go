@@ -2,17 +2,10 @@ package lipo
 
 import (
 	"fmt"
-
-	"github.com/konoui/lipo/pkg/lipo/lmacho"
 )
 
 func (l *Lipo) Extract(arches ...string) error {
 	if err := validateOneInput(l.in); err != nil {
-		return err
-	}
-
-	// check1 duplicate arches
-	if err := validateInputArches(arches); err != nil {
 		return err
 	}
 
@@ -22,25 +15,21 @@ func (l *Lipo) Extract(arches ...string) error {
 		return err
 	}
 
-	ff, err := lmacho.NewFatFile(fatBin)
+	ff, err := OpenFatFile(fatBin)
 	if err != nil {
 		return err
 	}
-	all := fatArches(ff.AllArches())
+	defer ff.Close()
 
-	fatArches := all.extract(arches...)
-
-	if len(fatArches) != len(arches) {
-		diffArch := remove(fatArches.arches(), arches)
+	extracted := extract(ff.Arches, arches...)
+	if len(extracted) != len(arches) {
+		diffArch := diff(cpuStrings(ff.Arches), arches)
 		return fmt.Errorf(noMatchFmt, diffArch, fatBin)
 	}
 
-	if err := fatArches.updateAlignBit(l.segAligns); err != nil {
+	if err := updateAlignBit(ff.Arches, l.segAligns); err != nil {
 		return err
 	}
 
-	return fatArches.createFatBinary(l.out, perm, &lmacho.FatFileConfig{
-		HideArm64: false,
-		Fat64:     l.fat64,
-	})
+	return createFatBinary(l.out, extracted, perm, l.fat64, l.hideArm64)
 }

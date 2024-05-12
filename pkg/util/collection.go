@@ -31,7 +31,7 @@ func Duplicates[T any, K comparable](values []T, fn func(v T) K) *K {
 	return nil
 }
 
-func ExistMap[T comparable, K comparable](values []T, fn func(v T) K) map[K]struct{} {
+func ExistsMap[T comparable, K comparable](values []T, fn func(v T) K) map[K]struct{} {
 	results := map[K]struct{}{}
 	for _, e := range values {
 		results[fn(e)] = struct{}{}
