@@ -102,7 +102,7 @@ func OpenArches(inputs []*ArchInput) ([]Arch, error) {
 		sr := io.NewSectionReader(f, 0, stats.Size())
 		obj, err := lmacho.NewArch(sr)
 		if err != nil {
-			return nil, err // todo detail error
+			return nil, err
 		}
 
 		if input.Arch != "" {

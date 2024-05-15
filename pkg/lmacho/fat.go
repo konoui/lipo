@@ -70,6 +70,10 @@ func (fa *FatArch) Type() macho.Type {
 	return fa.typ
 }
 
+func (fa *FatArch) Offset() uint64 {
+	return fa.faHdr.Offset
+}
+
 func (fa *FatArch) CPUString() string {
 	return ToCpuString(fa.CPU(), fa.SubCPU())
 }
@@ -84,10 +88,6 @@ func (fa *FatArch) ReadAt(p []byte, off int64) (int, error) {
 
 func (fa *FatArch) Seek(offset int64, whence int) (int64, error) {
 	return fa.sr.Seek(offset, whence)
-}
-
-func (fa *FatArch) FatArchHeader() FatArchHeader {
-	return fa.faHdr
 }
 
 // Arch presents an object of thin file
@@ -150,7 +150,7 @@ type FatFile struct {
 
 // NewFatFile is wrapper for Fat Reader
 func NewFatFile(ra io.ReaderAt) (*FatFile, error) {
-	r, err := NewReader(ra)
+	r, err := NewFatReader(ra)
 	if err != nil {
 		return nil, err
 	}

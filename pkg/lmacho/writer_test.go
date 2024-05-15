@@ -65,7 +65,7 @@ func TestNewWriter(t *testing.T) {
 				arches = append(arches, a)
 			}
 
-			if err := lmacho.Create(out, arches, false, false); err != nil {
+			if err := lmacho.CreateFat(out, arches, false, false); err != nil {
 				t.Fatal(err)
 			}
 

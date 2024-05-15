@@ -56,7 +56,7 @@ func createFatBinary[T Arch](path string, arches []T, perm os.FileMode, fat64 bo
 	}
 	defer out.Close()
 
-	if err := lmacho.Create(out, arches, fat64, hideARM64); err != nil {
+	if err := lmacho.CreateFat(out, arches, fat64, hideARM64); err != nil {
 		return err
 	}
 

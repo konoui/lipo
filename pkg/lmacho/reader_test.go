@@ -71,7 +71,7 @@ func TestNewReader(t *testing.T) {
 			}
 			defer f.Close()
 
-			reader, err := lmacho.NewReader(f)
+			reader, err := lmacho.NewFatReader(f)
 			if err != nil {
 				t.Errorf("NewReader() error = %v", err)
 				return

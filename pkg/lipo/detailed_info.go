@@ -77,7 +77,7 @@ type tplFatBinary struct {
 func detailedInfo(bin string) (string, bool, error) {
 	var out strings.Builder
 
-	_, typ, err := inspect(bin)
+	typ, err := inspect(bin)
 	if err != nil {
 		return "", false, err
 	}
@@ -133,13 +133,12 @@ func detailedInfo(bin string) (string, bool, error) {
 
 func tplArch(a *lmacho.FatArch) *tplFatArch {
 	c, s := lmacho.ToCpuValues(a.CPU(), a.SubCPU())
-	arch := lmacho.ToCpuString(a.CPU(), a.SubCPU())
 	return &tplFatArch{
-		Arch:         arch,
+		Arch:         a.CPUString(),
 		CpuType:      c,
 		SubCpuType:   s,
 		Capabilities: fmt.Sprintf("0x%x", (a.SubCPU()&lmacho.MaskSubCpuType)>>24),
-		Offset:       a.FatArchHeader().Offset,
+		Offset:       a.Offset(),
 		Size:         a.Size(),
 		AlignBit:     a.Align(),
 		Align:        1 << a.Align(),

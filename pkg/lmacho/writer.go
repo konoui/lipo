@@ -8,14 +8,9 @@ import (
 	"io"
 )
 
-func Create[T Object](w io.Writer, objects []T, fat64 bool, hideARM64 bool) error {
+func CreateFat[T Object](w io.Writer, objects []T, fat64 bool, hideARM64 bool) error {
 	if len(objects) == 0 {
 		return errors.New("file contains no images")
-	}
-
-	newobjects := make([]Object, len(objects))
-	for i := range newobjects {
-		newobjects[i] = objects[i]
 	}
 
 	if err := validateHideARM64Objects(objects, hideARM64); err != nil {
@@ -27,7 +22,7 @@ func Create[T Object](w io.Writer, objects []T, fat64 bool, hideARM64 bool) erro
 		magic = MagicFat64
 	}
 
-	fatArches := newFatArches(newobjects)
+	fatArches := newFatArches(objects)
 	hdr := makeFatHeader(fatArches, magic, hideARM64)
 	if err := sortAndUpdateArches(fatArches, hdr.Magic); err != nil {
 		return err
@@ -44,22 +39,19 @@ func Create[T Object](w io.Writer, objects []T, fat64 bool, hideARM64 bool) erro
 	return nil
 }
 
-func newFatArches(objects []Object) []*FatArch {
+func newFatArches[T Object](objects []T) []*FatArch {
 	arches := make([]*FatArch, len(objects))
 	for i, obj := range objects {
-		fa, ok := obj.(*FatArch)
-		if !ok {
-			fa = &FatArch{
-				sr:  io.NewSectionReader(obj, 0, int64(obj.Size())),
-				typ: obj.Type(),
-				faHdr: FatArchHeader{
-					Cpu:    obj.CPU(),
-					SubCpu: obj.SubCPU(),
-					Size:   obj.Size(),
-					Offset: 0, // will be filled
-					Align:  obj.Align(),
-				},
-			}
+		fa := &FatArch{
+			sr:  io.NewSectionReader(obj, 0, int64(obj.Size())),
+			typ: obj.Type(),
+			faHdr: FatArchHeader{
+				Cpu:    obj.CPU(),
+				SubCpu: obj.SubCPU(),
+				Size:   obj.Size(),
+				Offset: 0, // will be filled
+				Align:  obj.Align(),
+			},
 		}
 		arches[i] = fa
 	}

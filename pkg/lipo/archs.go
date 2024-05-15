@@ -10,24 +10,33 @@ func (l *Lipo) Archs() ([]string, error) {
 	}
 
 	bin := l.in[0]
-	return archs(bin)
+	cpus, _, err := archs(bin)
+	return cpus, err
 }
 
-func archs(bin string) ([]string, error) {
-	obj, typ, err := inspect(bin)
+func archs(bin string) ([]string, inspectType, error) {
+	typ, err := inspect(bin)
 	if err != nil {
-		return nil, err
+		return nil, inspectUnknown, err
 	}
 
 	switch typ {
 	case inspectThin:
-		fallthrough
+		objs, err := OpenArches([]*ArchInput{{Bin: bin}})
+		if err != nil {
+			return nil, typ, err
+		}
+		return []string{objs[0].CPUString()}, inspectThin, nil
 	case inspectArchive:
-		return []string{obj.CPUString()}, nil
+		objs, err := OpenArchiveArches(bin)
+		if err != nil {
+			return nil, typ, err
+		}
+		return []string{objs[0].CPUString()}, typ, nil
 	case inspectFat:
 		fat, err := OpenFatFile(bin)
 		if err != nil {
-			return nil, fmt.Errorf("internal error: %w", err)
+			return nil, typ, fmt.Errorf("internal error: %w", err)
 		}
 		defer fat.Close()
 
@@ -35,8 +44,8 @@ func archs(bin string) ([]string, error) {
 		for i := range cpus {
 			cpus[i] = fat.Arches[i].CPUString()
 		}
-		return cpus, nil
+		return cpus, typ, nil
 	default:
-		return nil, fmt.Errorf("unexpected type: %d", typ)
+		return nil, inspectUnknown, fmt.Errorf("unexpected type: %d", typ)
 	}
 }

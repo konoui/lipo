@@ -15,7 +15,7 @@ type Reader struct {
 	nextNArch         uint32
 }
 
-func NewReader(r io.ReaderAt) (*Reader, error) {
+func NewFatReader(r io.ReaderAt) (*Reader, error) {
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
 
 	var ff FatHeader

@@ -1,6 +1,7 @@
 package lipo
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/konoui/lipo/pkg/ar"
 	"github.com/konoui/lipo/pkg/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
@@ -120,43 +122,36 @@ const (
 	inspectUnknown
 )
 
-// inspect return object if the file is ar or macho(thin) object
-func inspect(p string) (Arch, inspectType, error) {
-	// handle general errors
+func inspect(p string) (inspectType, error) {
 	f, err := os.Open(p)
 	if err != nil {
-		return nil, inspectUnknown, err
+		return inspectUnknown, err
 	}
 	defer f.Close()
 
+	baseErr := fmt.Errorf("can't figure out the architecture type of: %s", p)
 	inspectedErrs := []error{}
-	ff, err := OpenFatFile(p)
-	if err == nil {
-		defer ff.Close()
-		return nil, inspectFat, nil
+
+	buf := make([]byte, 40)
+	if _, err := f.Read(buf); err != nil {
+		return inspectUnknown, errors.Join(baseErr, errors.New("cannot read first 40 bytes"))
 	}
 
+	_, err = lmacho.NewFatReader(bytes.NewReader(buf))
+	if err == nil {
+		return inspectFat, nil
+	}
 	if errors.Is(err, lmacho.ErrThin) {
-		a, err := OpenArches([]*ArchInput{{Bin: p}})
-		if err != nil {
-			return nil, inspectUnknown, err // unexpected error
-		}
-		defer close(a...)
-		return a[0], inspectThin, nil
+		return inspectThin, nil
 	}
 
 	inspectedErrs = append(inspectedErrs, err)
 
-	objs, err := OpenArchiveArches(p)
+	_, err = ar.NewReader(bytes.NewReader(buf))
 	if err == nil {
-		defer close(objs...)
-		return objs[0], inspectArchive, nil
-	}
-	if strings.HasPrefix(err.Error(), "archive member") {
-		return nil, inspectUnknown, err
+		return inspectArchive, nil
 	}
 
 	inspectedErrs = append(inspectedErrs, err)
-
-	return nil, inspectUnknown, errors.Join(fmt.Errorf("can't figure out the architecture type of: %s", p), errors.Join(inspectedErrs...))
+	return inspectUnknown, errors.Join(baseErr, errors.Join(inspectedErrs...))
 }
