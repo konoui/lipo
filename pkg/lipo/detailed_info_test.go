@@ -88,7 +88,7 @@ func TestLipo_DetailedInfoWithError(t *testing.T) {
 			return
 		}
 
-		tl := testlipo.NewLipoBin(t, testlipo.IgnoreErr(true))
+		tl := testlipo.NewLipoBin(t, testlipo.WithIgnoreErr(true))
 		want := "can't figure out the architecture type of: not-binary"
 		got1 := tl.DetailedInfo(t, input)
 		got2 := err.Error()

@@ -67,7 +67,7 @@ func TestLipo_ArchsWithError(t *testing.T) {
 			t.Error("should occur error")
 			return
 		}
-		tl := testlipo.NewLipoBin(t, testlipo.IgnoreErr(true))
+		tl := testlipo.NewLipoBin(t, testlipo.WithIgnoreErr(true))
 		want := "can't figure out the architecture type of: not-binary"
 		got1 := tl.Archs(t, input)
 		got2 := err.Error()

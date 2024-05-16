@@ -64,8 +64,8 @@ func WithFat64(v bool) Opt {
 	}
 }
 
-// IgnoreErr will ignore a lipo command error not to call t.Fatal()
-func IgnoreErr(v bool) Opt {
+// WithIgnoreErr will ignore a lipo command error not to call t.Fatal()
+func WithIgnoreErr(v bool) Opt {
 	return func(l *LipoBin) {
 		l.ignoreErr = v
 	}

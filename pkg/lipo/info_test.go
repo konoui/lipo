@@ -68,7 +68,7 @@ func TestLipo_Info(t *testing.T) {
 
 		want := err.Error()
 
-		tl := testlipo.NewLipoBin(t, testlipo.IgnoreErr(true))
+		tl := testlipo.NewLipoBin(t, testlipo.WithIgnoreErr(true))
 		got := tl.Info(t, in)
 
 		if !strings.HasSuffix(got, want) {
