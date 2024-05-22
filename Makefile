@@ -28,7 +28,7 @@ test-on-non-macos:
 	./test-on-non-macos.sh
 
 release-test:
-	goreleaser --snapshot --skip-publish --rm-dist
+	goreleaser --snapshot --skip-publish --clean
 
 cover:
 	go test -coverpkg=./... -coverprofile=cover.out ./...
