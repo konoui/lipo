@@ -2,12 +2,14 @@ package lipo
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
-func (l *Lipo) Info() ([]string, error) {
+func (l *Lipo) Info(stdout, stderr io.Writer) {
 	if len(l.in) == 0 {
-		return nil, errNoInput
+		fmt.Fprintln(stderr, "fatal error: "+errNoInput.Error())
+		return
 	}
 
 	fat := make([]string, 0, len(l.in))
@@ -15,7 +17,8 @@ func (l *Lipo) Info() ([]string, error) {
 	for _, bin := range l.in {
 		v, typ, err := info(bin)
 		if err != nil {
-			return nil, err
+			fmt.Fprintln(stderr, err.Error())
+			return
 		}
 		if typ == inspectFat {
 			fat = append(fat, v)
@@ -24,7 +27,8 @@ func (l *Lipo) Info() ([]string, error) {
 		}
 	}
 
-	return append(fat, thin...), nil
+	out := strings.Join(append(fat, thin...), "\n")
+	fmt.Fprintln(stdout, out)
 }
 
 func info(bin string) (string, inspectType, error) {

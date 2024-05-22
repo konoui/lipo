@@ -181,17 +181,10 @@ func Execute(stdout, stderr io.Writer, args []string) (exitCode int) {
 		fmt.Fprintln(stdout, strings.Join(arches, " "))
 		return
 	case "info":
-		v, err := l.Info()
-		if err != nil {
-			return fatal(stderr, err.Error())
-		}
-		fmt.Fprintln(stdout, strings.Join(v, "\n"))
+		l.Info(stdout, stderr)
 		return
 	case "detailed_info":
-		err := l.DetailedInfo(stdout)
-		if err != nil {
-			return fatal(stderr, err.Error())
-		}
+		l.DetailedInfo(stdout, stderr)
 		return
 	case "verify_arch":
 		ok, err := l.VerifyArch(verifyArch.Get()...)

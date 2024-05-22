@@ -159,7 +159,7 @@ func (l *LipoBin) Info(t *testing.T, bins ...string) string {
 	vvs := util.Map(vs, func(s string) string {
 		return strings.TrimSuffix(strings.TrimSuffix(s, "\n"), " ")
 	})
-	return strings.Join(vvs, "\n")
+	return strings.Join(vvs, "\n") + "\n"
 }
 
 func (l *LipoBin) Create(t *testing.T, out string, inputs ...string) {

@@ -48,10 +48,7 @@ func TestLipo_DetailedInfo(t *testing.T) {
 			l := lipo.New(lipo.WithInputs(args...))
 
 			got := &bytes.Buffer{}
-			err := l.DetailedInfo(got)
-			if err != nil {
-				t.Fatal(err)
-			}
+			l.DetailedInfo(got, got)
 
 			want := p.DetailedInfo(t, args...)
 			if want != got.String() {
@@ -63,14 +60,13 @@ func TestLipo_DetailedInfo(t *testing.T) {
 
 func TestLipo_DetailedInfoWithError(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
-		err := lipo.New(lipo.WithInputs("not-found")).DetailedInfo(io.Discard)
-		if err == nil {
-			t.Error("should occur error")
-			return
-		}
+		stderr := &bytes.Buffer{}
+		lipo.New(lipo.WithInputs("not-found")).DetailedInfo(io.Discard, stderr)
+
+		got := stderr.String()
+
 		want := "open not-found: no such file or directory"
-		got := err.Error()
-		if got != want {
+		if !strings.Contains(got, want) {
 			t.Errorf("want: %s, got: %s", want, got)
 		}
 	})
@@ -82,16 +78,14 @@ func TestLipo_DetailedInfoWithError(t *testing.T) {
 		defer f.Close()
 
 		input := f.Name()
-		err = lipo.New(lipo.WithInputs(input)).DetailedInfo(io.Discard)
-		if err == nil {
-			t.Error("should occur error")
-			return
-		}
+
+		stderr := &bytes.Buffer{}
+		lipo.New(lipo.WithInputs(input)).DetailedInfo(io.Discard, stderr)
 
 		tl := testlipo.NewLipoBin(t, testlipo.WithIgnoreErr(true))
 		want := "can't figure out the architecture type of: not-binary"
 		got1 := tl.DetailedInfo(t, input)
-		got2 := err.Error()
+		got2 := stderr.String()
 		if !strings.Contains(got1, want) {
 			t.Errorf("want: %s, got1: %s", want, got1)
 		}

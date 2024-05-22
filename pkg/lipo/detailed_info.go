@@ -1,7 +1,6 @@
 package lipo
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"strings"
@@ -27,18 +26,20 @@ architecture {{ .Arch }}
 
 var tpl = template.Must(template.New("detailed_info").Parse(detailedInfoTpl))
 
-func (l *Lipo) DetailedInfo(w io.Writer) error {
+func (l *Lipo) DetailedInfo(stdout, stderr io.Writer) {
 	if len(l.in) == 0 {
-		return errNoInput
+		fmt.Fprintln(stderr, "fatal error: "+errNoInput.Error())
+		return
 	}
 
-	var out bytes.Buffer
+	var out strings.Builder
 
 	thin := []string{}
 	for _, bin := range l.in {
 		v, isFat, err := detailedInfo(bin)
 		if err != nil {
-			return err
+			fmt.Fprintln(stderr, "fatal error: "+err.Error())
+			return
 		}
 		if isFat {
 			out.WriteString(v)
@@ -52,8 +53,7 @@ func (l *Lipo) DetailedInfo(w io.Writer) error {
 		out.WriteString(strings.Join(thin, "\n") + "\n")
 	}
 
-	_, err := w.Write(out.Bytes())
-	return err
+	fmt.Fprint(stdout, out.String())
 }
 
 type tplFatArch struct {
