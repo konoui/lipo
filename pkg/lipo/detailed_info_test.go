@@ -2,8 +2,10 @@ package lipo_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -71,7 +73,7 @@ func TestLipo_DetailedInfoWithError(t *testing.T) {
 		}
 	})
 	t.Run("not binary", func(t *testing.T) {
-		f, err := os.Create("not-binary")
+		f, err := os.Create(filepath.Join(bm.Dir, "empty-file"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,7 +85,7 @@ func TestLipo_DetailedInfoWithError(t *testing.T) {
 		lipo.New(lipo.WithInputs(input)).DetailedInfo(io.Discard, stderr)
 
 		tl := testlipo.NewLipoBin(t, testlipo.WithIgnoreErr(true))
-		want := "can't figure out the architecture type of: not-binary"
+		want := fmt.Sprintf("can't figure out the architecture type of: %s", f.Name())
 		got1 := tl.DetailedInfo(t, input)
 		got2 := stderr.String()
 		if !strings.Contains(got1, want) {

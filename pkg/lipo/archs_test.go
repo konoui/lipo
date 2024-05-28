@@ -1,6 +1,7 @@
 package lipo_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,8 +56,8 @@ func TestLipo_ArchsWithError(t *testing.T) {
 			t.Errorf("want: %s, got: %s", want, got)
 		}
 	})
-	t.Run("not binary", func(t *testing.T) {
-		f, err := os.Create("not-binary")
+	t.Run("non binary", func(t *testing.T) {
+		f, err := os.Create(filepath.Join(bm.Dir, "empty-file"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -68,11 +69,11 @@ func TestLipo_ArchsWithError(t *testing.T) {
 			return
 		}
 		tl := testlipo.NewLipoBin(t, testlipo.WithIgnoreErr(true))
-		want := "can't figure out the architecture type of: not-binary"
+		want := fmt.Sprintf("can't figure out the architecture type of: %s", f.Name())
 		got1 := tl.Archs(t, input)
 		got2 := err.Error()
 		if !strings.Contains(got1, want) {
-			t.Errorf("want: %s, got1: %s", want, got1)
+			t.Errorf("want: %s\ngot1: %s", want, got1)
 		}
 		if !strings.Contains(got2, want) {
 			t.Errorf("want: %s, got2: %s", want, got2)
