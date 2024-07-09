@@ -28,6 +28,11 @@ func TestLipo_Extract(t *testing.T) {
 			arches: []string{"arm64", "arm64e", "x86_64"},
 		},
 		{
+			name:   "-extract -extract x86_64",
+			inputs: []string{"x86_64"},
+			arches: []string{"x86_64"},
+		},
+		{
 			name:   "-extract x86_64 -segalign x86_64 2 -segalign arm64e 2",
 			inputs: []string{"x86_64", "arm64", "arm64e"},
 			arches: []string{"x86_64", "arm64e"},
