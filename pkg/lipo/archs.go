@@ -26,13 +26,15 @@ func archs(bin string) ([]string, inspectType, error) {
 		if err != nil {
 			return nil, typ, err
 		}
+		defer close(objs...)
 		return []string{objs[0].CPUString()}, inspectThin, nil
 	case inspectArchive:
-		objs, err := OpenArchiveArches(bin)
+		archive, err := OpenArchiveArches(bin)
 		if err != nil {
 			return nil, typ, err
 		}
-		return []string{objs[0].CPUString()}, typ, nil
+		defer archive.Close()
+		return []string{archive.Arches[0].CPUString()}, typ, nil
 	case inspectFat:
 		fat, err := OpenFatFile(bin)
 		if err != nil {

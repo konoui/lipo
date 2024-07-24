@@ -15,11 +15,12 @@ import (
 type FatFile struct {
 	lmacho.FatHeader
 	Arches []Arch
-	c      func() error
+	io.Closer
 }
 
-func (ff *FatFile) Close() error {
-	return ff.c()
+type Archive struct {
+	io.Closer
+	Arches []Arch
 }
 
 type Arch interface {
@@ -33,7 +34,7 @@ var _ Arch = &arch{}
 
 type arch struct {
 	lmacho.Object
-	c            func() error
+	io.Closer
 	name         string
 	updatedAlign uint32
 }
@@ -42,16 +43,18 @@ func (a *arch) Name() string {
 	return a.name
 }
 
-func (a *arch) Close() error {
-	return a.c()
-}
-
 func (a *arch) Align() uint32 {
 	return a.updatedAlign
 }
 
 func (a *arch) UpdateAlign(alignBit uint32) {
 	a.updatedAlign = alignBit
+}
+
+type nopCloser struct{}
+
+func (*nopCloser) Close() error {
+	return nil
 }
 
 func close[T io.Closer](arches ...T) {
@@ -77,13 +80,14 @@ func OpenFatFile(p string) (*FatFile, error) {
 			Object:       ff.Arches[i],
 			name:         p,
 			updatedAlign: ff.Arches[i].Align(),
+			Closer:       &nopCloser{},
 		}
 	}
 
 	return &FatFile{
 		Arches:    arches,
 		FatHeader: ff.FatHeader,
-		c:         f.Close,
+		Closer:    f,
 	}, nil
 }
 
@@ -113,9 +117,9 @@ func OpenArches(inputs []*ArchInput) ([]Arch, error) {
 
 		arches[i] = &arch{
 			Object:       obj,
-			c:            f.Close,
 			name:         input.Bin,
 			updatedAlign: obj.Align(),
+			Closer:       f,
 		}
 	}
 
@@ -129,7 +133,7 @@ func OpenArches(inputs []*ArchInput) ([]Arch, error) {
 	return arches, nil
 }
 
-func OpenArchiveArches(p string) ([]Arch, error) {
+func OpenArchiveArches(p string) (*Archive, error) {
 	ra, err := os.Open(p)
 	if err != nil {
 		return nil, err
@@ -156,7 +160,7 @@ func OpenArchiveArches(p string) ([]Arch, error) {
 			Object:       m,
 			name:         f.Name,
 			updatedAlign: m.Align(),
-			c:            ra.Close,
+			Closer:       &nopCloser{},
 		})
 	}
 
@@ -171,5 +175,8 @@ func OpenArchiveArches(p string) ([]Arch, error) {
 		}
 	}
 
-	return arches, nil
+	return &Archive{
+		Arches: arches,
+		Closer: ra,
+	}, nil
 }
