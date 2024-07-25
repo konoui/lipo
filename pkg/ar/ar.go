@@ -55,7 +55,7 @@ func NewArchive(ra io.ReaderAt) ([]*File, error) {
 
 	for {
 		f, err := r.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -180,7 +180,7 @@ func (r *Reader) readHeader() (*Header, error) {
 	// align to read body
 	if size%2 != 0 {
 		if _, err := io.CopyN(io.Discard, r.sr, 1); err != nil {
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				return nil, err
 			}
 		}

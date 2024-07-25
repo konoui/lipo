@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"debug/macho"
 	"encoding/hex"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -60,7 +61,7 @@ func TestNew(t *testing.T) {
 			got := []string{}
 			for {
 				file, err := archiver.Next()
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
