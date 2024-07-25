@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -29,6 +31,10 @@ type File struct {
 type Header struct {
 	Name     string
 	Size     int64
+	ModTime  time.Time
+	UID      int
+	GID      int
+	Mode     fs.FileMode
 	nameSize int64
 }
 
@@ -112,12 +118,35 @@ func (r *Reader) readHeader() (*Header, error) {
 	}
 
 	name := TrimTailSpace(header[0:16])
-	// mTime := header[16:18]
-	// uid, gid := header[28:34], buf[34:40]
-	// perm := header[40:48]
-	size, err := strconv.ParseInt(TrimTailSpace(header[48:58]), 10, 64)
+
+	parsedMTime, err := parseDecimal(TrimTailSpace(header[16:28]))
 	if err != nil {
-		return nil, fmt.Errorf("parse size value of name: %v", err)
+		return nil, fmt.Errorf("parse mtime: %w", err)
+	}
+	modTime := time.Unix(parsedMTime, 0)
+
+	parsedUID, err := parseDecimal(TrimTailSpace(header[28:34]))
+	if err != nil {
+		return nil, fmt.Errorf("parse uid: %w", err)
+	}
+
+	parsedGID, err := parseDecimal(TrimTailSpace(header[34:40]))
+	if err != nil {
+		return nil, fmt.Errorf("parse gid: %w", err)
+	}
+
+	uid, gid := int(parsedUID), int(parsedGID)
+
+	parsedPerm, err := parseOctal(TrimTailSpace(header[40:48]))
+	if err != nil {
+		return nil, fmt.Errorf("parse mode: %w", err)
+	}
+
+	perm := fs.FileMode(parsedPerm)
+
+	size, err := parseDecimal(TrimTailSpace(header[48:58]))
+	if err != nil {
+		return nil, fmt.Errorf("parse size value of name: %w", err)
 	}
 
 	endChars := header[58:60]
@@ -132,7 +161,7 @@ func (r *Reader) readHeader() (*Header, error) {
 	// handle BSD variant
 	if strings.HasPrefix(name, "#1/") {
 		trimmedSize := strings.TrimPrefix(name, "#1/")
-		parsedSize, err := strconv.ParseInt(trimmedSize, 10, 64)
+		parsedSize, err := parseDecimal(trimmedSize)
 		if err != nil {
 			return nil, err
 		}
@@ -165,9 +194,21 @@ func (r *Reader) readHeader() (*Header, error) {
 	h := &Header{
 		Size:     size,
 		Name:     name,
+		ModTime:  modTime,
+		GID:      gid,
+		UID:      uid,
+		Mode:     perm,
 		nameSize: nameSize,
 	}
 	return h, nil
+}
+
+func parseDecimal(s string) (int64, error) {
+	return strconv.ParseInt(s, 10, 64)
+}
+
+func parseOctal(s string) (int64, error) {
+	return strconv.ParseInt(s, 8, 64)
 }
 
 func TrimTailSpace(b []byte) string {

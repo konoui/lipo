@@ -6,6 +6,7 @@ import (
 	"debug/macho"
 	"encoding/hex"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -67,6 +68,21 @@ func TestNew(t *testing.T) {
 				}
 				if strings.HasPrefix(file.Name, ar.PrefixSymdef) {
 					continue
+				}
+
+				if tt.filename == "arm64-func1.a" && file.Name == "arm64-func1.o" {
+					if file.UID != 501 {
+						t.Errorf("uid: want %d, got %d\n", 501, file.UID)
+					}
+					if file.GID != 20 {
+						t.Errorf("gid: want %d, got %d\n", 20, file.GID)
+					}
+					if file.ModTime.Unix() != 1697716653 {
+						t.Errorf("modtime: want %v, got %v\n", 1697716653, file.ModTime.Unix())
+					}
+					if file.Mode.Perm() != fs.FileMode(0644) {
+						t.Errorf("mode: want %d, got %d\n", fs.FileMode(0644), file.Mode.Perm())
+					}
 				}
 
 				got = append(got, file.Name)
