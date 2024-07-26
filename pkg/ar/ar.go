@@ -27,7 +27,6 @@ type File struct {
 }
 
 // https://en.wikipedia.org/wiki/Ar_(Unix)
-// TODO other fields
 type Header struct {
 	Name     string
 	Size     int64
@@ -121,7 +120,7 @@ func (r *Reader) readHeader() (*Header, error) {
 
 	parsedMTime, err := parseDecimal(TrimTailSpace(header[16:28]))
 	if err != nil {
-		return nil, fmt.Errorf("parse mtime: %w", err)
+		return nil, fmt.Errorf("parse modtime: %w", err)
 	}
 	modTime := time.Unix(parsedMTime, 0)
 

@@ -150,10 +150,13 @@ func OpenArchiveArches(p string) (*Archive, error) {
 			continue
 		}
 
-		// TODO return "not allowed in an archive" error if it is fat file
 		m, err := lmacho.NewArch(f.SectionReader)
 		if err != nil {
-			return nil, &lmacho.FormatError{Err: fmt.Errorf("not macho file: %w", err)}
+			typ, _ := inspect(p)
+			if typ == inspectFat {
+				return nil, &lmacho.FormatError{Err: fmt.Errorf("archive member %s(%s) is a fat file (not allowed in an archive", ra.Name(), f.Name)}
+			}
+			return nil, &lmacho.FormatError{Err: fmt.Errorf("archive member %s(%s) is not macho file: %w", ra.Name(), f.Name, err)}
 		}
 
 		arches = append(arches, &arch{
