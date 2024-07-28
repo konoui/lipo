@@ -15,7 +15,7 @@ import (
 )
 
 func extract[T lmacho.Object](objects []T, cpuStrings ...string) []T {
-	m := util.ExistsMap(cpuStrings, func(v string) string {
+	m := util.ExistenceMap(cpuStrings, func(v string) string {
 		return v
 	})
 	return util.Filter(objects, func(o T) bool {
@@ -25,7 +25,7 @@ func extract[T lmacho.Object](objects []T, cpuStrings ...string) []T {
 }
 
 func extractFamily[T lmacho.Object](objects []T, cpuStrings ...string) []T {
-	m := util.ExistsMap(cpuStrings, func(v string) lmacho.Cpu {
+	m := util.ExistenceMap(cpuStrings, func(v string) lmacho.Cpu {
 		cpu, _, _ := lmacho.ToCpu(v)
 		return cpu
 	})
@@ -36,7 +36,7 @@ func extractFamily[T lmacho.Object](objects []T, cpuStrings ...string) []T {
 }
 
 func remove[T lmacho.Object](objects []T, cpuStrings ...string) []T {
-	m := util.ExistsMap(cpuStrings, func(v string) string {
+	m := util.ExistenceMap(cpuStrings, func(v string) string {
 		return v
 	})
 	return util.Filter(objects, func(o T) bool {

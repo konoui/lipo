@@ -119,7 +119,7 @@ func perm(f string) (fs.FileMode, error) {
 
 // diff return values `a` does not have
 func diff[T comparable](a []T, b []T) T {
-	m := util.ExistsMap(a, func(t T) T { return t })
+	m := util.ExistenceMap(a, func(t T) T { return t })
 	for _, v := range b {
 		if _, ok := m[v]; !ok {
 			return v
