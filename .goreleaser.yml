@@ -31,6 +31,16 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end -}}
     format: binary
+  - id: targz
+    name_template: >-
+      {{- .ProjectName }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end -}}
+    format: tar.gz
+
 
 checksum:
   name_template: "{{ .ProjectName }}_checksums.txt"
