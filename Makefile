@@ -4,7 +4,7 @@ SRC_DIR := ./
 BIN_NAME := lipo
 BINARY := bin/$(BIN_NAME)
 
-GOLANGCI_LINT_VERSION := v1.58.1
+GOLANGCI_LINT_VERSION := v1.62.2
 export GO111MODULE=on
 
 CMD_PACKAGE := github.com/konoui/lipo/cmd

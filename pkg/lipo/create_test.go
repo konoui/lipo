@@ -1,6 +1,7 @@
 package lipo_test
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -110,6 +111,34 @@ func TestLipo_CreateWithArch(t *testing.T) {
 	})
 }
 
+func TestLipo_CreateNonMachoFile(t *testing.T) {
+	tmp, err := os.CreateTemp(os.TempDir(), "dummy")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	input := tmp.Name()
+	_, err = tmp.WriteString("dummydummy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp.Close()
+
+	l := lipo.New(
+		lipo.WithInputs(input),
+		lipo.WithOutput("dummy"),
+	)
+
+	err = l.Create()
+	if err == nil {
+		t.Fatal("an error does not occur")
+	}
+
+	want := "can't figure out the architecture type of:"
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("want: %s, got: %s", want, err.Error())
+	}
+}
+
 func TestLipo_CreateError(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -152,7 +181,7 @@ func TestLipo_CreateError(t *testing.T) {
 				lipo.WithSegAlign(tt.segAligns...))
 			err := l.Create()
 			if err == nil {
-				t.Fatal("error not occur")
+				t.Fatal("an error does not occur")
 			}
 			if !strings.Contains(err.Error(), tt.wantErrMsg) {
 				t.Fatalf("want: %s, got: %s", tt.wantErrMsg, err.Error())

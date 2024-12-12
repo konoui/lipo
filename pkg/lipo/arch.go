@@ -106,6 +106,10 @@ func OpenArches(inputs []*ArchInput) ([]Arch, error) {
 		sr := io.NewSectionReader(f, 0, stats.Size())
 		obj, err := lmacho.NewArch(sr)
 		if err != nil {
+			fe := &lmacho.FormatError{}
+			if errors.As(err, &fe) {
+				return nil, fmt.Errorf("can't figure out the architecture type of: %s", input.Bin)
+			}
 			return nil, err
 		}
 

@@ -177,6 +177,10 @@ func NewFatFile(ra io.ReaderAt) (*FatFile, error) {
 func NewArch(sr *io.SectionReader) (*Arch, error) {
 	mf, err := macho.NewFile(sr)
 	if err != nil {
+		fe := &macho.FormatError{}
+		if errors.As(err, &fe) {
+			return nil, &FormatError{Err: err}
+		}
 		return nil, err
 	}
 
