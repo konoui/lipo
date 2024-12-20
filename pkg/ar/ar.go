@@ -6,14 +6,16 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"iter"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	headerSize   = 60
-	PrefixSymdef = "__.SYMDEF"
+	headerSize       = 60
+	PrefixSymdef     = "__.SYMDEF"
+	bsdVariantMarker = "#1/"
 )
 
 var (
@@ -37,38 +39,28 @@ type Header struct {
 	nameSize int64
 }
 
-type Reader struct {
-	sr   *io.SectionReader
-	cur  int64
-	next int64
+type Iter struct {
+	sr *io.SectionReader
 }
 
-// NewArchive is a wrapper
 func NewArchive(ra io.ReaderAt) ([]*File, error) {
-	r, err := NewReader(ra)
+	iter, err := NewIter(ra)
 	if err != nil {
 		return nil, err
 	}
 
 	files := []*File{}
-
-	for {
-		f, err := r.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
+	for file, err := range iter.Next() {
 		if err != nil {
 			return nil, err
 		}
-
-		files = append(files, f)
+		files = append(files, file)
 	}
 	return files, nil
 }
 
-func NewReader(r io.ReaderAt) (*Reader, error) {
-	mhLen := len(MagicHeader)
-	buf := make([]byte, mhLen)
+func NewIter(r io.ReaderAt) (*Iter, error) {
+	buf := make([]byte, len(MagicHeader))
 	sr := io.NewSectionReader(r, 0, 1<<63-1)
 	if _, err := io.ReadFull(sr, buf); err != nil {
 		if errors.Is(err, io.EOF) {
@@ -82,32 +74,40 @@ func NewReader(r io.ReaderAt) (*Reader, error) {
 			string(MagicHeader), string(buf), ErrInvalidFormat)
 	}
 
-	return &Reader{sr: sr, cur: int64(mhLen), next: int64(mhLen)}, nil
+	return &Iter{sr: sr}, nil
 }
 
-// Next returns a file header and a reader of original data
-func (r *Reader) Next() (*File, error) {
-	hdr, err := r.readHeader()
-	if err != nil {
-		return nil, err
+func (r *Iter) Next() iter.Seq2[*File, error] {
+	return func(yield func(*File, error) bool) {
+		cur := int64(len(MagicHeader))
+		for {
+			hdr, err := readHeader(r.sr, cur)
+			cur += headerSize
+			if errors.Is(err, io.EOF) {
+				return
+			}
+			if err != nil {
+				if !yield(nil, err) {
+					return
+				}
+			}
+
+			sr := io.NewSectionReader(r.sr,
+				cur+hdr.nameSize, hdr.Size-hdr.nameSize)
+			f := &File{SectionReader: sr, Header: *hdr}
+			cur += hdr.Size
+
+			if !yield(f, nil) {
+				return
+			}
+		}
 	}
-
-	sr := io.NewSectionReader(r.sr, r.cur+hdr.nameSize, hdr.Size-hdr.nameSize)
-
-	r.cur += hdr.Size
-	return &File{
-		SectionReader: sr,
-		Header:        *hdr,
-	}, nil
 }
 
-func (r *Reader) readHeader() (*Header, error) {
-	if _, err := r.sr.Seek(r.next, io.SeekStart); err != nil {
-		return nil, err
-	}
-
-	header := make([]byte, headerSize)
-	n, err := io.ReadFull(r.sr, header)
+func readHeader(sr *io.SectionReader, start int64) (*Header, error) {
+	var hdrBuf [headerSize]byte
+	hdrsr := io.NewSectionReader(sr, start, headerSize)
+	n, err := io.ReadFull(hdrsr, hdrBuf[:])
 	if err != nil {
 		return nil, err
 	}
@@ -116,90 +116,79 @@ func (r *Reader) readHeader() (*Header, error) {
 		return nil, fmt.Errorf("error reading header want: %d bytes, got: %d bytes", headerSize, n)
 	}
 
-	name := TrimTailSpace(header[0:16])
+	hdr, err := parseHeader(hdrBuf)
+	if err != nil {
+		return nil, err
+	}
 
-	parsedMTime, err := parseDecimal(TrimTailSpace(header[16:28]))
+	// handle BSD variant
+	if strings.HasPrefix(hdr.Name, bsdVariantMarker) {
+		trimmedSize := strings.TrimPrefix(hdr.Name, bsdVariantMarker)
+		parsedSize, err := parseDecimal(trimmedSize)
+		if err != nil {
+			return nil, err
+		}
+
+		namesr := io.NewSectionReader(sr, start+headerSize, parsedSize)
+		nameBuf := make([]byte, parsedSize)
+		if _, err := io.ReadFull(namesr, nameBuf); err != nil {
+			return nil, err
+		}
+
+		// update
+		hdr.Name = strings.TrimRight(string(nameBuf), "\x00")
+		hdr.nameSize = int64(parsedSize)
+	}
+
+	return hdr, nil
+}
+
+func parseHeader(buf [headerSize]byte) (*Header, error) {
+	name := TrimTailSpace(buf[0:16])
+
+	parsedMTime, err := parseDecimal(TrimTailSpace(buf[16:28]))
 	if err != nil {
 		return nil, fmt.Errorf("parse modtime: %w", err)
 	}
 	modTime := time.Unix(parsedMTime, 0)
 
-	parsedUID, err := parseDecimal(TrimTailSpace(header[28:34]))
+	parsedUID, err := parseDecimal(TrimTailSpace(buf[28:34]))
 	if err != nil {
 		return nil, fmt.Errorf("parse uid: %w", err)
 	}
 
-	parsedGID, err := parseDecimal(TrimTailSpace(header[34:40]))
+	parsedGID, err := parseDecimal(TrimTailSpace(buf[34:40]))
 	if err != nil {
 		return nil, fmt.Errorf("parse gid: %w", err)
 	}
 
 	uid, gid := int(parsedUID), int(parsedGID)
 
-	parsedPerm, err := parseOctal(TrimTailSpace(header[40:48]))
+	parsedPerm, err := parseOctal(TrimTailSpace(buf[40:48]))
 	if err != nil {
 		return nil, fmt.Errorf("parse mode: %w", err)
 	}
 
 	perm := fs.FileMode(parsedPerm)
 
-	size, err := parseDecimal(TrimTailSpace(header[48:58]))
+	size, err := parseDecimal(TrimTailSpace(buf[48:58]))
 	if err != nil {
 		return nil, fmt.Errorf("parse size value of name: %w", err)
 	}
 
-	endChars := header[58:60]
+	endChars := buf[58:60]
 	if want := []byte{0x60, 0x0a}; !bytes.Equal(want, endChars) {
 		return nil, fmt.Errorf("unexpected ending characters want: %x, got: %x", want, endChars)
 	}
 
-	// update
-	r.cur += headerSize
-
-	var nameSize int64 = 0
-	// handle BSD variant
-	if strings.HasPrefix(name, "#1/") {
-		trimmedSize := strings.TrimPrefix(name, "#1/")
-		parsedSize, err := parseDecimal(trimmedSize)
-		if err != nil {
-			return nil, err
-		}
-
-		nameBuf := make([]byte, parsedSize)
-		if _, err := io.ReadFull(r.sr, nameBuf); err != nil {
-			return nil, err
-		}
-
-		// update
-		name = strings.TrimRight(string(nameBuf), "\x00")
-		// update
-		nameSize = int64(parsedSize)
-	}
-
-	// align to read body
-	if size%2 != 0 {
-		if _, err := io.CopyN(io.Discard, r.sr, 1); err != nil {
-			if !errors.Is(err, io.EOF) {
-				return nil, err
-			}
-		}
-		// update
-		r.cur += 1
-	}
-
-	// next offset points to a next header
-	r.next = r.cur + size
-
-	h := &Header{
-		Size:     size,
-		Name:     name,
-		ModTime:  modTime,
-		GID:      gid,
-		UID:      uid,
-		Mode:     perm,
-		nameSize: nameSize,
-	}
-	return h, nil
+	return &Header{
+		Size:    size,
+		Name:    name,
+		ModTime: modTime,
+		GID:     gid,
+		UID:     uid,
+		Mode:    perm,
+	}, nil
 }
 
 func parseDecimal(s string) (int64, error) {

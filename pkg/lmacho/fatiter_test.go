@@ -2,7 +2,6 @@ package lmacho_test
 
 import (
 	"debug/macho"
-	"errors"
 	"io"
 	"os"
 	"testing"
@@ -14,7 +13,7 @@ import (
 
 var bm = testlipo.NewBinManager(os.TempDir())
 
-func TestNewReader(t *testing.T) {
+func TestNewFatIter(t *testing.T) {
 	tests := []struct {
 		name      string
 		setupper  func(t *testing.T) (string, int)
@@ -54,9 +53,9 @@ func TestNewReader(t *testing.T) {
 				return "./../ar/testdata/fat-arm64-amd64-func1", 2
 			},
 			validator: func(t *testing.T, ra io.ReaderAt) {
-				_, err := ar.NewReader(ra)
+				_, err := ar.NewIter(ra)
 				if err != nil {
-					t.Errorf("ar.NewReader failed: %v", err)
+					t.Errorf("ar.NewFatIter failed: %v", err)
 				}
 			},
 		},
@@ -71,19 +70,14 @@ func TestNewReader(t *testing.T) {
 			}
 			defer f.Close()
 
-			reader, err := lmacho.NewFatReader(f)
+			iter, err := lmacho.NewFatIter(f)
 			if err != nil {
-				t.Errorf("NewReader() error = %v", err)
+				t.Errorf("NewFatITer() error = %v", err)
 				return
 			}
 
 			narch := 0
-			for {
-				obj, err := reader.Next()
-				if errors.Is(err, io.EOF) {
-					break
-				}
-
+			for obj, err := range iter.Next() {
 				if err != nil {
 					t.Fatal(err)
 				}

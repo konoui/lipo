@@ -148,9 +148,9 @@ type FatFile struct {
 	Arches []*FatArch
 }
 
-// NewFatFile is wrapper for Fat Reader
+// NewFatFile is wrapper for Fat NewFatIter
 func NewFatFile(ra io.ReaderAt) (*FatFile, error) {
-	r, err := NewFatReader(ra)
+	r, err := NewFatIter(ra)
 	if err != nil {
 		return nil, err
 	}
@@ -160,8 +160,7 @@ func NewFatFile(ra io.ReaderAt) (*FatFile, error) {
 		FatHeader: r.FatHeader,
 	}
 
-	for {
-		a, err := r.Next()
+	for a, err := range r.Next() {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break

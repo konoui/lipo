@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"debug/macho"
 	"encoding/hex"
-	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -53,17 +52,13 @@ func TestNew(t *testing.T) {
 			}
 			defer f.Close()
 
-			archiver, err := ar.NewReader(f)
+			archiver, err := ar.NewIter(f)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			got := []string{}
-			for {
-				file, err := archiver.Next()
-				if errors.Is(err, io.EOF) {
-					break
-				}
+			for file, err := range archiver.Next() {
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -100,6 +95,10 @@ func TestNew(t *testing.T) {
 				if _, err := macho.NewFile(bytes.NewReader(machoBuf.Bytes())); err != nil {
 					t.Fatal(err)
 				}
+			}
+
+			if len(got) == 0 {
+				t.Error("got are empty")
 			}
 
 			if !reflect.DeepEqual(tt.want, got) {

@@ -137,7 +137,7 @@ func inspect(p string) (inspectType, error) {
 		return inspectUnknown, errors.Join(baseErr, errors.New("cannot read first 40 bytes"))
 	}
 
-	_, err = lmacho.NewFatReader(bytes.NewReader(buf))
+	_, err = lmacho.NewFatIter(bytes.NewReader(buf))
 	if err == nil {
 		return inspectFat, nil
 	}
@@ -147,7 +147,7 @@ func inspect(p string) (inspectType, error) {
 
 	inspectedErrs = append(inspectedErrs, err)
 
-	_, err = ar.NewReader(bytes.NewReader(buf))
+	_, err = ar.NewIter(bytes.NewReader(buf))
 	if err == nil {
 		return inspectArchive, nil
 	}
