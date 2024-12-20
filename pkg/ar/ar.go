@@ -81,32 +81,38 @@ func (r *Iter) Next() iter.Seq2[*File, error] {
 	return func(yield func(*File, error) bool) {
 		cur := int64(len(MagicHeader))
 		for {
-			hdr, err := readHeader(r.sr, cur)
-			cur += headerSize
+			f, err := load(r.sr, cur)
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			if err != nil {
-				if !yield(nil, err) {
-					return
-				}
-			}
 
-			sr := io.NewSectionReader(r.sr,
-				cur+hdr.nameSize, hdr.Size-hdr.nameSize)
-			f := &File{SectionReader: sr, Header: *hdr}
-			cur += hdr.Size
-
-			if !yield(f, nil) {
+			if !yield(f, err) {
 				return
 			}
+			if err != nil {
+				return
+			}
+			cur += f.Header.Size + headerSize
 		}
 	}
 }
 
-func readHeader(sr *io.SectionReader, start int64) (*Header, error) {
+func load(sr *io.SectionReader, off int64) (*File, error) {
+	hdr, err := readHeader(sr, off)
+	if err != nil {
+		return nil, err
+	}
+
+	filesr := io.NewSectionReader(sr,
+		off+headerSize+hdr.nameSize,
+		hdr.Size-hdr.nameSize)
+	f := &File{SectionReader: filesr, Header: *hdr}
+	return f, nil
+}
+
+func readHeader(sr *io.SectionReader, off int64) (*Header, error) {
 	var hdrBuf [headerSize]byte
-	hdrsr := io.NewSectionReader(sr, start, headerSize)
+	hdrsr := io.NewSectionReader(sr, off, headerSize)
 	n, err := io.ReadFull(hdrsr, hdrBuf[:])
 	if err != nil {
 		return nil, err
@@ -129,7 +135,7 @@ func readHeader(sr *io.SectionReader, start int64) (*Header, error) {
 			return nil, err
 		}
 
-		namesr := io.NewSectionReader(sr, start+headerSize, parsedSize)
+		namesr := io.NewSectionReader(sr, off+headerSize, parsedSize)
 		nameBuf := make([]byte, parsedSize)
 		if _, err := io.ReadFull(namesr, nameBuf); err != nil {
 			return nil, err

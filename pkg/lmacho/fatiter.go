@@ -63,6 +63,9 @@ func (r *FatIter) Next() iter.Seq2[*FatArch, error] {
 			if !yield(fa, err) {
 				return
 			}
+			if err != nil {
+				return
+			}
 		}
 	}
 }
