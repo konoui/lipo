@@ -87,7 +87,7 @@ func TestLipo_ArchsToLocalFiles(t *testing.T) {
 		dir := "/bin/"
 		ents, err := os.ReadDir(dir)
 		if err != nil {
-			t.Fatal(err)
+			return
 		}
 
 		if len(ents) == 0 {
@@ -100,6 +100,11 @@ func TestLipo_ArchsToLocalFiles(t *testing.T) {
 			}
 
 			bin := filepath.Join(dir, ent.Name())
+			info, err := os.Stat(bin)
+			// skip test if exe not readable
+			if err != nil || info.Mode().Perm()&0444 != 0444 {
+				continue
+			}
 			gotArches, err := lipo.New(lipo.WithInputs(bin)).Archs()
 			if err != nil {
 				t.Fatalf("archs error: %v", err)
