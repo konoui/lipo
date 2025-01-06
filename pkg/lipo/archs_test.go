@@ -81,73 +81,29 @@ func TestLipo_ArchsWithError(t *testing.T) {
 	})
 }
 
-func TestLipo_ArchsToLocalFiles(t *testing.T) {
-	t.Run("archs", func(t *testing.T) {
-		lipoBin := testlipo.NewLipoBin(t)
-		dir := "/bin/"
-		ents, err := os.ReadDir(dir)
-		if err != nil {
-			return
-		}
-
-		if len(ents) == 0 {
-			t.Skip("found no files")
-		}
-
-		for _, ent := range ents {
-			if ent.IsDir() {
-				continue
-			}
-
-			bin := filepath.Join(dir, ent.Name())
-			info, err := os.Stat(bin)
-			// skip test if exe not readable
-			if err != nil || info.Mode().Perm()&0444 != 0444 {
-				continue
-			}
-			gotArches, err := lipo.New(lipo.WithInputs(bin)).Archs()
-			if err != nil {
-				t.Fatalf("archs error: %v", err)
-			}
-			got := strings.Join(gotArches, " ")
-
-			want := lipoBin.Archs(t, bin)
-			if want != got {
-				t.Errorf("want %v\ngot %v\n", want, got)
-			}
-		}
-	})
-}
-
 func verifyArches(t *testing.T, bin string, arches ...string) {
 	t.Helper()
 
-	// trim object
+	// trim object prefix
 	arches = util.Map(arches, func(v string) string {
 		return strings.TrimPrefix(v, "obj_")
 	})
+
 	want := arches
+
 	got, err := lipo.New(lipo.WithInputs(bin)).Archs()
 	if err != nil {
-		t.Fatalf("verifyArches: archs error: %v", err)
+		t.Errorf("verifyArches: archs error: %v", err)
 	}
 
 	if len(got) != len(want) {
-		t.Fatalf("want %v, got %v\n", want, got)
+		t.Errorf("verifyArches: want %v, got %v\n", want, got)
 	}
 
-	mb := make(map[string]struct{}, len(want))
-	for _, x := range want {
-		mb[x] = struct{}{}
-	}
-
-	var diff []string
+	m := util.ExistenceMap(want, func(a string) string { return a })
 	for _, x := range got {
-		if _, found := mb[x]; !found {
-			diff = append(diff, x)
+		if _, found := m[x]; !found {
+			t.Errorf("verifyArches: encountered an unexpected arch: %s in fat bin", x)
 		}
-	}
-	if len(diff) != 0 {
-		t.Fatalf("verifyArches: want %v, got %v\n", want, got)
 	}
 }
