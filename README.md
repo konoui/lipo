@@ -7,6 +7,18 @@ This can be useful in the following scenarios:
 - When using a CI/CD platform (such as GitLab) that does not provide access to macOS or [macOS `lipo`](https://ss64.com/osx/lipo.html).
 - When using GitHub Actions and looking for a [cost-effective](https://docs.github.com/en/billing/managing-billing-for-github-actions/about-billing-for-github-actions) solution that doesn't involve using macOS.
 
+### Distro Packages
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/lipo-go.svg)](https://repology.org/project/lipo-go/versions)
+
+#### Nix
+
+You can try lipo from the nixpkgs by:
+
+```sh
+nix-shell --packages lipo-go
+```
+
 ### INSTALL
 
 #### Download [a latest release from GitHub](https://github.com/konoui/lipo/releases/latest)
