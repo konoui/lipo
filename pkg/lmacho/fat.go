@@ -189,11 +189,11 @@ func NewArch(sr *io.SectionReader) (*Arch, error) {
 
 	align := SegmentAlignBit(mf)
 	if mf.Type == macho.TypeObj {
-		alignBitMin := alignBitMin64
+		alignBitMin := AlignBitMin64
 		if mf.Magic == macho.Magic32 {
-			alignBitMin = alignBitMin32
+			alignBitMin = AlignBitMin32
 		}
-		align = GuessAlignBit(uint64(os.Getpagesize()), alignBitMin, alignBitMax)
+		align = GuessAlignBit(uint64(os.Getpagesize()), alignBitMin, AlignBitMax)
 	}
 
 	return &Arch{

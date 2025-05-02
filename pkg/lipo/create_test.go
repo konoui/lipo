@@ -97,6 +97,27 @@ func TestLipo_Create(t *testing.T) {
 	}
 }
 
+func TestLipo_CreateWithArchives(t *testing.T) {
+	t.Run("archives", func(t *testing.T) {
+		p := testlipo.NewLipoBin(t)
+		testDir := testlipo.TestDir
+		inputs := []string{"../ar/testdata/arm64-func12.a", "../ar/testdata/amd64-func12.a"}
+		got := filepath.Join(testDir, "fat-archive-got")
+		want := filepath.Join(testDir, "fat-archive-want")
+		opts := []lipo.Option{
+			lipo.WithInputs(inputs...),
+			lipo.WithOutput(got),
+		}
+		l := lipo.New(opts...)
+		if err := l.Create(); err != nil {
+			t.Fatal(err)
+		}
+
+		p.Create(t, want, inputs...)
+		diffSha256(t, want, got)
+	})
+}
+
 func TestLipo_CreateWithArch(t *testing.T) {
 	t.Run("arch-inputs", func(t *testing.T) {
 		p := testlipo.Setup(t, bm, []string{"x86_64", "arm64", "arm64e"})

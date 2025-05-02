@@ -29,7 +29,7 @@ func archs(bin string) ([]string, inspectType, error) {
 		defer close(objs...)
 		return []string{objs[0].CPUString()}, inspectThin, nil
 	case inspectArchive:
-		archive, err := OpenArchiveArches(bin)
+		archive, err := OpenArchive(bin)
 		if err != nil {
 			return nil, typ, err
 		}

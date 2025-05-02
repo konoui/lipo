@@ -1,6 +1,7 @@
 package lipo
 
 import (
+	"debug/macho"
 	"errors"
 	"fmt"
 	"io"
@@ -20,7 +21,56 @@ type FatFile struct {
 
 type Archive struct {
 	io.Closer
-	Arches []Arch
+	Arches       []Arch
+	size         uint64
+	name         string
+	updatedAlign uint32
+	sr           *io.SectionReader
+}
+
+func (a *Archive) CPUString() string {
+	return a.Arches[0].CPUString()
+}
+
+func (a *Archive) CPU() lmacho.Cpu {
+	return a.Arches[0].CPU()
+}
+
+func (a *Archive) SubCPU() lmacho.SubCpu {
+	return a.Arches[0].SubCPU()
+}
+
+// https://github.com/apple-oss-distributions/cctools/blob/cctools-1021.4/misc/lipo.c#L1474-L1496
+func (a *Archive) Align() uint32 {
+	if a.CPU()&lmacho.CPUArch64 > 0 {
+		return lmacho.AlignBitMin64
+	}
+	return lmacho.AlignBitMin32
+}
+
+func (a *Archive) Size() uint64 {
+	return a.size
+}
+
+func (a *Archive) Type() macho.Type {
+	// FIXME
+	return 9999
+}
+
+func (a *Archive) Name() string {
+	return a.name
+}
+
+func (a *Archive) UpdateAlign(alignBit uint32) {
+	a.updatedAlign = alignBit
+}
+
+func (a *Archive) Read(b []byte) (int, error) {
+	return a.sr.Read(b)
+}
+
+func (a *Archive) ReadAt(b []byte, off int64) (int, error) {
+	return a.sr.ReadAt(b, off)
 }
 
 type Arch interface {
@@ -103,45 +153,69 @@ func OpenArches(inputs []*ArchInput) ([]Arch, error) {
 			return nil, err
 		}
 
-		sr := io.NewSectionReader(f, 0, stats.Size())
-		obj, err := lmacho.NewArch(sr)
+		typ, err := inspect(input.Bin)
 		if err != nil {
-			fe := &lmacho.FormatError{}
-			if errors.As(err, &fe) {
-				return nil, fmt.Errorf("can't figure out the architecture type of: %s", input.Bin)
-			}
 			return nil, err
 		}
 
-		if input.Arch != "" {
-			if obj.CPUString() != input.Arch {
-				return nil, fmt.Errorf("specified architecture: %s for input file: %s does not match the file's architecture", input.Arch, input.Bin)
+		sr := io.NewSectionReader(f, 0, stats.Size())
+		switch typ {
+		case inspectThin:
+			obj, err := lmacho.NewArch(sr)
+			if err != nil {
+				fe := &lmacho.FormatError{}
+				if errors.As(err, &fe) {
+					fmt.Println("aaa", err)
+					return nil, fmt.Errorf("can't figure out the architecture type of: %s", input.Bin)
+				}
+				return nil, err
 			}
+			if input.Arch != "" {
+				if obj.CPUString() != input.Arch {
+					return nil, fmt.Errorf("specified architecture: %s for input file: %s does not match the file's architecture", input.Arch, input.Bin)
+				}
+			}
+			arches[i] = &arch{
+				Object:       obj,
+				name:         input.Bin,
+				updatedAlign: obj.Align(),
+				Closer:       f,
+			}
+		case inspectArchive:
+			archive, err := OpenArchive(input.Bin)
+			if err != nil {
+				return nil, err
+			}
+			arches[i] = archive
+		case inspectFat:
+		default:
+			return nil, fmt.Errorf("can't figure out the architecture type of: %s", input.Bin)
 		}
 
-		arches[i] = &arch{
-			Object:       obj,
-			name:         input.Bin,
-			updatedAlign: obj.Align(),
-			Closer:       f,
-		}
 	}
 
 	dup := util.Duplicates(arches, func(a Arch) string {
 		return a.CPUString()
 	})
 	if dup != nil {
-		return nil, fmt.Errorf("duplicate architecture: %s", *dup)
+		return nil, fmt.Errorf("the inputs have the same architectures (%s)", *dup)
 	}
 
 	return arches, nil
 }
 
-func OpenArchiveArches(p string) (*Archive, error) {
+func OpenArchive(p string) (*Archive, error) {
 	ra, err := os.Open(p)
 	if err != nil {
 		return nil, err
 	}
+
+	info, err := ra.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	size := info.Size()
 
 	files, err := ar.NewArchive(ra)
 	if err != nil {
@@ -182,8 +256,13 @@ func OpenArchiveArches(p string) (*Archive, error) {
 		}
 	}
 
+	sr := io.NewSectionReader(ra, 0, size)
+
 	return &Archive{
 		Arches: arches,
 		Closer: ra,
+		size:   uint64(size),
+		name:   p,
+		sr:     sr,
 	}, nil
 }

@@ -8,20 +8,20 @@ import (
 )
 
 const (
-	alignBitMax   uint32 = 15
-	alignBitMin32 uint32 = 2
-	alignBitMin64 uint32 = 3
+	AlignBitMax   uint32 = 15
+	AlignBitMin32 uint32 = 2
+	AlignBitMin64 uint32 = 3
 )
 
 func SegmentAlignBit(f *macho.File) uint32 {
-	cur := alignBitMax
+	cur := AlignBitMax
 	for _, l := range f.Loads {
 		if s, ok := l.(*macho.Segment); ok {
-			alignBitMin := alignBitMin64
+			alignBitMin := AlignBitMin64
 			if s.Cmd == macho.LoadCmdSegment {
-				alignBitMin = alignBitMin32
+				alignBitMin = AlignBitMin32
 			}
-			align := GuessAlignBit(s.Addr, alignBitMin, alignBitMax)
+			align := GuessAlignBit(s.Addr, alignBitMin, AlignBitMax)
 			if align < cur {
 				cur = align
 			}
@@ -114,8 +114,8 @@ func validateHideARM64Objects[T Object](objects []T, hideARM64 bool) error {
 
 func checkMaxAlignBit[T Object](arches []T) error {
 	for _, a := range arches {
-		if a.Align() > alignBitMax {
-			return fmt.Errorf("align (2^%d) too large of fat file (cputype (%d) cpusubtype (%d)) (maximum 2^%d)", a.Align(), a.CPU(), a.SubCPU()^MaskSubCpuType, alignBitMax)
+		if a.Align() > AlignBitMax {
+			return fmt.Errorf("align (2^%d) too large of fat file (cputype (%d) cpusubtype (%d)) (maximum 2^%d)", a.Align(), a.CPU(), a.SubCPU()^MaskSubCpuType, AlignBitMax)
 		}
 
 	}

@@ -89,17 +89,17 @@ var cpuNames = []cpuName{
 }
 
 // /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach/machine.h
-const cpuArch64 = 0x01000000
+const CPUArch64 = 0x01000000 /* 64 bit ABI */
 const cpuArch64_32 = 0x02000000
 
 const (
 	// skip
 	TypeX86    Cpu = 7
 	TypeI386   Cpu = TypeX86
-	TypeX86_64 Cpu = TypeI386 | cpuArch64
+	TypeX86_64 Cpu = TypeI386 | CPUArch64
 	// skip
 	TypeArm      Cpu = 12
-	TypeArm64    Cpu = TypeArm | cpuArch64
+	TypeArm64    Cpu = TypeArm | CPUArch64
 	TypeArm64_32 Cpu = TypeArm | cpuArch64_32
 	TypePpc      Cpu = 18
 	CTypePpc64   Cpu = TypePpc | 64
