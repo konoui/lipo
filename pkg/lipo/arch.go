@@ -142,8 +142,8 @@ func OpenFatFile(p string) (*FatFile, error) {
 }
 
 func OpenArches(inputs []*ArchInput) ([]Arch, error) {
-	arches := make([]Arch, len(inputs))
-	for i, input := range inputs {
+	arches := make([]Arch, 0, len(inputs))
+	for _, input := range inputs {
 		f, err := os.Open(input.Bin)
 		if err != nil {
 			return nil, err
@@ -158,9 +158,9 @@ func OpenArches(inputs []*ArchInput) ([]Arch, error) {
 			return nil, err
 		}
 
-		sr := io.NewSectionReader(f, 0, stats.Size())
 		switch typ {
 		case inspectThin:
+			sr := io.NewSectionReader(f, 0, stats.Size())
 			obj, err := lmacho.NewArch(sr)
 			if err != nil {
 				fe := &lmacho.FormatError{}
@@ -175,19 +175,24 @@ func OpenArches(inputs []*ArchInput) ([]Arch, error) {
 					return nil, fmt.Errorf("specified architecture: %s for input file: %s does not match the file's architecture", input.Arch, input.Bin)
 				}
 			}
-			arches[i] = &arch{
+			arches = append(arches, &arch{
 				Object:       obj,
 				name:         input.Bin,
 				updatedAlign: obj.Align(),
 				Closer:       f,
-			}
+			})
 		case inspectArchive:
 			archive, err := OpenArchive(input.Bin)
 			if err != nil {
 				return nil, err
 			}
-			arches[i] = archive
+			arches = append(arches, archive)
 		case inspectFat:
+			fat, err := OpenFatFile(input.Bin)
+			if err != nil {
+				return nil, err
+			}
+			arches = append(arches, fat.Arches...)
 		default:
 			return nil, fmt.Errorf("can't figure out the architecture type of: %s", input.Bin)
 		}

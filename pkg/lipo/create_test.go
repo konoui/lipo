@@ -104,6 +104,9 @@ func TestLipo_CreateWithArchives(t *testing.T) {
 		inputs := []string{"../ar/testdata/arm64-func12.a", "../ar/testdata/amd64-func12.a"}
 		got := filepath.Join(testDir, "fat-archive-got")
 		want := filepath.Join(testDir, "fat-archive-want")
+
+		p.Create(t, want, inputs...)
+
 		opts := []lipo.Option{
 			lipo.WithInputs(inputs...),
 			lipo.WithOutput(got),
@@ -113,7 +116,29 @@ func TestLipo_CreateWithArchives(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		diffSha256(t, want, got)
+	})
+}
+
+func TestLipo_CreateFromFat(t *testing.T) {
+	t.Run("from fat", func(t *testing.T) {
+		p := testlipo.Setup(t, bm, []string{"x86_64", "arm64"})
+		added := p.NewArchBin(t, "arm64e")
+		inputs := []string{p.FatBin, added}
+		got := filepath.Join(p.Dir, gotName(t))
+		want := filepath.Join(p.Dir, wantName(t))
+
 		p.Create(t, want, inputs...)
+
+		opts := []lipo.Option{
+			lipo.WithInputs(inputs...),
+			lipo.WithOutput(got),
+		}
+		l := lipo.New(opts...)
+		if err := l.Create(); err != nil {
+			t.Fatal(err)
+		}
+
 		diffSha256(t, want, got)
 	})
 }
