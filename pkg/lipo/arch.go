@@ -165,7 +165,6 @@ func OpenArches(inputs []*ArchInput) ([]Arch, error) {
 			if err != nil {
 				fe := &lmacho.FormatError{}
 				if errors.As(err, &fe) {
-					fmt.Println("aaa", err)
 					return nil, fmt.Errorf("can't figure out the architecture type of: %s", input.Bin)
 				}
 				return nil, err
