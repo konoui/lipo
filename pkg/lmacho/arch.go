@@ -3,8 +3,7 @@ package lmacho
 import (
 	"debug/macho"
 	"fmt"
-
-	"github.com/konoui/go-qsort"
+	"slices"
 )
 
 const (
@@ -71,7 +70,7 @@ func CmpArchFunc[T Object](i, j T) int {
 
 // sortArches sorts and update offset by `arches`
 func sortAndUpdateArches(arches []*FatArch, magic uint32) error {
-	qsort.Slice(arches, CmpArchFunc)
+	slices.SortFunc(arches, CmpArchFunc)
 
 	// update offset
 	offset := FatHeaderSize() + FatArchHeaderSize(magic)*uint64(len(arches))
