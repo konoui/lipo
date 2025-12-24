@@ -1,6 +1,7 @@
 package lipo_test
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -11,7 +12,11 @@ import (
 	"github.com/konoui/lipo/pkg/util"
 )
 
-var bm = testlipo.NewBinManager(testlipo.TestDir)
+func init() {
+	_ = os.MkdirAll(bm.Dir, 0740)
+}
+
+var bm = testlipo.NewBinManager(filepath.Join(testlipo.TestDir, "pkg"))
 
 func testSegAlignOpt(inputs []*lipo.SegAlignInput) testlipo.Opt {
 	ain := []string{}

@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,11 @@ import (
 	"github.com/konoui/lipo/pkg/testlipo"
 )
 
-var bm = testlipo.NewBinManager(testlipo.TestDir)
+func init() {
+	_ = os.MkdirAll(bm.Dir, 0740)
+}
+
+var bm = testlipo.NewBinManager(filepath.Join(testlipo.TestDir, "cmd"))
 
 const (
 	phOutput     = "<output_file>"

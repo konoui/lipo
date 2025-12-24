@@ -1,5 +1,5 @@
 module github.com/konoui/lipo
 
-go 1.24
+go 1.25
 
 require github.com/konoui/go-qsort v0.1.0

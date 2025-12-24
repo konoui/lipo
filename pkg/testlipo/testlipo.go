@@ -11,13 +11,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/konoui/lipo/pkg/lmacho"
 	"github.com/konoui/lipo/pkg/util"
 )
 
-var godata = `
+var (
+	godata = `
 package main
 
 import "fmt"
@@ -27,7 +29,37 @@ func main() {
 }
 `
 
-var TestDir = filepath.Join(os.TempDir(), "testlipo-output")
+	once sync.Once
+)
+
+var TestDir = func() string {
+	const dirname = "testlipo-output"
+	// Try to find git repository root
+	if gitRoot := findGitRoot(); gitRoot != "" {
+		return filepath.Join(gitRoot, dirname)
+	}
+	// Fallback to temp directory
+	return filepath.Join(os.TempDir(), dirname)
+}()
+
+func findGitRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	for range 4 {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return ""
+}
 
 type LipoBin struct {
 	Bin       string
@@ -73,6 +105,10 @@ func WithIgnoreErr(v bool) Opt {
 
 func Setup(t *testing.T, bm *BinManager, arches []string, opts ...Opt) *TestLipo {
 	t.Helper()
+
+	once.Do(func() {
+		t.Logf("test dir %s", TestDir)
+	})
 
 	if len(arches) == 0 {
 		t.Fatal("input arches are zero")
