@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
-        os: [macos-15, macos-14, macos-13]
+        os: [macos-15, macos-14, macos-15-intel, macos-26]
     runs-on: ${{ matrix.os }}
     steps:
     - name: checkout
