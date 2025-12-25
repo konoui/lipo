@@ -34,32 +34,11 @@ func main() {
 
 var TestDir = func() string {
 	const dirname = "testlipo-output"
-	// Try to find git repository root
-	if gitRoot := findGitRoot(); gitRoot != "" {
-		return filepath.Join(gitRoot, dirname)
+	if testRoot := os.Getenv("LIPO_TEST_ROOT"); testRoot != "" {
+		return filepath.Join(testRoot, dirname)
 	}
-	// Fallback to temp directory
 	return filepath.Join(os.TempDir(), dirname)
 }()
-
-func findGitRoot() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-
-	for range 4 {
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
-}
 
 type LipoBin struct {
 	Bin       string
