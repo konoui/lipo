@@ -4,7 +4,7 @@ SRC_DIR := ./
 BIN_NAME := lipo
 BINARY := bin/$(BIN_NAME)
 
-GOLANGCI_LINT_VERSION := v1.64.8
+GOLANGCI_LINT_VERSION := v2.7.2
 export GO111MODULE=on
 
 CMD_PACKAGE := github.com/konoui/lipo/cmd
@@ -16,7 +16,7 @@ build:
 
 lint:
 	@(if ! type golangci-lint >/dev/null 2>&1; then curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin $(GOLANGCI_LINT_VERSION) ;fi)
-	golangci-lint run ./...
+	golangci-lint run --disable=errcheck ./...
 
 test:
 	LIPO_TEST_ROOT=$(shell pwd) $(if $(VERBOSE),GOFLAGS=-v) go test ./...

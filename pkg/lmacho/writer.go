@@ -137,7 +137,7 @@ func makeFatHeader[T Object](objects []T, magic uint32, hideARM64 bool) FatHeade
 		}
 	}
 
-	if !(hideARM64 && found) {
+	if !hideARM64 || !found {
 		return FatHeader{
 			Magic: magic,
 			NArch: uint32(len(objects)),
